@@ -35,7 +35,7 @@ class HierarchicalLinearModeling:
         outcome_var: str,
         level1_predictors: List[str],
         level2_var: str,
-        level2_predictors: Optional[List[str]] = None
+        level2_predictors: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Fit hierarchical linear model.
@@ -79,17 +79,13 @@ class HierarchicalLinearModeling:
 
             # Null model
             null_model = MixedLM.from_formula(
-                formula_null,
-                data=df,
-                groups=df[level2_var]
+                formula_null, data=df, groups=df[level2_var]
             ).fit()
 
             # Full model with level-1 predictors
             formula_full = f"{outcome_var} ~ {' + '.join(level1_predictors)}"
             full_model = MixedLM.from_formula(
-                formula_full,
-                data=df,
-                groups=df[level2_var]
+                formula_full, data=df, groups=df[level2_var]
             ).fit()
 
             # Calculate ICC
@@ -118,30 +114,30 @@ class HierarchicalLinearModeling:
                         f"{icc*100:.1f}% of variance is between groups"
                     ),
                     "level_importance": (
-                        "Group-level factors dominate" if icc > 0.25
-                        else "Individual-level factors dominate" if icc < 0.10
-                        else "Mixed influence"
+                        "Group-level factors dominate"
+                        if icc > 0.25
+                        else (
+                            "Individual-level factors dominate"
+                            if icc < 0.10
+                            else "Mixed influence"
+                        )
                     ),
                     "clinical_implication": (
-                        "Institutional interventions needed" if icc > 0.25
+                        "Institutional interventions needed"
+                        if icc > 0.25
                         else "Individual-level interventions appropriate"
-                    )
-                }
+                    ),
+                },
             }
 
             return self.results
 
         except Exception as e:
             # Fallback to simpler variance decomposition
-            return self._simple_variance_decomposition(
-                df, outcome_var, level2_var
-            )
+            return self._simple_variance_decomposition(df, outcome_var, level2_var)
 
     def _simple_variance_decomposition(
-        self,
-        df: pd.DataFrame,
-        outcome_var: str,
-        group_var: str
+        self, df: pd.DataFrame, outcome_var: str, group_var: str
     ) -> Dict[str, Any]:
         """Simple ANOVA-based variance decomposition."""
         # Calculate group means
@@ -153,9 +149,7 @@ class HierarchicalLinearModeling:
         ss_between = np.sum(n_per_group * (group_means - grand_mean) ** 2)
 
         # Within-group variance
-        ss_within = np.sum(
-            (df[outcome_var] - df[group_var].map(group_means)) ** 2
-        )
+        ss_within = np.sum((df[outcome_var] - df[group_var].map(group_means)) ** 2)
 
         # Degrees of freedom
         n_groups = df[group_var].nunique()
@@ -168,7 +162,9 @@ class HierarchicalLinearModeling:
         ms_within = ss_within / df_within if df_within > 0 else 0
 
         # ICC calculation
-        icc = (ms_between - ms_within) / (ms_between + ms_within * (n_per_group.mean() - 1))
+        icc = (ms_between - ms_within) / (
+            ms_between + ms_within * (n_per_group.mean() - 1)
+        )
         icc = max(0, min(1, icc))  # Bound between 0 and 1
 
         return {
@@ -180,18 +176,19 @@ class HierarchicalLinearModeling:
             "interpretation": {
                 "icc_description": f"{icc*100:.1f}% of variance is between groups",
                 "level_importance": (
-                    "Group-level factors dominate" if icc > 0.25
-                    else "Individual-level factors dominate" if icc < 0.10
-                    else "Mixed influence"
-                )
-            }
+                    "Group-level factors dominate"
+                    if icc > 0.25
+                    else (
+                        "Individual-level factors dominate"
+                        if icc < 0.10
+                        else "Mixed influence"
+                    )
+                ),
+            },
         }
 
     def decompose_variance(
-        self,
-        data: pd.DataFrame,
-        outcome_var: str,
-        group_var: str
+        self, data: pd.DataFrame, outcome_var: str, group_var: str
     ) -> Dict[str, float]:
         """
         Simple variance decomposition using ANOVA.
@@ -207,10 +204,7 @@ class HierarchicalLinearModeling:
         return self._simple_variance_decomposition(data, outcome_var, group_var)
 
     def calculate_icc(
-        self,
-        data: pd.DataFrame,
-        outcome_var: str,
-        group_var: str
+        self, data: pd.DataFrame, outcome_var: str, group_var: str
     ) -> float:
         """
         Calculate Intraclass Correlation Coefficient.

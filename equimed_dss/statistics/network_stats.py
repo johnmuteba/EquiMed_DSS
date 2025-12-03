@@ -17,9 +17,7 @@ class NetworkStatistics:
     """Network analysis for metric correlation structures."""
 
     def analyze_network(
-        self,
-        adjacency_matrix: np.ndarray,
-        node_labels: List[str] = None
+        self, adjacency_matrix: np.ndarray, node_labels: List[str] = None
     ) -> Dict[str, Any]:
         """
         Comprehensive network analysis of metric correlations.
@@ -54,5 +52,5 @@ class NetworkStatistics:
             "average_clustering": float(avg_clustering),
             "n_nodes": G.number_of_nodes(),
             "n_edges": G.number_of_edges(),
-            "density": float(nx.density(G))
+            "density": float(nx.density(G)),
         }

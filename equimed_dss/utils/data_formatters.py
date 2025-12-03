@@ -5,11 +5,12 @@ This module provides utilities to load data from various sources (MySQL, CSV, TS
 and convert them to the standard EquiMed_DSS format for analysis.
 """
 
-from typing import Any, Dict, List, Optional, Union
 import json
-import pandas as pd
-import numpy as np
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+import numpy as np
+import pandas as pd
 
 
 class CorpusLoader:
@@ -24,18 +25,14 @@ class CorpusLoader:
     """
 
     def __init__(self):
-        self.standard_schema = {
-            "corpus_type": str,
-            "documents": list,
-            "metadata": dict
-        }
+        self.standard_schema = {"corpus_type": str, "documents": list, "metadata": dict}
 
     def load_from_mysql(
         self,
         config: Dict[str, Any],
         query: str,
-        text_column: str = 'content',
-        id_column: Optional[str] = None
+        text_column: str = "content",
+        id_column: Optional[str] = None,
     ) -> pd.DataFrame:
         """
         Load corpus from MySQL database.
@@ -71,9 +68,9 @@ class CorpusLoader:
     def load_from_csv(
         self,
         file_path: Union[str, Path],
-        text_column: str = 'content',
+        text_column: str = "content",
         id_column: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> pd.DataFrame:
         """
         Load corpus from CSV file.
@@ -93,9 +90,9 @@ class CorpusLoader:
     def load_from_tsv(
         self,
         file_path: Union[str, Path],
-        text_column: str = 'content',
+        text_column: str = "content",
         id_column: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> pd.DataFrame:
         """
         Load corpus from TSV file.
@@ -109,13 +106,11 @@ class CorpusLoader:
         Returns:
             DataFrame with standardized schema
         """
-        df = pd.read_csv(file_path, sep='\t', **kwargs)
+        df = pd.read_csv(file_path, sep="\t", **kwargs)
         return self._standardize_dataframe(df, text_column, id_column)
 
     def load_from_json(
-        self,
-        file_path: Union[str, Path],
-        orient: str = 'records'
+        self, file_path: Union[str, Path], orient: str = "records"
     ) -> pd.DataFrame:
         """
         Load corpus from JSON file.
@@ -127,11 +122,11 @@ class CorpusLoader:
         Returns:
             DataFrame with standardized schema
         """
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        if isinstance(data, dict) and 'documents' in data:
-            df = pd.DataFrame(data['documents'])
+        if isinstance(data, dict) and "documents" in data:
+            df = pd.DataFrame(data["documents"])
         elif isinstance(data, list):
             df = pd.DataFrame(data)
         else:
@@ -142,42 +137,48 @@ class CorpusLoader:
     def _standardize_dataframe(
         self,
         df: pd.DataFrame,
-        text_column: str = 'content',
-        id_column: Optional[str] = None
+        text_column: str = "content",
+        id_column: Optional[str] = None,
     ) -> pd.DataFrame:
         """Standardize DataFrame to EquiMed_DSS schema."""
         result = pd.DataFrame()
 
         # Handle ID column
         if id_column and id_column in df.columns:
-            result['id'] = df[id_column]
-        elif 'id' in df.columns:
-            result['id'] = df['id']
+            result["id"] = df[id_column]
+        elif "id" in df.columns:
+            result["id"] = df["id"]
         else:
-            result['id'] = [f"doc_{i}" for i in range(len(df))]
+            result["id"] = [f"doc_{i}" for i in range(len(df))]
 
         # Handle content column
         if text_column in df.columns:
-            result['content'] = df[text_column]
-        elif 'content' in df.columns:
-            result['content'] = df['content']
-        elif 'text' in df.columns:
-            result['content'] = df['text']
+            result["content"] = df[text_column]
+        elif "content" in df.columns:
+            result["content"] = df["content"]
+        elif "text" in df.columns:
+            result["content"] = df["text"]
         else:
             raise ValueError(
                 f"Could not find text column. Available columns: {list(df.columns)}"
             )
 
         # Add source/corpus type
-        if 'source' in df.columns:
-            result['source'] = df['source']
+        if "source" in df.columns:
+            result["source"] = df["source"]
         else:
-            result['source'] = 'unknown'
+            result["source"] = "unknown"
 
         # Preserve demographic columns if present
         demographic_cols = [
-            'race', 'gender', 'age_group', 'socioeconomic_status',
-            'ses', 'ethnicity', 'age', 'income'
+            "race",
+            "gender",
+            "age_group",
+            "socioeconomic_status",
+            "ses",
+            "ethnicity",
+            "age",
+            "income",
         ]
         for col in demographic_cols:
             if col in df.columns:
@@ -195,41 +196,36 @@ class CorpusLoader:
         Returns:
             Dict with validation results and suggestions
         """
-        results = {
-            'valid': True,
-            'errors': [],
-            'warnings': [],
-            'info': {}
-        }
+        results = {"valid": True, "errors": [], "warnings": [], "info": {}}
 
         # Check required columns
-        required = ['id', 'content']
+        required = ["id", "content"]
         for col in required:
             if col not in df.columns:
-                results['valid'] = False
-                results['errors'].append(f"Missing required column: {col}")
+                results["valid"] = False
+                results["errors"].append(f"Missing required column: {col}")
 
         # Check for empty content
-        if 'content' in df.columns:
-            empty_count = df['content'].isna().sum()
+        if "content" in df.columns:
+            empty_count = df["content"].isna().sum()
             if empty_count > 0:
-                results['warnings'].append(
+                results["warnings"].append(
                     f"{empty_count} documents have empty content"
                 )
 
         # Check demographics
-        demographic_cols = ['race', 'gender', 'age_group', 'ses']
+        demographic_cols = ["race", "gender", "age_group", "ses"]
         present_demographics = [col for col in demographic_cols if col in df.columns]
-        results['info']['demographics_present'] = present_demographics
+        results["info"]["demographics_present"] = present_demographics
 
         if not present_demographics:
-            results['warnings'].append(
+            results["warnings"].append(
                 "No demographic columns found. "
                 "Fairness metrics require demographic information."
             )
 
-        results['info']['total_documents'] = len(df)
-        results['info']['columns'] = list(df.columns)
+        results["info"]["total_documents"] = len(df)
+        results["info"]["columns"] = list(df.columns)
 
         return results
 
@@ -238,10 +234,10 @@ class DemographicProcessor:
     """Process and generate demographic combinations for intersectional analysis."""
 
     DEFAULT_CATEGORIES = {
-        'race': ['White', 'Black', 'Hispanic', 'Asian', 'Native American'],
-        'gender': ['Male', 'Female', 'Non-binary'],
-        'ses': ['Low', 'Middle', 'High'],
-        'age_group': ['Young Adult', 'Middle Age', 'Elderly']
+        "race": ["White", "Black", "Hispanic", "Asian", "Native American"],
+        "gender": ["Male", "Female", "Non-binary"],
+        "ses": ["Low", "Middle", "High"],
+        "age_group": ["Young Adult", "Middle Age", "Elderly"],
     }
 
     def __init__(self, custom_categories: Optional[Dict[str, List[str]]] = None):
@@ -265,18 +261,17 @@ class DemographicProcessor:
         """
         demographics = {}
 
-        for dim in ['race', 'gender', 'ses', 'age_group', 'socioeconomic_status']:
+        for dim in ["race", "gender", "ses", "age_group", "socioeconomic_status"]:
             if dim in df.columns:
                 unique_vals = df[dim].dropna().unique().tolist()
                 if unique_vals:
-                    key = 'ses' if dim == 'socioeconomic_status' else dim
+                    key = "ses" if dim == "socioeconomic_status" else dim
                     demographics[key] = sorted(unique_vals)
 
         return demographics
 
     def create_intersections(
-        self,
-        dimensions: Optional[List[str]] = None
+        self, dimensions: Optional[List[str]] = None
     ) -> List[Dict[str, str]]:
         """
         Generate all intersectional combinations.
@@ -311,9 +306,7 @@ class DemographicProcessor:
         return combinations
 
     def generate_query_combinations(
-        self,
-        template: str,
-        dimensions: Optional[List[str]] = None
+        self, template: str, dimensions: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         """
         Generate queries for all intersectional combinations.
@@ -335,23 +328,22 @@ class DemographicProcessor:
         for i, demo_dict in enumerate(intersections):
             query_text = template.format(**demo_dict)
             query_id = "_".join(
-                f"{k}_{v.lower().replace(' ', '_')}"
-                for k, v in demo_dict.items()
+                f"{k}_{v.lower().replace(' ', '_')}" for k, v in demo_dict.items()
             )
 
-            queries.append({
-                'id': query_id,
-                'query': query_text,
-                'demographics': demo_dict,
-                'index': i
-            })
+            queries.append(
+                {
+                    "id": query_id,
+                    "query": query_text,
+                    "demographics": demo_dict,
+                    "index": i,
+                }
+            )
 
         return queries
 
     def validate_demographic_categories(
-        self,
-        df: pd.DataFrame,
-        required_dimensions: Optional[List[str]] = None
+        self, df: pd.DataFrame, required_dimensions: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Validate demographic completeness in DataFrame.
@@ -364,30 +356,30 @@ class DemographicProcessor:
             Validation results dict
         """
         if required_dimensions is None:
-            required_dimensions = ['race', 'gender']
+            required_dimensions = ["race", "gender"]
 
         results = {
-            'valid': True,
-            'missing_dimensions': [],
-            'incomplete_dimensions': {},
-            'coverage': {}
+            "valid": True,
+            "missing_dimensions": [],
+            "incomplete_dimensions": {},
+            "coverage": {},
         }
 
         for dim in required_dimensions:
             if dim not in df.columns:
-                results['valid'] = False
-                results['missing_dimensions'].append(dim)
+                results["valid"] = False
+                results["missing_dimensions"].append(dim)
             else:
                 missing_count = df[dim].isna().sum()
                 total = len(df)
                 coverage = (total - missing_count) / total if total > 0 else 0
 
-                results['coverage'][dim] = coverage
+                results["coverage"][dim] = coverage
 
                 if coverage < 1.0:
-                    results['incomplete_dimensions'][dim] = {
-                        'missing_count': int(missing_count),
-                        'coverage_percent': round(coverage * 100, 2)
+                    results["incomplete_dimensions"][dim] = {
+                        "missing_count": int(missing_count),
+                        "coverage_percent": round(coverage * 100, 2),
                     }
 
         return results
@@ -396,7 +388,7 @@ class DemographicProcessor:
 def convert_to_standard_format(
     data: Union[pd.DataFrame, Dict, List],
     corpus_type: str = "unknown",
-    metadata: Optional[Dict] = None
+    metadata: Optional[Dict] = None,
 ) -> Dict[str, Any]:
     """
     Convert any data format to standard EquiMed_DSS JSON format.
@@ -410,18 +402,18 @@ def convert_to_standard_format(
         Standard format dict
     """
     if isinstance(data, pd.DataFrame):
-        documents = data.to_dict('records')
-    elif isinstance(data, dict) and 'documents' in data:
-        documents = data['documents']
+        documents = data.to_dict("records")
+    elif isinstance(data, dict) and "documents" in data:
+        documents = data["documents"]
     elif isinstance(data, list):
         documents = data
     else:
         raise ValueError(f"Unsupported data type: {type(data)}")
 
     return {
-        'corpus_type': corpus_type,
-        'documents': documents,
-        'metadata': metadata or {},
-        'total_documents': len(documents),
-        'schema_version': '1.0'
+        "corpus_type": corpus_type,
+        "documents": documents,
+        "metadata": metadata or {},
+        "total_documents": len(documents),
+        "schema_version": "1.0",
     }

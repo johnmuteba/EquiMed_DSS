@@ -43,9 +43,7 @@ class ReliabilityAnalysis:
         total_var = np.var(total_scores, ddof=1)
 
         # Cronbach's alpha
-        alpha = (n_items / (n_items - 1)) * (
-            1 - (np.sum(item_vars) / total_var)
-        )
+        alpha = (n_items / (n_items - 1)) * (1 - (np.sum(item_vars) / total_var))
 
         return {
             "alpha": float(alpha),
@@ -53,18 +51,19 @@ class ReliabilityAnalysis:
             "interpretation": {
                 "range": "[0, 1]",
                 "quality": (
-                    "Excellent" if alpha > 0.9
-                    else "Good" if alpha > 0.8
-                    else "Acceptable" if alpha > 0.7
-                    else "Questionable"
-                )
-            }
+                    "Excellent"
+                    if alpha > 0.9
+                    else (
+                        "Good"
+                        if alpha > 0.8
+                        else "Acceptable" if alpha > 0.7 else "Questionable"
+                    )
+                ),
+            },
         }
 
     def bland_altman_analysis(
-        self,
-        method1: np.ndarray,
-        method2: np.ndarray
+        self, method1: np.ndarray, method2: np.ndarray
     ) -> Dict[str, Any]:
         """
         Perform Bland-Altman analysis for method agreement.
@@ -97,9 +96,9 @@ class ReliabilityAnalysis:
             "loa_width": float(loa_upper - loa_lower),
             "interpretation": {
                 "agreement": (
-                    "Excellent agreement" if abs(mean_diff) < 0.1
-                    else "Good agreement" if abs(mean_diff) < 0.2
-                    else "Poor agreement"
+                    "Excellent agreement"
+                    if abs(mean_diff) < 0.1
+                    else "Good agreement" if abs(mean_diff) < 0.2 else "Poor agreement"
                 )
-            }
+            },
         }

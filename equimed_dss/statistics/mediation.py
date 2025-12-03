@@ -44,7 +44,7 @@ class MediationAnalysis:
         mediator_var: str,
         outcome_var: str,
         covariates: Optional[List[str]] = None,
-        alpha: float = 0.05
+        alpha: float = 0.05,
     ) -> Dict[str, Any]:
         """
         Perform complete mediation analysis.
@@ -89,7 +89,9 @@ class MediationAnalysis:
             alpha_1 = med_model.coef_[0]  # Effect of X on M
 
             # Step 2: Outcome model (Y ~ X + M + covariates)
-            X_out = df[[treatment_var, mediator_var] + (covariates if covariates else [])].values
+            X_out = df[
+                [treatment_var, mediator_var] + (covariates if covariates else [])
+            ].values
             y_out = df[outcome_var].values
 
             out_model = LinearRegression()
@@ -107,9 +109,7 @@ class MediationAnalysis:
             indirect_effect = alpha_1 * beta_2
             direct_effect = beta_1
             proportion_mediated = (
-                indirect_effect / total_effect
-                if abs(total_effect) > 1e-10
-                else 0
+                indirect_effect / total_effect if abs(total_effect) > 1e-10 else 0
             )
 
             # Bootstrap confidence intervals
@@ -119,13 +119,17 @@ class MediationAnalysis:
                 boot_data = df.iloc[boot_idx]
 
                 # Fit mediator model
-                X_med_boot = boot_data[[treatment_var] + (covariates if covariates else [])].values
+                X_med_boot = boot_data[
+                    [treatment_var] + (covariates if covariates else [])
+                ].values
                 y_med_boot = boot_data[mediator_var].values
                 med_boot = LinearRegression().fit(X_med_boot, y_med_boot)
                 a1_boot = med_boot.coef_[0]
 
                 # Fit outcome model
-                X_out_boot = boot_data[[treatment_var, mediator_var] + (covariates if covariates else [])].values
+                X_out_boot = boot_data[
+                    [treatment_var, mediator_var] + (covariates if covariates else [])
+                ].values
                 y_out_boot = boot_data[outcome_var].values
                 out_boot = LinearRegression().fit(X_out_boot, y_out_boot)
                 b2_boot = out_boot.coef_[1]
@@ -133,8 +137,8 @@ class MediationAnalysis:
                 indirect_boots.append(a1_boot * b2_boot)
 
             indirect_boots = np.array(indirect_boots)
-            ci_lower = np.percentile(indirect_boots, (alpha/2) * 100)
-            ci_upper = np.percentile(indirect_boots, (1 - alpha/2) * 100)
+            ci_lower = np.percentile(indirect_boots, (alpha / 2) * 100)
+            ci_upper = np.percentile(indirect_boots, (1 - alpha / 2) * 100)
 
             self.results = {
                 "total_effect": float(total_effect),
@@ -151,9 +155,13 @@ class MediationAnalysis:
                         direct_effect, indirect_effect, ci_lower, ci_upper
                     ),
                     "proportion_description": f"{proportion_mediated*100:.1f}% of effect is mediated",
-                    "clinical_implication": self._interpret_mediation(proportion_mediated),
-                    "significance": "Significant" if ci_lower * ci_upper > 0 else "Non-significant"
-                }
+                    "clinical_implication": self._interpret_mediation(
+                        proportion_mediated
+                    ),
+                    "significance": (
+                        "Significant" if ci_lower * ci_upper > 0 else "Non-significant"
+                    ),
+                },
             }
 
             return self.results
@@ -161,18 +169,14 @@ class MediationAnalysis:
         except Exception as e:
             return {
                 "error": str(e),
-                "message": "Mediation analysis failed. Check your data and variable names."
+                "message": "Mediation analysis failed. Check your data and variable names.",
             }
 
     def _classify_mediation(
-        self,
-        direct: float,
-        indirect: float,
-        ci_lower: float,
-        ci_upper: float
+        self, direct: float, indirect: float, ci_lower: float, ci_upper: float
     ) -> str:
         """Classify type of mediation based on effects."""
-        indirect_significant = (ci_lower * ci_upper > 0)
+        indirect_significant = ci_lower * ci_upper > 0
 
         if indirect_significant:
             if abs(direct) < 1e-10:
@@ -205,11 +209,7 @@ class MediationAnalysis:
             )
 
     def calculate_sobel_test(
-        self,
-        alpha_1: float,
-        beta_2: float,
-        se_alpha: float,
-        se_beta: float
+        self, alpha_1: float, beta_2: float, se_alpha: float, se_beta: float
     ) -> Dict[str, float]:
         """
         Calculate Sobel test for mediation significance.
@@ -227,10 +227,7 @@ class MediationAnalysis:
         indirect = alpha_1 * beta_2
 
         # Sobel standard error
-        se_sobel = np.sqrt(
-            (alpha_1 ** 2) * (se_beta ** 2) +
-            (beta_2 ** 2) * (se_alpha ** 2)
-        )
+        se_sobel = np.sqrt((alpha_1**2) * (se_beta**2) + (beta_2**2) * (se_alpha**2))
 
         # Z-statistic
         z_stat = indirect / se_sobel if se_sobel > 0 else 0
@@ -241,5 +238,5 @@ class MediationAnalysis:
             "se": float(se_sobel),
             "z_statistic": float(z_stat),
             "p_value": float(p_value),
-            "significant": p_value < 0.05
+            "significant": p_value < 0.05,
         }

@@ -40,7 +40,7 @@ class BootstrapConfidenceIntervals:
         data: np.ndarray,
         statistic: callable = np.mean,
         alpha: float = 0.05,
-        method: str = "percentile"
+        method: str = "percentile",
     ) -> Dict[str, Any]:
         """
         Calculate bootstrap confidence intervals.
@@ -94,11 +94,13 @@ class BootstrapConfidenceIntervals:
                 "verdict": (
                     "Excellent reliability (CI width < 0.05)"
                     if ci_width < 0.05
-                    else "Acceptable reliability"
-                    if ci_width < 0.1
-                    else "Poor reliability (wide CI)"
-                )
-            }
+                    else (
+                        "Acceptable reliability"
+                        if ci_width < 0.1
+                        else "Poor reliability (wide CI)"
+                    )
+                ),
+            },
         }
 
 
@@ -117,7 +119,7 @@ class StatisticalPowerAnalysis:
         effect_size: float,
         alpha: float = 0.05,
         power: float = 0.8,
-        alternative: str = "two-sided"
+        alternative: str = "two-sided",
     ) -> Dict[str, Any]:
         """
         Calculate required sample size for given effect size and power.
@@ -142,7 +144,7 @@ class StatisticalPowerAnalysis:
                 effect_size=effect_size,
                 alpha=alpha,
                 power=power,
-                alternative=alternative
+                alternative=alternative,
             )
 
             return {
@@ -155,23 +157,21 @@ class StatisticalPowerAnalysis:
                     "range": "[0, 1]",
                     "achieved_power": power,
                     "verdict": (
-                        "Adequate power (≥ 0.8)" if power >= 0.8
+                        "Adequate power (≥ 0.8)"
+                        if power >= 0.8
                         else "Insufficient power (< 0.8)"
-                    )
-                }
+                    ),
+                },
             }
         except Exception as e:
             return {
                 "error": str(e),
                 "effect_size": effect_size,
-                "recommendation": "Consider increasing sample size or effect size"
+                "recommendation": "Consider increasing sample size or effect size",
             }
 
     def calculate_power(
-        self,
-        n: int,
-        effect_size: float,
-        alpha: float = 0.05
+        self, n: int, effect_size: float, alpha: float = 0.05
     ) -> Dict[str, Any]:
         """
         Calculate statistical power for given sample size.
@@ -187,10 +187,7 @@ class StatisticalPowerAnalysis:
         from statsmodels.stats.power import tt_ind_solve_power
 
         power = tt_ind_solve_power(
-            effect_size=effect_size,
-            nobs1=n,
-            alpha=alpha,
-            alternative='two-sided'
+            effect_size=effect_size, nobs1=n, alpha=alpha, alternative="two-sided"
         )
 
         return {
@@ -198,11 +195,8 @@ class StatisticalPowerAnalysis:
             "n_per_group": n,
             "effect_size": effect_size,
             "interpretation": {
-                "verdict": (
-                    "Adequate power" if power >= 0.8
-                    else "Insufficient power"
-                )
-            }
+                "verdict": ("Adequate power" if power >= 0.8 else "Insufficient power")
+            },
         }
 
 
@@ -217,8 +211,7 @@ class BiasConcentrationIndex:
     """
 
     def calculate_bci(
-        self,
-        group_bias_proportions: Union[List[float], np.ndarray]
+        self, group_bias_proportions: Union[List[float], np.ndarray]
     ) -> Dict[str, Any]:
         """
         Calculate Bias Concentration Index.
@@ -241,7 +234,7 @@ class BiasConcentrationIndex:
             return {"bci": 0.0, "interpretation": {"verdict": "No bias detected"}}
 
         # BCI = 1 - (sum of squared proportions / squared sum of proportions)
-        numerator = np.sum(p ** 2)
+        numerator = np.sum(p**2)
         denominator = (np.sum(p)) ** 2
 
         bci = 1 - (numerator / denominator) if denominator != 0 else 0
@@ -254,16 +247,20 @@ class BiasConcentrationIndex:
             "interpretation": {
                 "range": "[0, 1]",
                 "distribution": (
-                    "Distributed bias" if bci > 0.7
-                    else "Moderate concentration" if bci > 0.3
-                    else "Concentrated bias"
+                    "Distributed bias"
+                    if bci > 0.7
+                    else "Moderate concentration" if bci > 0.3 else "Concentrated bias"
                 ),
                 "verdict": (
-                    "Acceptable (distributed)" if bci > 0.7
-                    else "Monitor (moderate concentration)" if bci > 0.3
-                    else "Intervention required (concentrated bias)"
-                )
-            }
+                    "Acceptable (distributed)"
+                    if bci > 0.7
+                    else (
+                        "Monitor (moderate concentration)"
+                        if bci > 0.3
+                        else "Intervention required (concentrated bias)"
+                    )
+                ),
+            },
         }
 
 
@@ -278,9 +275,7 @@ class MutualInformationContent:
     """
 
     def calculate_mic(
-        self,
-        demographics: np.ndarray,
-        outcomes: np.ndarray
+        self, demographics: np.ndarray, outcomes: np.ndarray
     ) -> Dict[str, Any]:
         """
         Calculate Mutual Information Content.
@@ -303,6 +298,7 @@ class MutualInformationContent:
 
         # Normalize by entropy
         from scipy.stats import entropy as scipy_entropy
+
         demo_entropy = scipy_entropy(np.bincount(demographics) / len(demographics))
         normalized_mi = mi / demo_entropy if demo_entropy > 0 else 0
 
@@ -312,16 +308,18 @@ class MutualInformationContent:
             "interpretation": {
                 "range": "[0, ∞)",
                 "leakage_level": (
-                    "Minimal" if mi < 0.1
-                    else "Moderate" if mi < 0.3
-                    else "Concerning"
+                    "Minimal" if mi < 0.1 else "Moderate" if mi < 0.3 else "Concerning"
                 ),
                 "verdict": (
-                    "Acceptable (MIC < 0.1)" if mi < 0.1
-                    else "Investigate (0.1 ≤ MIC < 0.3)" if mi < 0.3
-                    else "Intervention required (MIC ≥ 0.3)"
-                )
-            }
+                    "Acceptable (MIC < 0.1)"
+                    if mi < 0.1
+                    else (
+                        "Investigate (0.1 ≤ MIC < 0.3)"
+                        if mi < 0.3
+                        else "Intervention required (MIC ≥ 0.3)"
+                    )
+                ),
+            },
         }
 
 
@@ -336,9 +334,7 @@ class JensenShannonDivergence:
     """
 
     def calculate_jsd(
-        self,
-        distribution_p: np.ndarray,
-        distribution_q: np.ndarray
+        self, distribution_p: np.ndarray, distribution_q: np.ndarray
     ) -> Dict[str, Any]:
         """
         Calculate Jensen-Shannon Divergence between two distributions.
@@ -363,20 +359,26 @@ class JensenShannonDivergence:
 
         return {
             "jsd": float(jsd),
-            "jsd_squared": float(jsd ** 2),
+            "jsd_squared": float(jsd**2),
             "interpretation": {
                 "range": "[0, 1]",
                 "similarity": (
-                    "Highly similar" if jsd < 0.1
-                    else "Moderately similar" if jsd < 0.2
-                    else "Different distributions"
+                    "Highly similar"
+                    if jsd < 0.1
+                    else (
+                        "Moderately similar" if jsd < 0.2 else "Different distributions"
+                    )
                 ),
                 "verdict": (
-                    "Acceptable (JSD < 0.1)" if jsd < 0.1
-                    else "Monitor (0.1 ≤ JSD < 0.2)" if jsd < 0.2
-                    else "Bias concern (JSD ≥ 0.2)"
-                )
-            }
+                    "Acceptable (JSD < 0.1)"
+                    if jsd < 0.1
+                    else (
+                        "Monitor (0.1 ≤ JSD < 0.2)"
+                        if jsd < 0.2
+                        else "Bias concern (JSD ≥ 0.2)"
+                    )
+                ),
+            },
         }
 
 
@@ -391,9 +393,7 @@ class WassersteinDistance:
     """
 
     def calculate_wd(
-        self,
-        distribution_p: np.ndarray,
-        distribution_q: np.ndarray
+        self, distribution_p: np.ndarray, distribution_q: np.ndarray
     ) -> Dict[str, Any]:
         """
         Calculate Wasserstein Distance (Earth Mover's Distance).
@@ -417,16 +417,20 @@ class WassersteinDistance:
             "interpretation": {
                 "range": "[0, ∞)",
                 "difference_level": (
-                    "Minimal" if wd < 0.1
-                    else "Moderate" if wd < 0.25
-                    else "Substantial"
+                    "Minimal"
+                    if wd < 0.1
+                    else "Moderate" if wd < 0.25 else "Substantial"
                 ),
                 "verdict": (
-                    "Equitable (WD < 0.1)" if wd < 0.1
-                    else "Monitor (0.1 ≤ WD < 0.25)" if wd < 0.25
-                    else "Calibration needed (WD ≥ 0.25)"
-                )
-            }
+                    "Equitable (WD < 0.1)"
+                    if wd < 0.1
+                    else (
+                        "Monitor (0.1 ≤ WD < 0.25)"
+                        if wd < 0.25
+                        else "Calibration needed (WD ≥ 0.25)"
+                    )
+                ),
+            },
         }
 
 
@@ -440,10 +444,7 @@ class NetworkModularity:
     Reference: Manuscript Equation (17)
     """
 
-    def calculate_modularity(
-        self,
-        adjacency_matrix: np.ndarray
-    ) -> Dict[str, Any]:
+    def calculate_modularity(self, adjacency_matrix: np.ndarray) -> Dict[str, Any]:
         """
         Calculate network modularity from correlation matrix.
 
@@ -462,7 +463,8 @@ class NetworkModularity:
 
         # Detect communities using Louvain method
         try:
-            from networkx.algorithms.community import greedy_modularity_communities, modularity
+            from networkx.algorithms.community import (
+                greedy_modularity_communities, modularity)
 
             communities = list(greedy_modularity_communities(G))
             Q = modularity(G, communities)
@@ -474,22 +476,20 @@ class NetworkModularity:
                 "interpretation": {
                     "range": "[-1, 1]",
                     "clustering_strength": (
-                        "Strong" if Q > 0.3
-                        else "Moderate" if Q > 0.1
-                        else "Weak"
+                        "Strong" if Q > 0.3 else "Moderate" if Q > 0.1 else "Weak"
                     ),
                     "verdict": (
-                        "Excellent (Q > 0.3)" if Q > 0.3
-                        else "Acceptable (Q > 0.1)" if Q > 0.1
-                        else "Weak structure"
-                    )
-                }
+                        "Excellent (Q > 0.3)"
+                        if Q > 0.3
+                        else "Acceptable (Q > 0.1)" if Q > 0.1 else "Weak structure"
+                    ),
+                },
             }
         except Exception as e:
             return {
                 "modularity": 0.0,
                 "error": str(e),
-                "interpretation": {"verdict": "Unable to compute modularity"}
+                "interpretation": {"verdict": "Unable to compute modularity"},
             }
 
 
@@ -503,10 +503,7 @@ class TransparencyScore:
     Reference: Manuscript Equation (18)
     """
 
-    def calculate_ts(
-        self,
-        explanations: List[Dict[str, float]]
-    ) -> Dict[str, Any]:
+    def calculate_ts(self, explanations: List[Dict[str, float]]) -> Dict[str, Any]:
         """
         Calculate Transparency Score.
 
@@ -525,13 +522,16 @@ class TransparencyScore:
             - TS ≤ 0.5: Poor transparency (not ready for deployment)
         """
         if not explanations:
-            return {"ts": 0.0, "interpretation": {"verdict": "No explanations provided"}}
+            return {
+                "ts": 0.0,
+                "interpretation": {"verdict": "No explanations provided"},
+            }
 
         scores = []
         for exp in explanations:
-            e = exp.get('explanation_quality', 0)
-            f = exp.get('feature_importance', 0)
-            i = exp.get('interpretability', 0)
+            e = exp.get("explanation_quality", 0)
+            f = exp.get("feature_importance", 0)
+            i = exp.get("interpretability", 0)
             avg_score = (e + f + i) / 3
             scores.append(avg_score)
 
@@ -540,22 +540,30 @@ class TransparencyScore:
         return {
             "ts": float(ts),
             "n_decisions": len(explanations),
-            "mean_explanation_quality": float(np.mean([e.get('explanation_quality', 0) for e in explanations])),
-            "mean_feature_importance": float(np.mean([e.get('feature_importance', 0) for e in explanations])),
-            "mean_interpretability": float(np.mean([e.get('interpretability', 0) for e in explanations])),
+            "mean_explanation_quality": float(
+                np.mean([e.get("explanation_quality", 0) for e in explanations])
+            ),
+            "mean_feature_importance": float(
+                np.mean([e.get("feature_importance", 0) for e in explanations])
+            ),
+            "mean_interpretability": float(
+                np.mean([e.get("interpretability", 0) for e in explanations])
+            ),
             "interpretation": {
                 "range": "[0, 1]",
                 "transparency_level": (
-                    "Adequate" if ts > 0.7
-                    else "Moderate" if ts > 0.5
-                    else "Poor"
+                    "Adequate" if ts > 0.7 else "Moderate" if ts > 0.5 else "Poor"
                 ),
                 "verdict": (
-                    "Clinical deployment ready (TS > 0.7)" if ts > 0.7
-                    else "Needs improvement (0.5 < TS ≤ 0.7)" if ts > 0.5
-                    else "Not ready for deployment (TS ≤ 0.5)"
-                )
-            }
+                    "Clinical deployment ready (TS > 0.7)"
+                    if ts > 0.7
+                    else (
+                        "Needs improvement (0.5 < TS ≤ 0.7)"
+                        if ts > 0.5
+                        else "Not ready for deployment (TS ≤ 0.5)"
+                    )
+                ),
+            },
         }
 
 
@@ -573,7 +581,7 @@ class RobustnessCertificationScore:
         self,
         original_predictions: np.ndarray,
         perturbed_predictions: List[np.ndarray],
-        epsilon: float = 0.1
+        epsilon: float = 0.1,
     ) -> Dict[str, Any]:
         """
         Calculate Robustness Certification Score.
@@ -592,7 +600,10 @@ class RobustnessCertificationScore:
             - RCS ≤ 0.6: Poor robustness (requires improvement)
         """
         if not perturbed_predictions:
-            return {"rcs": 0.0, "interpretation": {"verdict": "No perturbations provided"}}
+            return {
+                "rcs": 0.0,
+                "interpretation": {"verdict": "No perturbations provided"},
+            }
 
         consistency_scores = []
         for perturbed in perturbed_predictions:
@@ -613,14 +624,16 @@ class RobustnessCertificationScore:
             "interpretation": {
                 "range": "[0, 1]",
                 "robustness_level": (
-                    "Robust" if rcs > 0.8
-                    else "Moderate" if rcs > 0.6
-                    else "Poor"
+                    "Robust" if rcs > 0.8 else "Moderate" if rcs > 0.6 else "Poor"
                 ),
                 "verdict": (
-                    "Clinical deployment ready (RCS > 0.8)" if rcs > 0.8
-                    else "Monitor closely (0.6 < RCS ≤ 0.8)" if rcs > 0.6
-                    else "Requires improvement (RCS ≤ 0.6)"
-                )
-            }
+                    "Clinical deployment ready (RCS > 0.8)"
+                    if rcs > 0.8
+                    else (
+                        "Monitor closely (0.6 < RCS ≤ 0.8)"
+                        if rcs > 0.6
+                        else "Requires improvement (RCS ≤ 0.6)"
+                    )
+                ),
+            },
         }
