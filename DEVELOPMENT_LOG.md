@@ -579,3 +579,98 @@ git push origin master
 ---
 
 **End of Development Log**
+
+---
+
+## CI/CD Issues and Resolution
+
+### Issue: Code Quality CI Failures (December 3, 2025)
+
+**Problem:** CI pipeline failed after Phase 4 commit (e10f2d6) with the following errors:
+- **Code Quality Failed:** isort detected incorrectly sorted imports in 6 files
+- **Test Failed:** black detected 7 files needing reformatting
+- **Result:** User received CI failure email notification
+
+**Files Affected:**
+- `equimed_dss/appendix/advanced_metrics.py`
+- `equimed_dss/appendix/__init__.py`
+- `equimed_dss/appendix/network.py`
+- `equimed_dss/appendix/network_analysis.py`
+- `equimed_dss/statistics/hierarchical.py`
+- `equimed_dss/statistics/mediation.py`
+- `equimed_dss/statistics/network_stats.py`
+- `equimed_dss/statistics/reliability_stats.py`
+- `equimed_dss/utils/data_formatters.py`
+- `equimed_dss/utils/__init__.py`
+- `equimed_dss/utils/visualization.py`
+
+**Root Cause:**
+New files from Phases 2-4 were not formatted with black and isort before committing, triggering CI quality checks.
+
+**Resolution (Commit 2bd4970):**
+```bash
+# Fix formatting
+python -m black equimed_dss
+python -m isort equimed_dss
+
+# Commit and push
+git add -A
+git commit -m "fix: Code formatting and import sorting for CI compliance"
+git push origin master
+```
+
+**Result:** CI should pass on next run. All code now compliant with project standards.
+
+### Stopping CI Failure Emails
+
+If you want to stop receiving CI failure emails from GitHub:
+
+1. **Via GitHub Settings:**
+   - Go to: https://github.com/johnmuteba/EquiMed_DSS/settings/notifications
+   - Under "Actions", uncheck "Send notifications for failed workflows"
+
+2. **Via Email Management:**
+   - Each CI email has an "Manage your GitHub Actions notifications" link at the bottom
+   - Click it to customize notification preferences
+
+3. **Via GitHub Profile Settings:**
+   - Go to: https://github.com/settings/notifications
+   - Under "Actions", adjust "Workflow runs" settings
+
+**Note:** It's generally recommended to keep CI notifications enabled during active development to catch issues early.
+
+---
+
+## Project Location Update
+
+**Original Location:**
+```
+C:\Users\moi17\Downloads\EquiMed_DSS
+```
+
+**New Location (December 3, 2025):**
+```
+C:\Users\moi17\Desktop\EquiMed_DSS_Library
+```
+
+**Migration:**
+- Full project copied including .git directory
+- Git remote unchanged (still points to https://github.com/johnmuteba/EquiMed_DSS)
+- All commits and history preserved
+- Working directory clean after move
+
+**Update Your Work Environment:**
+```bash
+# Navigate to new location
+cd /c/Users/moi17/Desktop/EquiMed_DSS_Library
+
+# Verify git status
+git status
+git remote -v
+
+# Continue working as normal
+```
+
+---
+
+**End of Development Log**
