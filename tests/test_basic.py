@@ -65,3 +65,20 @@ def test_package_version():
 
     # Just verify the package imports
     assert equimed_dss is not None
+
+
+def test_basic_functionality():
+    """Test that basic functionality works on Python 3.8."""
+    import numpy as np
+    from equimed_dss.appendix.advanced_metrics import BootstrapConfidenceIntervals
+
+    # Test basic functionality
+    bci = BootstrapConfidenceIntervals(n_bootstrap=10, random_state=42)
+    data = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+    result = bci.calculate_bci(data)
+
+    # Verify expected keys exist
+    assert "ci_lower" in result
+    assert "ci_upper" in result
+    assert "observed_statistic" in result
+    assert isinstance(result["observed_statistic"], float)
