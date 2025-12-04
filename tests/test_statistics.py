@@ -318,7 +318,7 @@ class TestIntegration:
         )
 
         # Mediation analysis
-        mediation = MediationAnalysis(n_bootstrap=50, random_seed=42)
+        mediation = MediationAnalysis(n_bootstrap=50, random_state=42)
         med_result = mediation.analyze_mediation(
             data=df,
             treatment_var="treatment",
