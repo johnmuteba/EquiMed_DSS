@@ -464,7 +464,9 @@ class NetworkModularity:
         # Detect communities using Louvain method
         try:
             from networkx.algorithms.community import (
-                greedy_modularity_communities, modularity)
+                greedy_modularity_communities,
+                modularity,
+            )
 
             communities = list(greedy_modularity_communities(G))
             Q = modularity(G, communities)

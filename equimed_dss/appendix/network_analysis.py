@@ -48,10 +48,8 @@ class AdvancedNetworkAnalysis:
         centrality = nx.degree_centrality(G)
         modularity = 0.0
         try:
-            from networkx.algorithms.community import \
-                greedy_modularity_communities
-            from networkx.algorithms.community import \
-                modularity as calc_modularity
+            from networkx.algorithms.community import greedy_modularity_communities
+            from networkx.algorithms.community import modularity as calc_modularity
 
             communities = greedy_modularity_communities(G)
             modularity = calc_modularity(G, communities)

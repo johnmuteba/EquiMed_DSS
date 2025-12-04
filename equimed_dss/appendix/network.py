@@ -24,7 +24,9 @@ class AdvancedNetworkMetrics:
         try:
             G = nx.from_numpy_array(adjacency_matrix)
             from networkx.algorithms.community import (
-                greedy_modularity_communities, modularity)
+                greedy_modularity_communities,
+                modularity,
+            )
 
             communities = greedy_modularity_communities(G)
             return float(modularity(G, communities))

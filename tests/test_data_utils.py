@@ -88,7 +88,7 @@ class TestCorpusLoader:
     def test_load_from_json_basic(self, temp_json_file):
         """Test basic JSON loading."""
         loader = CorpusLoader()
-        df = loader.load_from_json(temp_json_file, text_column='text')
+        df = loader.load_from_json(temp_json_file)
 
         assert isinstance(df, pd.DataFrame)
         assert "content" in df.columns
