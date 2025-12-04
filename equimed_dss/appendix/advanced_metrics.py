@@ -5,7 +5,7 @@ These 9 additional metrics complete the comprehensive 19-metric evaluation suite
 for clinical AI fairness, reliability, and governance assessment.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import networkx as nx
 import numpy as np
@@ -38,7 +38,7 @@ class BootstrapConfidenceIntervals:
     def calculate_bci(
         self,
         data: np.ndarray,
-        statistic: callable = np.mean,
+        statistic: Callable = np.mean,
         alpha: float = 0.05,
         method: str = "percentile",
     ) -> Dict[str, Any]:
