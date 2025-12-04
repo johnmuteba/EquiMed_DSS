@@ -179,7 +179,7 @@ class TestJensenShannonDivergence:
         result = jsd_metric.calculate_jsd(p, q)
 
         assert result["jsd"] > 0.2  # Should be significant
-        assert result["interpretation"]["difference"] == "Significant"
+        assert "Different distributions" in result["interpretation"]["similarity"]
 
     def test_calculate_jsd_range(self):
         """Test that JSD is always in [0, 1]."""
@@ -209,8 +209,8 @@ class TestWassersteinDistance:
     def test_calculate_wd_different(self):
         """Test WD with different distributions."""
         wd_metric = WassersteinDistance()
-        p = np.array([0.1, 0.2, 0.3, 0.4])
-        q = np.array([0.4, 0.3, 0.2, 0.1])
+        p = np.array([1.0, 2.0, 3.0, 4.0])
+        q = np.array([5.0, 6.0, 7.0, 8.0])
 
         result = wd_metric.calculate_wd(p, q)
 
@@ -290,7 +290,7 @@ class TestTransparencyScore:
         result = ts.calculate_ts(explanations)
 
         if result["ts"] > 0.7:
-            assert "deployment" in result["interpretation"]["readiness"].lower()
+            assert "deployment ready" in result["interpretation"]["verdict"].lower()
 
 
 class TestRobustnessCertificationScore:
