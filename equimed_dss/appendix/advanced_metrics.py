@@ -157,7 +157,7 @@ class StatisticalPowerAnalysis:
                     "range": "[0, 1]",
                     "achieved_power": power,
                     "verdict": (
-                        "Adequate power (≥ 0.8)"
+                        "Adequate power (>= 0.8)"
                         if power >= 0.8
                         else "Insufficient power (< 0.8)"
                     ),
@@ -289,8 +289,8 @@ class MutualInformationContent:
 
         Interpretation:
             - MIC < 0.1: Minimal information leakage (good)
-            - 0.1 ≤ MIC < 0.3: Moderate leakage (investigate)
-            - MIC ≥ 0.3: Concerning leakage (demographics influence diagnoses)
+            - 0.1 <= MIC < 0.3: Moderate leakage (investigate)
+            - MIC >= 0.3: Concerning leakage (demographics influence diagnoses)
         """
         from sklearn.metrics import mutual_info_score
 
@@ -306,7 +306,7 @@ class MutualInformationContent:
             "mic": float(mi),
             "normalized_mic": float(normalized_mi),
             "interpretation": {
-                "range": "[0, ∞)",
+                "range": "[0, inf)",
                 "leakage_level": (
                     "Minimal" if mi < 0.1 else "Moderate" if mi < 0.3 else "Concerning"
                 ),
@@ -314,9 +314,9 @@ class MutualInformationContent:
                     "Acceptable (MIC < 0.1)"
                     if mi < 0.1
                     else (
-                        "Investigate (0.1 ≤ MIC < 0.3)"
+                        "Investigate (0.1 <= MIC < 0.3)"
                         if mi < 0.3
-                        else "Intervention required (MIC ≥ 0.3)"
+                        else "Intervention required (MIC >= 0.3)"
                     )
                 ),
             },
@@ -348,8 +348,8 @@ class JensenShannonDivergence:
 
         Interpretation:
             - JSD < 0.1: Minimal distributional difference (good)
-            - 0.1 ≤ JSD < 0.2: Moderate difference (monitor)
-            - JSD ≥ 0.2: Significant difference (bias concern)
+            - 0.1 <= JSD < 0.2: Moderate difference (monitor)
+            - JSD >= 0.2: Significant difference (bias concern)
         """
         # Normalize to probability distributions
         p = np.array(distribution_p) / np.sum(distribution_p)
@@ -373,9 +373,9 @@ class JensenShannonDivergence:
                     "Acceptable (JSD < 0.1)"
                     if jsd < 0.1
                     else (
-                        "Monitor (0.1 ≤ JSD < 0.2)"
+                        "Monitor (0.1 <= JSD < 0.2)"
                         if jsd < 0.2
-                        else "Bias concern (JSD ≥ 0.2)"
+                        else "Bias concern (JSD >= 0.2)"
                     )
                 ),
             },
@@ -407,15 +407,15 @@ class WassersteinDistance:
 
         Interpretation:
             - WD < 0.1: Minimal difference (equitable)
-            - 0.1 ≤ WD < 0.25: Moderate difference (monitor)
-            - WD ≥ 0.25: Substantial difference (calibration needed)
+            - 0.1 <= WD < 0.25: Moderate difference (monitor)
+            - WD >= 0.25: Substantial difference (calibration needed)
         """
         wd = wasserstein_distance(distribution_p, distribution_q)
 
         return {
             "wasserstein_distance": float(wd),
             "interpretation": {
-                "range": "[0, ∞)",
+                "range": "[0, inf)",
                 "difference_level": (
                     "Minimal"
                     if wd < 0.1
@@ -425,9 +425,9 @@ class WassersteinDistance:
                     "Equitable (WD < 0.1)"
                     if wd < 0.1
                     else (
-                        "Monitor (0.1 ≤ WD < 0.25)"
+                        "Monitor (0.1 <= WD < 0.25)"
                         if wd < 0.25
-                        else "Calibration needed (WD ≥ 0.25)"
+                        else "Calibration needed (WD >= 0.25)"
                     )
                 ),
             },
@@ -456,8 +456,8 @@ class NetworkModularity:
 
         Interpretation:
             - Modularity > 0.3: Strong clustering (coherent metric relationships)
-            - 0.1 < Modularity ≤ 0.3: Moderate clustering
-            - Modularity ≤ 0.1: Weak clustering
+            - 0.1 < Modularity <= 0.3: Moderate clustering
+            - Modularity <= 0.1: Weak clustering
         """
         G = nx.from_numpy_array(np.abs(adjacency_matrix))
 
@@ -520,8 +520,8 @@ class TransparencyScore:
 
         Interpretation:
             - TS > 0.7: Adequate transparency for clinical use
-            - 0.5 < TS ≤ 0.7: Moderate transparency (improvement needed)
-            - TS ≤ 0.5: Poor transparency (not ready for deployment)
+            - 0.5 < TS <= 0.7: Moderate transparency (improvement needed)
+            - TS <= 0.5: Poor transparency (not ready for deployment)
         """
         if not explanations:
             return {
@@ -560,9 +560,9 @@ class TransparencyScore:
                     "Clinical deployment ready (TS > 0.7)"
                     if ts > 0.7
                     else (
-                        "Needs improvement (0.5 < TS ≤ 0.7)"
+                        "Needs improvement (0.5 < TS <= 0.7)"
                         if ts > 0.5
-                        else "Not ready for deployment (TS ≤ 0.5)"
+                        else "Not ready for deployment (TS <= 0.5)"
                     )
                 ),
             },
@@ -598,8 +598,8 @@ class RobustnessCertificationScore:
 
         Interpretation:
             - RCS > 0.8: Robust performance (clinical deployment ready)
-            - 0.6 < RCS ≤ 0.8: Moderate robustness (monitor closely)
-            - RCS ≤ 0.6: Poor robustness (requires improvement)
+            - 0.6 < RCS <= 0.8: Moderate robustness (monitor closely)
+            - RCS <= 0.6: Poor robustness (requires improvement)
         """
         if not perturbed_predictions:
             return {
@@ -632,9 +632,9 @@ class RobustnessCertificationScore:
                     "Clinical deployment ready (RCS > 0.8)"
                     if rcs > 0.8
                     else (
-                        "Monitor closely (0.6 < RCS ≤ 0.8)"
+                        "Monitor closely (0.6 < RCS <= 0.8)"
                         if rcs > 0.6
-                        else "Requires improvement (RCS ≤ 0.6)"
+                        else "Requires improvement (RCS <= 0.6)"
                     )
                 ),
             },
