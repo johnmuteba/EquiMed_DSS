@@ -548,10 +548,10 @@ mypy equimed_dss
 If you use EquiMed_DSS in your research, please cite:
 
 ```bibtex
-@software{muteba_equimed_dss_2024,
+@software{muteba_equimed_dss_2025,
   title={EquiMed_DSS: A Comprehensive Library for Clinical AI Fairness Assessment},
-  author={Muteba, John},
-  year={2024},
+  author={Muteba Mwamba, John},
+  year={2025},
   url={https://github.com/johnmuteba/EquiMed_DSS},
   note={19 novel metrics for reliability, equity, and governance in clinical AI}
 }
