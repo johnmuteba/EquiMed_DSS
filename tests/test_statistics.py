@@ -91,7 +91,7 @@ class TestMediationAnalysis:
 
     def test_analyze_mediation_basic(self, sample_mediation_data):
         """Test basic mediation analysis."""
-        mediation = MediationAnalysis(n_bootstrap=100, random_seed=42)
+        mediation = MediationAnalysis(n_bootstrap=100, random_state=42)
 
         result = mediation.analyze_mediation(
             data=sample_mediation_data,
@@ -112,7 +112,7 @@ class TestMediationAnalysis:
 
     def test_sobel_test(self, sample_mediation_data):
         """Test Sobel test for indirect effect."""
-        mediation = MediationAnalysis(n_bootstrap=100, random_seed=42)
+        mediation = MediationAnalysis(n_bootstrap=100, random_state=42)
 
         result = mediation.analyze_mediation(
             data=sample_mediation_data,
@@ -132,12 +132,12 @@ class TestNetworkStatistics:
     @pytest.fixture
     def sample_network(self):
         """Create sample network adjacency matrix."""
-        # Correlation-like matrix
+        # Correlation-like matrix (zero diagonal to avoid self-loops)
         matrix = np.array([
-            [1.0, 0.8, 0.3, 0.1],
-            [0.8, 1.0, 0.4, 0.2],
-            [0.3, 0.4, 1.0, 0.7],
-            [0.1, 0.2, 0.7, 1.0]
+            [0.0, 0.8, 0.3, 0.1],
+            [0.8, 0.0, 0.4, 0.2],
+            [0.3, 0.4, 0.0, 0.7],
+            [0.1, 0.2, 0.7, 0.0]
         ])
         labels = ["Metric1", "Metric2", "Metric3", "Metric4"]
         return matrix, labels
@@ -174,9 +174,13 @@ class TestNetworkStatistics:
             node_labels=labels
         )
 
-        # Centrality values should be between 0 and 1
-        for centrality_dict in [result["degree_centrality"],
-                                result["betweenness_centrality"],
+        # Degree centrality for weighted graphs can exceed 1 (sum of weights)
+        # Only check it's non-negative
+        for value in result["degree_centrality"].values():
+            assert value >= 0
+
+        # Betweenness and closeness centrality should be between 0 and 1
+        for centrality_dict in [result["betweenness_centrality"],
                                 result["closeness_centrality"]]:
             for value in centrality_dict.values():
                 assert 0 <= value <= 1
