@@ -384,6 +384,115 @@ class DemographicProcessor:
 
         return results
 
+    def filter_dataframe_by_demographics(
+        self, df: pd.DataFrame, filters: Dict[str, Union[str, List[str]]]
+    ) -> pd.DataFrame:
+        """
+        Filter DataFrame by demographic criteria.
+
+        Args:
+            df: DataFrame to filter
+            filters: Dict mapping demographic columns to values to filter by.
+                     Values can be single strings or lists of strings.
+
+        Returns:
+            Filtered DataFrame
+
+        Example:
+            >>> processor = DemographicProcessor()
+            >>> filtered = processor.filter_dataframe_by_demographics(
+            ...     df, {"race": "White", "gender": ["Male", "Female"]}
+            ... )
+        """
+        result = df.copy()
+
+        for column, values in filters.items():
+            if column not in result.columns:
+                continue
+
+            if isinstance(values, str):
+                result = result[result[column] == values]
+            elif isinstance(values, list):
+                result = result[result[column].isin(values)]
+
+        return result.reset_index(drop=True)
+
+    def get_subgroup_counts(
+        self, df: pd.DataFrame, demographic_column: str
+    ) -> Dict[str, int]:
+        """
+        Get counts for each subgroup in a demographic column.
+
+        Args:
+            df: DataFrame with demographic data
+            demographic_column: Name of the demographic column
+
+        Returns:
+            Dict mapping subgroup names to counts
+
+        Example:
+            >>> processor = DemographicProcessor()
+            >>> counts = processor.get_subgroup_counts(df, "race")
+            >>> print(counts)
+            {'White': 150, 'Black': 120, 'Hispanic': 80}
+        """
+        if demographic_column not in df.columns:
+            return {}
+
+        counts = df[demographic_column].value_counts().to_dict()
+        return {str(k): int(v) for k, v in counts.items()}
+
+    def validate_demographics(
+        self, df: pd.DataFrame, strict: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Validate demographic data in DataFrame.
+
+        Args:
+            df: DataFrame to validate
+            strict: If True, requires all standard demographic columns
+
+        Returns:
+            Dict with validation results including:
+                - valid: Whether validation passed
+                - present_columns: List of demographic columns found
+                - missing_columns: List of expected but missing columns
+                - null_counts: Dict of null counts per column
+                - unique_values: Dict of unique values per column
+
+        Example:
+            >>> processor = DemographicProcessor()
+            >>> result = processor.validate_demographics(df)
+            >>> print(result['valid'])
+            True
+        """
+        standard_cols = ["race", "gender", "age_group", "ses"]
+        present_cols = [col for col in standard_cols if col in df.columns]
+        missing_cols = [col for col in standard_cols if col not in df.columns]
+
+        null_counts = {}
+        unique_values = {}
+
+        for col in present_cols:
+            null_counts[col] = int(df[col].isna().sum())
+            unique_values[col] = df[col].dropna().unique().tolist()
+
+        # Validation passes if at least one demographic column exists
+        # In strict mode, all standard columns must be present
+        if strict:
+            is_valid = len(missing_cols) == 0
+        else:
+            is_valid = len(present_cols) > 0
+
+        return {
+            "valid": is_valid,
+            "present_columns": present_cols,
+            "missing_columns": missing_cols,
+            "null_counts": null_counts,
+            "unique_values": unique_values,
+            "total_rows": len(df),
+        }
+
 
 def convert_to_standard_format(
     data: Union[pd.DataFrame, Dict, List],

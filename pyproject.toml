@@ -3,11 +3,48 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "EquiMed_DSS"
-version = "0.1.0"
-description = "A Python library for 19 novel clinical fairness metrics."
-authors = [{name = "EquiMed Team"}]
+name = "equimed-dss"
+dynamic = ["version"]
+description = "A comprehensive Python library for clinical AI fairness assessment with 19 novel metrics"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "John Muteba", email = "johnmuteba@example.com"}
+]
+maintainers = [
+    {name = "John Muteba", email = "johnmuteba@example.com"}
+]
 requires-python = ">=3.8"
+keywords = [
+    "clinical-ai",
+    "fairness",
+    "equity",
+    "healthcare",
+    "machine-learning",
+    "bias-detection",
+    "medical-ai",
+    "ethics",
+    "governance",
+    "metrics",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Healthcare Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
 dependencies = [
     "numpy>=1.20.0,<2.0.0",
     "pandas>=1.3.0,<3.0.0",
@@ -16,8 +53,40 @@ dependencies = [
     "matplotlib>=3.4.0,<4.0.0",
     "seaborn>=0.11.0,<1.0.0",
     "networkx>=2.6.0,<4.0.0",
-    "statsmodels>=0.13.0,<1.0.0"
+    "statsmodels>=0.13.0,<1.0.0",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pylint>=2.17.0",
+    "bandit>=1.7.0",
+    "twine>=4.0.0",
+    "build>=0.10.0",
+]
+mysql = [
+    "mysql-connector-python>=8.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/johnmuteba/EquiMed_DSS"
+Documentation = "https://github.com/johnmuteba/EquiMed_DSS#readme"
+Repository = "https://github.com/johnmuteba/EquiMed_DSS"
+Changelog = "https://github.com/johnmuteba/EquiMed_DSS/blob/master/CHANGELOG.md"
+"Bug Tracker" = "https://github.com/johnmuteba/EquiMed_DSS/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "equimed_dss.__version__.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["equimed_dss*"]
+exclude = ["tests*", "examples*", "docs*"]
 
 [tool.isort]
 profile = "black"
@@ -27,7 +96,49 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 line_length = 88
+known_first_party = ["equimed_dss"]
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["equimed_dss"]
+branch = true
+omit = ["tests/*", "examples/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
