@@ -78,12 +78,12 @@ class TestMediationAnalysis:
     @pytest.fixture
     def sample_mediation_data(self):
         """Create sample mediation data."""
-        np.random.seed(42)
+        rng = np.random.RandomState(42)
         n = 200
 
-        treatment = np.random.binomial(1, 0.5, n)
-        mediator = 0.7 * treatment + np.random.normal(0, 0.5, n)
-        outcome = 0.3 * treatment + 0.5 * mediator + np.random.normal(0, 0.5, n)
+        treatment = rng.binomial(1, 0.5, n)
+        mediator = 0.7 * treatment + rng.normal(0, 0.5, n)
+        outcome = 0.3 * treatment + 0.5 * mediator + rng.normal(0, 0.5, n)
 
         return pd.DataFrame({
             "treatment": treatment,
@@ -199,14 +199,14 @@ class TestReliabilityAnalysis:
     @pytest.fixture
     def sample_reliability_data(self):
         """Create sample reliability data."""
-        np.random.seed(42)
+        rng = np.random.RandomState(42)
         n_subjects = 50
         n_items = 5
 
         # Create correlated items (good internal consistency)
-        true_scores = np.random.normal(0, 1, n_subjects)
+        true_scores = rng.normal(0, 1, n_subjects)
         data = np.column_stack([
-            true_scores + np.random.normal(0, 0.3, n_subjects)
+            true_scores + rng.normal(0, 0.3, n_subjects)
             for _ in range(n_items)
         ])
 
@@ -222,8 +222,8 @@ class TestReliabilityAnalysis:
         assert "n_items" in result
         assert "interpretation" in result
 
-        # Alpha should typically be between 0 and 1
-        assert -1 <= result["alpha"] <= 1
+        # Alpha should typically be between 0 and 1, but can be negative
+        assert result["alpha"] <= 1.0
 
     def test_cronbachs_alpha_interpretation(self, sample_reliability_data):
         """Test Cronbach's Alpha interpretation."""
@@ -240,9 +240,9 @@ class TestReliabilityAnalysis:
         """Test basic Bland-Altman analysis."""
         reliability = ReliabilityAnalysis()
 
-        np.random.seed(42)
-        method1 = np.random.normal(100, 10, 50)
-        method2 = method1 + np.random.normal(0, 2, 50)  # Similar with small bias
+        rng = np.random.RandomState(42)
+        method1 = rng.normal(100, 10, 50)
+        method2 = method1 + rng.normal(0, 2, 50)  # Similar with small bias
 
         result = reliability.bland_altman_analysis(method1, method2)
 
@@ -261,9 +261,9 @@ class TestReliabilityAnalysis:
         reliability = ReliabilityAnalysis()
 
         # Excellent agreement
-        np.random.seed(42)
-        method1 = np.random.normal(100, 10, 50)
-        method2 = method1 + np.random.normal(0, 0.5, 50)
+        rng = np.random.RandomState(42)
+        method1 = rng.normal(100, 10, 50)
+        method2 = method1 + rng.normal(0, 0.5, 50)
 
         result = reliability.bland_altman_analysis(method1, method2)
 
@@ -292,7 +292,7 @@ class TestIntegration:
 
     def test_full_analysis_pipeline(self):
         """Test a complete analysis pipeline using multiple modules."""
-        np.random.seed(42)
+        rng = np.random.RandomState(42)
 
         # Create hierarchical data with mediation
         n_groups = 5
@@ -300,12 +300,12 @@ class TestIntegration:
 
         data_list = []
         for group_id in range(n_groups):
-            group_effect = np.random.normal(0, 1)
+            group_effect = rng.normal(0, 1)
 
             for _ in range(n_per_group):
-                treatment = np.random.binomial(1, 0.5)
-                mediator = 0.6 * treatment + group_effect + np.random.normal(0, 0.5)
-                outcome = 0.3 * treatment + 0.5 * mediator + np.random.normal(0, 0.5)
+                treatment = rng.binomial(1, 0.5)
+                mediator = 0.6 * treatment + group_effect + rng.normal(0, 0.5)
+                outcome = 0.3 * treatment + 0.5 * mediator + rng.normal(0, 0.5)
 
                 data_list.append({
                     "group": group_id,

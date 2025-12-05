@@ -146,9 +146,9 @@ class TestMutualInformationContent:
     def test_calculate_mic_independent(self):
         """Test MIC with independent variables (should be near 0)."""
         mic = MutualInformationContent()
-        np.random.seed(42)
-        demographics = np.random.randint(0, 3, 100)
-        outcomes = np.random.randint(0, 2, 100)
+        rng = np.random.RandomState(42)
+        demographics = rng.randint(0, 3, 100)
+        outcomes = rng.randint(0, 2, 100)
 
         result = mic.calculate_mic(demographics, outcomes)
 
@@ -256,8 +256,8 @@ class TestNetworkModularity:
     def test_calculate_modularity_range(self):
         """Test that modularity is in valid range [-0.5, 1]."""
         nm = NetworkModularity()
-        np.random.seed(42)  # Add seed for reproducibility across Python versions
-        adjacency = np.random.rand(10, 10)
+        rng = np.random.RandomState(42)
+        adjacency = rng.rand(10, 10)
         adjacency = (adjacency + adjacency.T) / 2  # Make symmetric
         np.fill_diagonal(adjacency, 0)  # Remove self-loops
 
