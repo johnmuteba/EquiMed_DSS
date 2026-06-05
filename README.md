@@ -46,6 +46,7 @@
 - [Statistical Analyses](#statistical-analyses)
 - [Visualizations](#visualizations)
 - [Examples](#examples)
+- [Vignette](docs/VIGNETTE.md)
 - [API Reference](#api-reference)
 - [Contributing](#contributing)
 - [Citation](#citation)
@@ -75,7 +76,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e .
 ```
 
-### Install via pip (Coming Soon)
+### Install via pip
 
 ```bash
 pip install equimed-dss
@@ -453,6 +454,8 @@ python examples/example_dataset.py           # Sample data generation
 python examples/example_advanced_network.py  # Network analysis
 ```
 
+For an end-to-end tutorial with data loading, metric calculations, statistical analyses, and visualization examples, see the [EquiMed-DSS vignette](docs/VIGNETTE.md).
+
 ---
 
 ## Project Structure
@@ -485,7 +488,7 @@ EquiMed_DSS/
 │       ├── visualization.py   # Publication-ready figures
 │       └── sample_data.py     # Sample data generation
 ├── examples/                 # Usage examples
-├── tests/                    # Test suite (61 tests)
+├── tests/                    # Test suite (68 tests)
 ├── docs/                     # Documentation
 └── setup.py
 ```

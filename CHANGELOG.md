@@ -65,9 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Example scripts for each domain
 
 ### Technical
-- Python 3.8-3.12 support
+- Python 3.8-3.13 support
 - Full CI/CD pipeline with GitHub Actions
-- 61 passing tests with 90%+ coverage
+- 68 passing tests with 90%+ coverage
 - Black, isort, flake8, mypy, bandit code quality checks
 - Security scanning with bandit and safety
 

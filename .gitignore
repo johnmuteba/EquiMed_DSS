@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+.DS_Store
 
 # Distribution / packaging
 .Python
@@ -26,6 +27,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 install_log.txt
 install_log_2.txt
+test_output.txt
 
 # Unit test / coverage reports
 htmlcov/

@@ -1,0 +1,9 @@
+recursive-include docs *.md
+
+prune EquiMed_DSS.egg-info
+prune build
+prune dist
+
+global-exclude .DS_Store
+global-exclude *.py[cod]
+global-exclude __pycache__
