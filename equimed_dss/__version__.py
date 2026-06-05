@@ -4,7 +4,7 @@ __version__ = "1.0.0"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Package metadata
-__title__ = "equimed-dss"
+__title__ = "equimedss"
 __description__ = "A comprehensive Python library for clinical AI fairness assessment"
 __author__ = "John Muteba"
 __license__ = "MIT"

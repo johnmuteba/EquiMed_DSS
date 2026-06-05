@@ -79,7 +79,7 @@ pip install -e .
 ### Install via pip
 
 ```bash
-pip install equimed-dss
+pip install equimedss
 ```
 
 ### Dependencies
