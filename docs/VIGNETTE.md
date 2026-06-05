@@ -9,7 +9,7 @@ The examples use synthetic data so they can be run without access to private cli
 Install the package from PyPI:
 
 ```bash
-pip install equimedss
+pip install equimed_dss
 ```
 
 For development from a cloned repository:
