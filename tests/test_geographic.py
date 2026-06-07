@@ -39,3 +39,39 @@ class TestBurdenEvidenceMismatch:
         bemi = BurdenEvidenceMismatch()
         with pytest.raises(ValueError):
             bemi.calculate_bemi({"AFRO": 0.0, "EURO": 0.0}, burden={"AFRO": 1.0, "EURO": 0.0})
+
+
+from equimed_dss.geographic import GeographicConcentration
+
+
+class TestGeographicConcentration:
+    def test_uniform_low_gini_high_entropy(self):
+        gcc = GeographicConcentration()
+        res = gcc.calculate_gcc({f"R{i}": 1.0 for i in range(6)})
+        assert res["gini"] == pytest.approx(0.0, abs=1e-9)
+        assert res["normalized_entropy"] == pytest.approx(1.0, abs=1e-9)
+        assert res["concentration"] == pytest.approx(0.0, abs=1e-9)
+
+    def test_single_region_gini_one_entropy_zero(self):
+        # The sample correction R/(R-1) is required for gini == 1 here.
+        gcc = GeographicConcentration()
+        ev = {f"R{i}": (1.0 if i == 0 else 0.0) for i in range(6)}
+        res = gcc.calculate_gcc(ev)
+        assert res["gini"] == pytest.approx(1.0, abs=1e-9)
+        assert res["normalized_entropy"] == pytest.approx(0.0, abs=1e-9)
+
+    def test_per_region_sorted_descending(self):
+        gcc = GeographicConcentration()
+        res = gcc.calculate_gcc({"A": 1.0, "B": 3.0, "C": 2.0})
+        shares = res["per_region"]["evidence_share"].tolist()
+        assert shares == sorted(shares, reverse=True)
+
+    def test_needs_two_regions(self):
+        gcc = GeographicConcentration()
+        with pytest.raises(ValueError):
+            gcc.calculate_gcc({"A": 1.0})
+
+    def test_negative_value_raises(self):
+        gcc = GeographicConcentration()
+        with pytest.raises(ValueError):
+            gcc.calculate_gcc({"A": -1.0, "B": 2.0})
