@@ -77,4 +77,4 @@ python3 -m twine upload -u __token__ -p pypi-XXXX dist/*
   password = pypi-YYYY
   ```
   Then just `twine upload --repository testpypi dist/*` / `twine upload dist/*`.
-- Revoke and rotate any token that has been pasted into a chat or shared.
+- Revoke and rotate any token that has been shared publicly
