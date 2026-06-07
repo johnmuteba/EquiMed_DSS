@@ -17,7 +17,7 @@
 
 ---
 
-### Task 1: BEMI — Burden-Evidence Mismatch metric
+### Task 1: BEMI: Burden-Evidence Mismatch metric
 
 **Files:**
 - Create: `equimed_dss/geographic/__init__.py`
@@ -188,7 +188,7 @@ git commit -m "feat(geographic): add Burden-Evidence Mismatch Index (BEMI)"
 
 ---
 
-### Task 2: GCC — Geographic Concentration of Coverage
+### Task 2: GCC: Geographic Concentration of Coverage
 
 **Files:**
 - Create: `equimed_dss/geographic/concentration.py`
@@ -1142,7 +1142,7 @@ git commit -m "chore: v1.1.0 build verification" || echo "nothing to commit"
 
 ---
 
-### Task 10: Delivery (TestPyPI + GitHub) — needs user tokens
+### Task 10: Delivery (TestPyPI + GitHub): needs user tokens
 
 **Files:** none (release only). **Do NOT run until the user provides tokens at delivery time; handle them transiently, never write them to a file or commit them.**
 
