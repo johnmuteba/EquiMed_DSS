@@ -10,10 +10,10 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
-    {name = "John Muteba", email = "johnmuteba@example.com"}
+    {name = "John Muteba", email = "2moi175@gmail.com"}
 ]
 maintainers = [
-    {name = "John Muteba", email = "johnmuteba@example.com"}
+    {name = "John Muteba", email = "2moi175@gmail.com"}
 ]
 requires-python = ">=3.8"
 keywords = [

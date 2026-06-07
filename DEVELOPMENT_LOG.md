@@ -1599,7 +1599,7 @@ This phase prepared the library for professional PyPI submission with proper pac
 
 - Added full PyPI metadata:
   - `author`: John Muteba
-  - `author_email`: johnmuteba@example.com
+  - `author_email`: 2moi175@gmail.com
   - `url`: GitHub repository link
   - `project_urls`: Bug tracker, documentation, changelog
   - `license`: MIT
