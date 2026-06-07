@@ -102,7 +102,7 @@ shape: tidy DataFrame returns plus thin export helpers.
 
 `reporting/__init__.py` exports the four table functions and `export_table`.
 
-### 3. Examples (conference-facing)
+### 3. Examples (more examples)
 
 - New `examples/example_statistics_tables.py`: runs hierarchical, mediation,
   and network analyses on bundled sample data, renders each as a table, and

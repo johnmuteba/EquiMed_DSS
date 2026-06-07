@@ -856,7 +856,7 @@ git commit -m "feat: re-export geographic + reporting at top level"
 
 ---
 
-### Task 7: Conference example scripts
+### Task 7: More example scripts
 
 **Files:**
 - Create: `examples/example_geographic.py`
@@ -1012,7 +1012,7 @@ mediator_var, outcome_var)`, `analyze_network(adjacency_matrix, node_labels)`.)
 
 ```bash
 git add examples/example_geographic.py examples/example_statistics_tables.py
-git commit -m "docs(examples): add geographic + statistics-tables conference demos"
+git commit -m "docs(examples): add geographic + statistics-tables examples"
 ```
 
 ---
