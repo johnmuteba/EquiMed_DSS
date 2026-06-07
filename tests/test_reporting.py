@@ -63,3 +63,33 @@ def test_geographic_table_passthrough():
     per_region = pd.DataFrame({"region": ["A", "B"], "evidence_share": [0.6, 0.4]})
     df = geographic_table({"per_region": per_region})
     assert df.equals(per_region)
+
+
+from equimed_dss.reporting import export_table
+
+
+def test_export_markdown_nonempty():
+    df = pd.DataFrame({"term": ["ICC"], "value": [0.123456]})
+    out = export_table(df, fmt="markdown", decimals=3)
+    assert "ICC" in out
+    assert "0.123" in out
+
+
+def test_export_latex_nonempty():
+    df = pd.DataFrame({"term": ["ICC"], "value": [0.123456]})
+    out = export_table(df, fmt="latex", decimals=2)
+    assert "tabular" in out
+    assert "0.12" in out
+
+
+def test_export_writes_file(tmp_path):
+    df = pd.DataFrame({"term": ["ICC"], "value": [0.5]})
+    p = tmp_path / "t.md"
+    export_table(df, fmt="markdown", path=str(p))
+    assert p.read_text().strip() != ""
+
+
+def test_export_bad_format_raises():
+    df = pd.DataFrame({"a": [1]})
+    with pytest.raises(ValueError):
+        export_table(df, fmt="csv")
