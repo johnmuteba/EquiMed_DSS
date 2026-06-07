@@ -390,24 +390,41 @@ Expected: FAIL with `ImportError: cannot import name 'WHO_REGION_IHD_BURDEN'`.
 
 - [ ] **Step 4: Write the constant**
 
-Create `equimed_dss/geographic/reference_data.py`. Use the values sourced in Step 1. Template (replace the numbers with the sourced ones; these placeholders sum to 1 and put AFRO+SEARO at 0.36 consistent with the manuscript finding, but MUST be confirmed against the real source before publication):
+REAL values sourced (2026-06-07) from the tri-corpora pipeline's
+`geography_distinctive_layer.py` (`GBD_IHD_DALY_PER_100K_BY_REGION`, Roth GA
+et al., 2020 GBD Compare for IHD). Normalized shares give AFRO+SEARO = 0.361,
+matching the manuscript's geographic-gap finding. Store the raw DALY values
+(auditable, identical to the pipeline) and derive the shares from them.
+
+Create `equimed_dss/geographic/reference_data.py`:
 
 ```python
 """Reference disease-burden distributions for geographic metrics.
 
-WHO_REGION_IHD_BURDEN: share of global ischaemic heart disease (IHD) burden by
-WHO region. Source: <FILL FROM geography_distinctive_layer.py OUTPUT / GBD>.
-These are aggregate, published statistics (not patient-level data) and are
-DUA-safe to bundle. Confirm against the sourced file before any published use.
+GBD_IHD_DALY_PER_100K_BY_REGION: age-standardized ischaemic heart disease
+(IHD) DALYs per 100,000 by WHO region. Source: Roth GA et al., 2020 (GBD
+Compare for IHD), values rounded to the nearest 100. Aggregate published
+statistics (not patient-level), DUA-safe to bundle. This is the same reference
+used by the tri-corpora pipeline's geography_distinctive_layer step.
+
+WHO_REGION_IHD_BURDEN: the above normalized to shares summing to 1. AFRO and
+SEARO together carry ~36% of global IHD burden, matching the manuscript's
+geographic-gap finding.
 """
 
+GBD_IHD_DALY_PER_100K_BY_REGION = {
+    "AFRO": 2730,
+    "AMRO": 2070,
+    "EMRO": 4200,
+    "EURO": 3550,
+    "SEARO": 3850,
+    "WPRO": 1830,
+}
+
+_TOTAL = sum(GBD_IHD_DALY_PER_100K_BY_REGION.values())
 WHO_REGION_IHD_BURDEN = {
-    "AFRO": 0.15,
-    "SEARO": 0.21,
-    "EURO": 0.24,
-    "AMRO": 0.14,
-    "EMRO": 0.13,
-    "WPRO": 0.13,
+    region: dalys / _TOTAL
+    for region, dalys in GBD_IHD_DALY_PER_100K_BY_REGION.items()
 }
 ```
 
