@@ -6,7 +6,7 @@
 
 <p>Evaluate reliability, equity, governance, and intersectionality in clinical AI systems using <strong>19 novel metrics</strong></p>
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/johnmuteba/EquiMed_DSS/blob/master/LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![Build Status](https://github.com/johnmuteba/EquiMed_DSS/workflows/CI/badge.svg)](https://github.com/johnmuteba/EquiMed_DSS/actions)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -46,7 +46,7 @@
 - [Statistical Analyses](#statistical-analyses)
 - [Visualizations](#visualizations)
 - [Examples](#examples)
-- [Vignette](docs/VIGNETTE.md)
+- [Vignette](https://github.com/johnmuteba/EquiMed_DSS/blob/master/docs/VIGNETTE.md)
 - [API Reference](#api-reference)
 - [Contributing](#contributing)
 - [Citation](#citation)
@@ -80,6 +80,36 @@ pip install -e .
 
 ```bash
 pip install equimed_dss
+```
+
+### Installing inside Jupyter or conda (read this if you hit ModuleNotFoundError)
+
+The most common installation problem is installing into a *different* Python
+than the one your notebook or environment actually runs. You see
+`Successfully installed equimed_dss` in a terminal, then
+`ModuleNotFoundError: No module named 'equimed_dss'` in Jupyter. This is an
+environment mismatch, not a package problem. Install into the **running**
+interpreter:
+
+In a Jupyter notebook cell (installs into the active kernel, then restart the kernel):
+
+```python
+%pip install equimed_dss
+```
+
+From a terminal, target a specific interpreter explicitly:
+
+```bash
+python -m pip install equimed_dss          # uses THIS python
+# conda example:
+conda activate myenv && python -m pip install equimed_dss
+```
+
+Confirm the install is visible to your interpreter:
+
+```python
+import sys; print(sys.executable)          # which python is running
+import equimed_dss; print(equimed_dss.__version__)
 ```
 
 ### Dependencies
@@ -454,7 +484,7 @@ python examples/example_dataset.py           # Sample data generation
 python examples/example_advanced_network.py  # Network analysis
 ```
 
-For an end-to-end tutorial with data loading, metric calculations, statistical analyses, and visualization examples, see the [EquiMed-DSS vignette](docs/VIGNETTE.md).
+For an end-to-end tutorial with data loading, metric calculations, statistical analyses, and visualization examples, see the [EquiMed-DSS vignette](https://github.com/johnmuteba/EquiMed_DSS/blob/master/docs/VIGNETTE.md).
 
 ---
 
@@ -525,7 +555,7 @@ EquiMed_DSS/
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](https://github.com/johnmuteba/EquiMed_DSS/blob/master/CONTRIBUTING.md) for guidelines.
 
 ### Development Setup
 
@@ -564,7 +594,7 @@ If you use EquiMed_DSS in your research, please cite:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/johnmuteba/EquiMed_DSS/blob/master/LICENSE) file for details.
 
 ---
 
@@ -578,6 +608,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**[Documentation](docs/)** | **[Examples](examples/)** | **[Issues](https://github.com/johnmuteba/EquiMed_DSS/issues)** | **[Discussions](https://github.com/johnmuteba/EquiMed_DSS/discussions)**
+**[Documentation](https://github.com/johnmuteba/EquiMed_DSS/tree/master/docs)** | **[Examples](https://github.com/johnmuteba/EquiMed_DSS/tree/master/examples)** | **[Issues](https://github.com/johnmuteba/EquiMed_DSS/issues)** | **[Discussions](https://github.com/johnmuteba/EquiMed_DSS/discussions)**
 
 </div>
