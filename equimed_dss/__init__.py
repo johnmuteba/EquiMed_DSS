@@ -29,6 +29,18 @@ from .__version__ import (
     __version__,
     __version_info__,
 )
+from .geographic import (
+    BurdenEvidenceMismatch,
+    GeographicConcentration,
+    WHO_REGION_IHD_BURDEN,
+)
+from .reporting import (
+    export_table,
+    geographic_table,
+    hierarchical_coefficients_table,
+    mediation_effects_table,
+    network_centrality_table,
+)
 
 __all__ = [
     "__version__",
@@ -38,4 +50,12 @@ __all__ = [
     "__author__",
     "__license__",
     "__copyright__",
+    "BurdenEvidenceMismatch",
+    "GeographicConcentration",
+    "WHO_REGION_IHD_BURDEN",
+    "export_table",
+    "geographic_table",
+    "hierarchical_coefficients_table",
+    "mediation_effects_table",
+    "network_centrality_table",
 ]

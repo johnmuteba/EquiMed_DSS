@@ -82,3 +82,14 @@ def test_basic_functionality():
     assert "ci_upper" in result
     assert "observed_statistic" in result
     assert isinstance(result["observed_statistic"], float)
+
+
+def test_top_level_geographic_and_reporting_imports():
+    import equimed_dss
+    from equimed_dss import (
+        BurdenEvidenceMismatch,
+        GeographicConcentration,
+        export_table,
+    )
+    assert equimed_dss.BurdenEvidenceMismatch is BurdenEvidenceMismatch
+    assert callable(export_table)
