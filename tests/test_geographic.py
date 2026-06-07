@@ -75,3 +75,20 @@ class TestGeographicConcentration:
         gcc = GeographicConcentration()
         with pytest.raises(ValueError):
             gcc.calculate_gcc({"A": -1.0, "B": 2.0})
+
+
+from equimed_dss.geographic import WHO_REGION_IHD_BURDEN
+
+
+class TestReferenceData:
+    def test_reference_sums_to_one(self):
+        total = sum(WHO_REGION_IHD_BURDEN.values())
+        assert total == pytest.approx(1.0, abs=1e-6)
+
+    def test_reference_usable_as_default(self):
+        bemi = BurdenEvidenceMismatch(burden_reference=WHO_REGION_IHD_BURDEN)
+        # evidence with nothing in AFRO/SEARO -> positive mismatch there
+        ev = {k: (0.0 if k in ("AFRO", "SEARO") else 1.0) for k in WHO_REGION_IHD_BURDEN}
+        res = bemi.calculate_bemi(ev)
+        assert 0.0 < res["bemi_index"] <= 1.0
+        assert res["most_underserved_region"] in ("AFRO", "SEARO")
