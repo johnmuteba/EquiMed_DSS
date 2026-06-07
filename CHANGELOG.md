@@ -5,6 +5,25 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-06-07
+
+### Added
+- `equimed_dss.geographic`: Burden-Evidence Mismatch Index (BEMI, the
+  total-variation distance between evidence and disease-burden distributions)
+  and Geographic Concentration of Coverage (GCC, sample-corrected Gini plus
+  normalized Shannon entropy). Bundled `WHO_REGION_IHD_BURDEN` reference.
+- `equimed_dss.reporting`: tidy-DataFrame tables for hierarchical, mediation,
+  and network results, plus `export_table` (markdown, LaTeX, HTML).
+- Examples: `example_geographic.py`, `example_statistics_tables.py`.
+
+### Notes
+- `WHO_REGION_IHD_BURDEN` uses Roth GA et al., 2020 GBD IHD DALY shares; AFRO
+  and SEARO together carry about 36% of global IHD burden.
+- `proportion_mediated` in the mediation table is reported unclamped and
+  flagged when it falls outside [0, 1] (competitive or unstable mediation).
+
+---
+
 ## [1.0.0] - 2025-12-05
 
 ### Added

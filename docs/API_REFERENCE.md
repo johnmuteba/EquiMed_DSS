@@ -321,6 +321,248 @@ Calculate Governance Compliance Index.
 
 ---
 
+## Geographic Equity (v1.1.0)
+
+### equimed_dss.geographic.BurdenEvidenceMismatch
+
+```python
+class BurdenEvidenceMismatch()
+```
+
+Computes the total-variation distance between the regional evidence distribution and the
+regional disease-burden distribution.
+
+#### Methods
+
+##### calculate_bemi
+```python
+def calculate_bemi(
+    evidence_counts: Dict[str, int],
+    burden_shares: Dict[str, float]
+) -> Dict[str, Union[float, str]]
+```
+
+Calculate Burden-Evidence Mismatch Index (BEMI).
+
+**Parameters:**
+- `evidence_counts` (Dict[str, int]): Number of studies (or cases) per WHO region.
+- `burden_shares` (Dict[str, float]): Normalized disease-burden share per region; shares
+  must sum to 1.0. Use `WHO_REGION_IHD_BURDEN` for IHD DALY shares (Roth GA et al., 2020).
+
+**Returns:**
+- Dictionary with keys:
+  - `bemi` (float): Total-variation distance in [0, 1]. 0 = evidence mirrors burden;
+    1 = distributions are completely disjoint.
+  - `evidence_shares` (Dict[str, float]): Computed regional evidence shares.
+  - `interpretation` (str): Human-readable verdict.
+
+**Formula:**
+```
+BEMI = 0.5 * sum_r |evidence_share_r - burden_share_r|
+```
+
+**Example:**
+```python
+from equimed_dss.geographic import BurdenEvidenceMismatch, WHO_REGION_IHD_BURDEN
+
+bemi = BurdenEvidenceMismatch()
+result = bemi.calculate_bemi(
+    evidence_counts={"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2},
+    burden_shares=WHO_REGION_IHD_BURDEN
+)
+print(result["bemi"])   # e.g., 0.42
+```
+
+---
+
+### equimed_dss.geographic.GeographicConcentration
+
+```python
+class GeographicConcentration()
+```
+
+Quantifies how evenly studies are distributed across regions using a sample-corrected Gini
+coefficient and normalized Shannon entropy.
+
+#### Methods
+
+##### calculate_gcc
+```python
+def calculate_gcc(
+    region_counts: Dict[str, int]
+) -> Dict[str, Union[float, str]]
+```
+
+Calculate Geographic Concentration of Coverage (GCC).
+
+**Parameters:**
+- `region_counts` (Dict[str, int]): Number of studies (or cases) per region.
+
+**Returns:**
+- Dictionary with keys:
+  - `gini_corrected` (float): Sample-corrected Gini G* in [0, 1]. 0 = even; 1 = single region.
+  - `entropy_normalized` (float): Normalized Shannon entropy H_norm in [0, 1]. 1 = even;
+    0 = single region. Runs opposite to G*.
+  - `concentration` (float): 1 - H_norm; higher means more concentrated.
+  - `interpretation` (str): Human-readable summary.
+
+**Formulas:**
+```
+G* = (R / (R - 1)) * G_raw
+H_norm = -sum_r p_r * ln(p_r) / ln(R)
+concentration = 1 - H_norm
+```
+
+**Example:**
+```python
+from equimed_dss.geographic import GeographicConcentration
+
+gcc = GeographicConcentration()
+result = gcc.calculate_gcc({"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2})
+print(result["gini_corrected"])       # e.g., 0.51
+print(result["entropy_normalized"])   # e.g., 0.84
+```
+
+---
+
+### equimed_dss.geographic.WHO_REGION_IHD_BURDEN
+
+```python
+WHO_REGION_IHD_BURDEN: Dict[str, float]
+```
+
+Module-level constant containing normalized IHD DALY shares per WHO region, derived from
+Roth GA et al., 2020 (GBD Compare for IHD). Shares sum to 1.0. AFRO and SEARO together
+carry approximately 36% of global IHD burden.
+
+**Usage:**
+```python
+from equimed_dss.geographic import WHO_REGION_IHD_BURDEN
+
+print(WHO_REGION_IHD_BURDEN)
+# {"AFRO": ..., "AMRO": ..., "EURO": ..., "SEARO": ..., "WPRO": ..., "EMRO": ...}
+```
+
+---
+
+## Reporting Tables (v1.1.0)
+
+### equimed_dss.reporting.hierarchical_coefficients_table
+
+```python
+def hierarchical_coefficients_table(
+    hlm_result: Dict[str, Any],
+    decimals: int = 3
+) -> pd.DataFrame
+```
+
+Convert a `HierarchicalLinearModeling` result dictionary into a tidy DataFrame with one row
+per coefficient, including estimate, standard error, t-value, p-value, and confidence interval.
+
+**Parameters:**
+- `hlm_result` (Dict): Result dict from `HierarchicalLinearModeling`.
+- `decimals` (int): Rounding precision (default: 3).
+
+**Returns:** `pd.DataFrame`
+
+---
+
+### equimed_dss.reporting.mediation_effects_table
+
+```python
+def mediation_effects_table(
+    mediation_result: Dict[str, Any],
+    decimals: int = 3
+) -> pd.DataFrame
+```
+
+Convert a `MediationAnalysis` result dictionary into a tidy DataFrame with rows for the
+direct effect, indirect effect, total effect, and `proportion_mediated`. The column
+`outside_bounds` is set to `True` when `proportion_mediated` falls outside [0, 1]
+(competitive or unstable mediation); the value is reported unclamped.
+
+**Parameters:**
+- `mediation_result` (Dict): Result dict from `MediationAnalysis`.
+- `decimals` (int): Rounding precision (default: 3).
+
+**Returns:** `pd.DataFrame`
+
+---
+
+### equimed_dss.reporting.network_centrality_table
+
+```python
+def network_centrality_table(
+    network_result: Dict[str, Any],
+    decimals: int = 3
+) -> pd.DataFrame
+```
+
+Convert a `NetworkStatistics` result dictionary into a tidy DataFrame with one row per node,
+including degree centrality, betweenness centrality, and clustering coefficient.
+
+**Parameters:**
+- `network_result` (Dict): Result dict from `NetworkStatistics`.
+- `decimals` (int): Rounding precision (default: 3).
+
+**Returns:** `pd.DataFrame`
+
+---
+
+### equimed_dss.reporting.geographic_table
+
+```python
+def geographic_table(
+    bemi_result: Dict[str, Any],
+    gcc_result: Dict[str, Any],
+    decimals: int = 3
+) -> pd.DataFrame
+```
+
+Combine BEMI and GCC result dictionaries into a single tidy summary DataFrame.
+
+**Parameters:**
+- `bemi_result` (Dict): Result dict from `BurdenEvidenceMismatch.calculate_bemi`.
+- `gcc_result` (Dict): Result dict from `GeographicConcentration.calculate_gcc`.
+- `decimals` (int): Rounding precision (default: 3).
+
+**Returns:** `pd.DataFrame`
+
+---
+
+### equimed_dss.reporting.export_table
+
+```python
+def export_table(
+    df: pd.DataFrame,
+    fmt: str,
+    path: Optional[str] = None,
+    decimals: int = 3
+) -> str
+```
+
+Render a DataFrame to a string in the specified format, optionally writing to a file.
+
+**Parameters:**
+- `df` (pd.DataFrame): DataFrame to export (typically produced by one of the table functions).
+- `fmt` (str): Output format. One of `"markdown"`, `"latex"`, `"html"`.
+- `path` (Optional[str]): If provided, write the rendered string to this file path.
+- `decimals` (int): Rounding precision applied before rendering (default: 3).
+
+**Returns:** Rendered string in the requested format.
+
+**Example:**
+```python
+from equimed_dss.reporting import geographic_table, export_table
+
+df = geographic_table(bemi_result, gcc_result)
+md = export_table(df, fmt="markdown", path="results/geo.md")
+export_table(df, fmt="latex", path="results/geo.tex")
+export_table(df, fmt="html",  path="results/geo.html")
+```
+
+---
+
 ## Utilities
 
 ### equimed_dss.utils.data_loader
