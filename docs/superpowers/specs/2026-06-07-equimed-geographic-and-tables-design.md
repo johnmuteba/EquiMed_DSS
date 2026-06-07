@@ -38,7 +38,10 @@ Two metrics, one module (user chose "both"). Both get conference-citable names.
     - scalar `bemi_index`: index of dissimilarity
       `0.5 * sum_r |evidence_share_r - burden_share_r|`, range 0-1
       (0 = evidence perfectly tracks burden; 1 = maximal divergence). Both
-      share vectors are normalized to sum to 1 before the calculation.
+      share vectors are normalized to sum to 1 before the calculation. This is
+      exactly the total-variation distance between the two distributions
+      (verified 2026-06-07: bounds [0,1] proven, disjoint-support = 1,
+      identical = 0; equals total excess evidence mass to reallocate).
   - Formalizes the manuscript finding: AFRO + SEARO ~36% IHD burden, ~0%
     retrieved evidence.
 
@@ -46,6 +49,18 @@ Two metrics, one module (user chose "both"). Both get conference-citable names.
   - Input: per-region evidence counts or shares (no burden reference needed).
   - Output: normalized Gini and normalized Shannon entropy of geographic
     coverage, plus a per-region contribution table.
+  - Formula precision (verified 2026-06-07):
+    - **Gini MUST be sample-corrected**: `G* = (R/(R-1)) * G_raw` where
+      `G_raw = sum_i sum_j |x_i - x_j| / (2 R sum_k x_k)` and R = number of
+      regions. Without the `R/(R-1)` factor the maximum (single-region) Gini is
+      only `(R-1)/R` (e.g. 0.833 for R=6), so the "single region -> 1" property
+      fails. Use `G*` so the range is a clean [0,1]. High G* = concentrated.
+    - **Normalized Shannon entropy**: `H_norm = -sum_r p_r ln(p_r) / ln(R)`
+      with `0 ln 0 := 0`, range [0,1]. Uniform -> 1, single-region -> 0.
+    - DIRECTION CAVEAT: Gini and entropy run opposite (uniform gives Gini 0 but
+      entropy 1). Both are reported; also expose `concentration = 1 - H_norm`
+      so a single "higher = more concentrated" reading is available alongside
+      Gini.
 
 - Bundled reference data: a small `WHO_REGION_IHD_BURDEN` constant (published
   GBD aggregate shares, citable, not patient-level). Lives in the geographic
@@ -69,6 +84,11 @@ and the reference constant. Top-level `equimed_dss/__init__.py` re-exports them.
   classification (from `MediationAnalysis.analyze_mediation`: `total_effect`,
   `direct_effect`, `indirect_effect`, `indirect_ci_lower`, `indirect_ci_upper`,
   `proportion_mediated`, and the classification string).
+  CAVEAT (verified 2026-06-07): proportion_mediated = indirect/total is
+  numerically unstable when total ~ 0 and can fall outside [0,1] under
+  competitive/suppression mediation (ab and direct effect opposite signs). The
+  table must show it as-is with a flag, never clamp it silently; the existing
+  `_classify_mediation` already labels the competitive case.
 - `network_centrality_table(results)` -> one row per node; columns: node,
   degree, betweenness, closeness, clustering (from
   `NetworkStatistics.analyze_network`).
@@ -100,9 +120,11 @@ shape: tidy DataFrame returns plus thin export helpers.
 
 ### 4. Tests, docs, packaging
 
-- `tests/test_geographic.py`: known-value checks for BEMI (a hand-computed
-  mismatch case) and GCC (uniform distribution -> Gini ~0, entropy ~1;
-  single-region -> Gini ~1, entropy ~0).
+- `tests/test_geographic.py`: known-value checks for BEMI (identical -> 0,
+  disjoint support -> 1, plus a hand-computed mismatch case) and GCC using the
+  SAMPLE-CORRECTED Gini G* = (R/(R-1)) G_raw (uniform -> Gini 0, entropy 1;
+  single-region -> Gini 1, entropy 0). Asserting single-region Gini == 1
+  validates the R/(R-1) correction is present.
 - `tests/test_reporting.py`: each table function returns a DataFrame with the
   expected columns and row count; `export_table` produces non-empty markdown
   and LaTeX strings.
