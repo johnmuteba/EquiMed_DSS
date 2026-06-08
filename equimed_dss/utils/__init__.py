@@ -9,7 +9,11 @@ from .data_loader import (
     generate_synthetic_judge_data,
 )
 from .dataset import EquiMedDataset
-from .sample_data import SampleDataGenerator, generate_sample_corpus
+from .sample_data import (
+    SampleDataGenerator,
+    generate_figure_data,
+    generate_sample_corpus,
+)
 from .visualization import (
     plot_bland_altman,
     plot_control_chart,

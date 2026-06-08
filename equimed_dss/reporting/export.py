@@ -12,17 +12,24 @@ def export_table(
     fmt: str = "markdown",
     path: Optional[str] = None,
     decimals: int = 3,
-) -> str:
+) -> Optional[str]:
     """Render a table for slides or the manuscript.
+
+    Mirrors the pandas ``to_csv`` convention: when ``path`` is given the table is
+    written to that file and the function returns ``None`` (so a notebook cell
+    does not echo a large raw string); when ``path`` is ``None`` the rendered
+    string is returned. To view a table inline, call without ``path`` and wrap in
+    ``print(...)``, for example ``print(export_table(df, fmt="markdown"))``.
 
     Args:
         df: any tidy DataFrame (e.g. from equimed_dss.reporting.tables).
         fmt: one of "markdown", "latex", "html".
-        path: if given, also write the rendered string to this path.
+        path: if given, write the rendered string to this path (parent
+            directories are created automatically) and return None.
         decimals: rounding applied to numeric columns before rendering.
 
     Returns:
-        The rendered table as a string.
+        The rendered string when ``path`` is None, otherwise None.
     """
     if fmt not in _FORMATS:
         raise ValueError(f"Unknown fmt {fmt!r}; use one of {_FORMATS}.")
@@ -46,4 +53,5 @@ def export_table(
             os.makedirs(parent, exist_ok=True)
         with open(path, "w") as fh:
             fh.write(rendered)
+        return None
     return rendered

@@ -103,3 +103,15 @@ def test_export_writes_file(tmp_path):
 def test_export_bad_format_raises():
     with pytest.raises(ValueError):
         export_table(pd.DataFrame({"a": [1]}), fmt="csv")
+
+
+def test_export_returns_none_when_path_given(tmp_path):
+    p = tmp_path / "t.md"
+    out = export_table(pd.DataFrame({"a": [1]}), fmt="markdown", path=str(p))
+    assert out is None
+    assert p.read_text().strip() != ""
+
+
+def test_export_returns_string_when_no_path():
+    out = export_table(pd.DataFrame({"a": [1]}), fmt="markdown")
+    assert isinstance(out, str) and out

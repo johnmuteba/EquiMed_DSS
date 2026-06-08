@@ -516,3 +516,111 @@ def generate_sample_corpus(
         )
 
     return pd.DataFrame(data)
+
+
+def generate_figure_data(random_state: int = 42) -> Dict[str, Dict]:
+    """Generate ready-to-use sample inputs for the manuscript figure functions.
+
+    Returns a dict keyed by figure name ("fig2" through "fig7"), each value being
+    a dict in the exact structure the matching ``plot_figure*`` function expects.
+    This lets you render every figure immediately, then swap in your own data by
+    matching the same keys (documented in each plot function's docstring).
+
+    Example:
+        >>> from equimed_dss.utils import generate_figure_data
+        >>> from equimed_dss.utils import plot_figure2_reliability_dashboard
+        >>> figs = generate_figure_data()
+        >>> plot_figure2_reliability_dashboard(figs["fig2"], save_path="figures/fig2.png")
+    """
+    rng = np.random.RandomState(random_state)
+
+    def _sym(n: int) -> list:
+        a = rng.uniform(0, 1, (n, n))
+        a = (a + a.T) / 2
+        np.fill_diagonal(a, 0)
+        return a.tolist()
+
+    corpora = ["peer_reviewed", "community", "mimic_iv", "mimic"]
+    metric_names = ["DFR", "ECS", "HER", "IBS"]
+
+    return {
+        "fig2": {
+            "icc_scores": {"Rater 1": 0.82, "Rater 2": 0.76, "Rater 3": 0.68},
+            "cronbach_alpha": {"alpha": 0.88, "ci_lower": 0.81, "ci_upper": 0.93},
+            "bland_altman": {
+                "means": list(rng.uniform(0.4, 0.9, 40)),
+                "diffs": list(rng.normal(0, 0.05, 40)),
+                "loa_upper": 0.1,
+                "loa_lower": -0.1,
+            },
+            "temporal": {
+                "timepoints": [1, 2, 3, 4, 5],
+                "reliability_scores": [0.80, 0.82, 0.79, 0.85, 0.83],
+            },
+        },
+        "fig3": {
+            "bias_gini": {
+                "Peer-Reviewed": 0.12, "Community": 0.21, "MIMIC-IV": 0.18,
+                "peer_reviewed": 0.12, "community": 0.21, "mimic_iv": 0.18,
+            },
+            "temporal_drift": {
+                "timepoints": [1, 2, 3, 4],
+                "peer_reviewed": [0.05, 0.07, 0.06, 0.08],
+                "community": [0.12, 0.15, 0.11, 0.14],
+                "mimic_iv": [0.09, 0.10, 0.08, 0.11],
+                "mimic": [0.09, 0.10, 0.08, 0.11],
+            },
+            "clinical_harm": {
+                "peer_reviewed": list(rng.uniform(0, 0.20, 30)),
+                "community": list(rng.uniform(0, 0.30, 30)),
+                "mimic_iv": list(rng.uniform(0, 0.25, 30)),
+                "mimic": list(rng.uniform(0, 0.25, 30)),
+            },
+            "network_stability": {
+                c: {"density": 0.5, "clustering": 0.4, "modularity": 0.3}
+                for c in corpora
+            },
+        },
+        "fig4": {
+            "mediation": {
+                "indirect_effect": 0.14, "direct_effect": 0.36,
+                "indirect_ci_lower": 0.05, "indirect_ci_upper": 0.23,
+                "direct_ci_lower": 0.25, "direct_ci_upper": 0.47,
+                "total_ci_lower": 0.30, "total_ci_upper": 0.70,
+            },
+            "regression": {
+                "predictors": ["race", "age", "ses"],
+                "coefficients": [0.20, -0.10, 0.15],
+                "ci_lower": [0.10, -0.20, 0.05],
+                "ci_upper": [0.30, 0.00, 0.25],
+            },
+            "robustness": {
+                "perturbation_levels": [0.0, 0.1, 0.2, 0.3],
+                "rcs_scores": [1.0, 0.95, 0.88, 0.80],
+            },
+        },
+        "fig5": {
+            "ethical_risk": {
+                "timepoints": [1, 2, 3, 4, 5],
+                "eri_scores": [0.10, 0.12, 0.09, 0.14, 0.11],
+                "violations": [0, 1, 0, 2, 1],
+            },
+            "rams": {"risk": 0.80, "accountability": 0.75, "monitoring": 0.70, "safety": 0.85},
+            "fairness_ecosystem": {
+                "components": ["Reliability", "Equity", "Governance", "Transparency"],
+                "connections": _sym(4),
+            },
+        },
+        "fig6": {
+            k: {"adjacency_matrix": _sym(4), "metric_names": metric_names}
+            for k in ["peer_reviewed", "community", "mimic", "combined"]
+        },
+        "fig7": {
+            "fairness_matrix": rng.uniform(0.6, 0.95, (4, 3)).tolist(),
+            "row_labels": ["White", "Black", "Hispanic", "Asian"],
+            "col_labels": ["Female", "Male", "Non-binary"],
+            "pareto_optimal": (rng.uniform(0, 1, (4, 3)) > 0.7).tolist(),
+            "marginal_row": [0.86, 0.70, 0.79, 0.88],
+            "marginal_col": [0.82, 0.78, 0.79],
+        },
+    }
