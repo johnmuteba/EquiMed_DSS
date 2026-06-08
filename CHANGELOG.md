@@ -5,6 +5,14 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-06-08
+
+### Fixed
+- The `plot_figure*` and `plot_*` functions now display the figure inline (via
+  `plt.show()`) in addition to saving it when `save_path` is given. Previously a
+  saved figure was closed silently, so in a notebook nothing appeared even though
+  the PNG was written to disk. Figures now both render and save.
+
 ## [1.2.2] - 2026-06-08
 
 ### Added
