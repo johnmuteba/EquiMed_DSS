@@ -5,6 +5,17 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-06-07
+
+### Fixed
+- `HierarchicalLinearModeling.fit_model` now returns finite AIC and BIC.
+  Previously they were NaN because statsmodels withholds information criteria
+  under REML estimation (the default). The full model is now also fit with
+  maximum likelihood (reml=False) solely to obtain valid AIC/BIC, while the
+  REML fit is retained for the variance components and ICC. A defensive
+  fallback computes AIC/BIC from the log-likelihood if statsmodels still
+  reports NaN.
+
 ## [1.1.0] - 2026-06-07
 
 ### Added

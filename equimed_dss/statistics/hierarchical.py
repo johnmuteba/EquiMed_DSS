@@ -98,6 +98,17 @@ class HierarchicalLinearModeling:
             total_var_full = full_model.cov_re.iloc[0, 0] + full_model.scale
             r_squared_marginal = 1 - (total_var_full / total_var_null)
 
+            # AIC/BIC are NaN under REML: statsmodels withholds information
+            # criteria computed from the restricted likelihood because they are
+            # not comparable across models with different fixed effects. Refit
+            # the full model with maximum likelihood (reml=False) purely to
+            # obtain valid AIC/BIC; the REML fit above is kept for the variance
+            # components and ICC (REML is less biased for those).
+            full_model_ml = MixedLM.from_formula(
+                formula_full, data=df, groups=df[level2_var]
+            ).fit(reml=False)
+            aic, bic = self._information_criteria(full_model_ml)
+
             self.model_fitted = True
             self.results = {
                 "icc": float(icc),
@@ -105,8 +116,8 @@ class HierarchicalLinearModeling:
                 "variance_within_groups": float(var_within),
                 "total_variance": float(total_var_null),
                 "r_squared_marginal": float(r_squared_marginal),
-                "aic": float(full_model.aic),
-                "bic": float(full_model.bic),
+                "aic": aic,
+                "bic": bic,
                 "n_groups": int(df[level2_var].nunique()),
                 "n_observations": len(df),
                 "interpretation": {
@@ -135,6 +146,27 @@ class HierarchicalLinearModeling:
         except Exception as e:
             # Fallback to simpler variance decomposition
             return self._simple_variance_decomposition(df, outcome_var, level2_var)
+
+    @staticmethod
+    def _information_criteria(model) -> Tuple[float, float]:
+        """Return (AIC, BIC) as finite floats from a fitted ML mixed model.
+
+        Prefers statsmodels' own ``model.aic`` / ``model.bic``. If those are
+        NaN (e.g. an edge-case non-convergence), falls back to computing them
+        from the log-likelihood: AIC = -2*logL + 2k and BIC = -2*logL + k*ln(n),
+        where k is the number of estimated parameters (statsmodels MixedLM
+        convention: fixed effects + variance parameters + 1).
+        """
+        aic = float(model.aic)
+        bic = float(model.bic)
+        if np.isfinite(aic) and np.isfinite(bic):
+            return aic, bic
+        llf = float(model.llf)
+        k = float(model.df_modelwc) + 1.0
+        n = float(model.nobs)
+        aic = -2.0 * llf + 2.0 * k
+        bic = -2.0 * llf + k * np.log(n)
+        return aic, bic
 
     def _simple_variance_decomposition(
         self, df: pd.DataFrame, outcome_var: str, group_var: str

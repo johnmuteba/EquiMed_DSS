@@ -338,3 +338,27 @@ class TestIntegration:
         # Both analyses should complete successfully
         assert hlm_result["icc"] >= 0
         assert "indirect_effect" in med_result
+
+
+class TestHLMInformationCriteria:
+    """AIC/BIC must be real, finite numbers (statsmodels returns NaN under REML)."""
+
+    def _nested_df(self):
+        rng = np.random.RandomState(0)
+        rows = []
+        for g in range(8):
+            ge = rng.normal(0, 2)
+            for _ in range(25):
+                x = rng.normal(0, 1)
+                rows.append({"group": g, "x": x, "outcome": ge + 0.5 * x + rng.normal(0, 1)})
+        return pd.DataFrame(rows)
+
+    def test_fit_model_returns_finite_aic_bic(self):
+        res = HierarchicalLinearModeling().fit_model(
+            self._nested_df(), outcome_var="outcome",
+            level1_predictors=["x"], level2_var="group",
+        )
+        assert np.isfinite(res["aic"]), f"AIC is not finite: {res['aic']}"
+        assert np.isfinite(res["bic"]), f"BIC is not finite: {res['bic']}"
+        # BIC penalizes more than AIC for n>e^2, so BIC > AIC here (n=200)
+        assert res["bic"] > res["aic"]
