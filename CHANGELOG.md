@@ -5,6 +5,22 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-06-08
+
+### Added
+- `generate_figure_data()` in `equimed_dss.utils`: returns ready-to-use sample
+  inputs for every `plot_figure*` function (keys `fig2` through `fig7`), so all
+  six manuscript figures render with one call. Swap in your own data using the
+  same keys (documented in each plot function's docstring).
+
+### Changed
+- `export_table` now follows the pandas `to_csv` convention: when `path` is
+  given it writes the file and returns `None` (so a notebook cell no longer
+  echoes a large raw HTML/markdown string); when `path` is `None` it returns the
+  rendered string. For inline viewing use `print(export_table(df, fmt="markdown"))`.
+- README and vignette figure examples now use `generate_figure_data()` and run
+  as written (the previous snippet referenced undefined variables).
+
 ## [1.2.1] - 2026-06-08
 
 ### Fixed

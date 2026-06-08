@@ -501,23 +501,29 @@ reliability = ReliabilityAnalysis()
 
 Generate publication-ready figures (Figures 2-7 from manuscript):
 
+Each `plot_figure*` function takes a structured dict of inputs (the exact keys
+are documented in each function's docstring). Use `generate_figure_data()` for
+ready-to-run sample inputs, then swap in your own data using the same keys:
+
 ```python
 from equimed_dss.utils import (
+    generate_figure_data,
     plot_figure2_reliability_dashboard,
     plot_figure3_corpus_comparison,
     plot_figure4_temporal_robustness,
     plot_figure5_ethics_governance,
     plot_figure6_metric_networks,
-    plot_figure7_intersectional_heatmap
+    plot_figure7_intersectional_heatmap,
 )
 
-# Generate all manuscript figures
-plot_figure2_reliability_dashboard(data, save_path='figures/fig2.png')
-plot_figure3_corpus_comparison(corpus_data, save_path='figures/fig3.png')
-plot_figure4_temporal_robustness(temporal_data, save_path='figures/fig4.png')
-plot_figure5_ethics_governance(ethics_data, save_path='figures/fig5.png')
-plot_figure6_metric_networks(network_data, save_path='figures/fig6.png')
-plot_figure7_intersectional_heatmap(intersectional_data, save_path='figures/fig7.png')
+figs = generate_figure_data()  # sample inputs for every figure
+
+plot_figure2_reliability_dashboard(figs["fig2"], save_path="figures/fig2.png")
+plot_figure3_corpus_comparison(figs["fig3"], save_path="figures/fig3.png")
+plot_figure4_temporal_robustness(figs["fig4"], save_path="figures/fig4.png")
+plot_figure5_ethics_governance(figs["fig5"], save_path="figures/fig5.png")
+plot_figure6_metric_networks(figs["fig6"], save_path="figures/fig6.png")
+plot_figure7_intersectional_heatmap(figs["fig7"], save_path="figures/fig7.png")
 ```
 
 ---

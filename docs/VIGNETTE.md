@@ -509,6 +509,30 @@ print(f"Saved plots to {output_dir.resolve()}")
 
 The package also includes larger multi-panel figure functions inspired by the EquiMed-DSS manuscript. These are useful when preparing reports or supplements.
 
+Each `plot_figure*` function expects a structured dictionary of inputs; the exact keys are listed in the function's docstring. The fastest way to start is `generate_figure_data()`, which returns ready-to-use sample inputs for every figure. Render them all, then replace the values with your own data using the same keys:
+
+```python
+from equimed_dss.utils import (
+    generate_figure_data,
+    plot_figure2_reliability_dashboard,
+    plot_figure3_corpus_comparison,
+    plot_figure4_temporal_robustness,
+    plot_figure5_ethics_governance,
+    plot_figure6_metric_networks,
+    plot_figure7_intersectional_heatmap,
+)
+
+figs = generate_figure_data()
+plot_figure2_reliability_dashboard(figs["fig2"], save_path="figures/fig2.png")
+plot_figure3_corpus_comparison(figs["fig3"], save_path="figures/fig3.png")
+plot_figure4_temporal_robustness(figs["fig4"], save_path="figures/fig4.png")
+plot_figure5_ethics_governance(figs["fig5"], save_path="figures/fig5.png")
+plot_figure6_metric_networks(figs["fig6"], save_path="figures/fig6.png")
+plot_figure7_intersectional_heatmap(figs["fig7"], save_path="figures/fig7.png")
+```
+
+The remainder of this example shows the explicit dictionary structure for two of the figures, so you can see exactly what each key holds when you build your own.
+
 ```python
 from pathlib import Path
 
