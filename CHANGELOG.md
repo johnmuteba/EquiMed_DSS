@@ -5,6 +5,32 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-08
+
+### Changed (API finalized to match the documentation)
+- `BurdenEvidenceMismatch.calculate_bemi(evidence_counts, burden_shares)` now
+  returns `bemi`, `evidence_shares`, `burden_shares`, `per_region`,
+  `most_underserved_region`, and a string `interpretation`.
+- `GeographicConcentration.calculate_gcc(region_counts)` now returns
+  `gini_corrected`, `entropy_normalized`, `concentration`, `per_region`.
+- `geographic_table(bemi_result, gcc_result)` now combines both results into one
+  summary DataFrame. All table functions accept `decimals=`.
+- `mediation_effects_table` adds an `outside_bounds` column (replaces the prior
+  DataFrame-attribute flag).
+- `HierarchicalLinearModeling.fit_model` now also returns `coefficients`
+  (per fixed effect: estimate, std_err, t, p_value, ci_lower, ci_upper), and
+  `hierarchical_coefficients_table` renders them.
+
+### Added
+- Vignette sections: geographic metrics with formulas and the derivation of the
+  "about 36%" AFRO+SEARO IHD-burden figure; a full "Metric Formulas and Clinical
+  Meaning" reference; an expanded explanation of `prediction` vs `actual`.
+
+### Notes
+- Earlier 1.1.0/1.1.1 used different geographic/reporting argument and key names
+  that did not match the published docs. 1.2.0 makes the documented API the real
+  one. Reinstall from the index you use and restart your kernel.
+
 ## [1.1.1] - 2026-06-07
 
 ### Fixed

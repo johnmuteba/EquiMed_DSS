@@ -109,6 +109,23 @@ class HierarchicalLinearModeling:
             ).fit(reml=False)
             aic, bic = self._information_criteria(full_model_ml)
 
+            # Fixed-effect coefficient table (estimate, SE, t, p, 95% CI), taken
+            # from the REML fit (standard for fixed-effect inference).
+            ci_df = full_model.conf_int()
+            coefficients = []
+            for term in full_model.fe_params.index:
+                coefficients.append(
+                    {
+                        "term": str(term),
+                        "estimate": float(full_model.fe_params[term]),
+                        "std_err": float(full_model.bse_fe[term]),
+                        "t": float(full_model.tvalues[term]),
+                        "p_value": float(full_model.pvalues[term]),
+                        "ci_lower": float(ci_df.loc[term, 0]),
+                        "ci_upper": float(ci_df.loc[term, 1]),
+                    }
+                )
+
             self.model_fitted = True
             self.results = {
                 "icc": float(icc),
@@ -118,6 +135,7 @@ class HierarchicalLinearModeling:
                 "r_squared_marginal": float(r_squared_marginal),
                 "aic": aic,
                 "bic": bic,
+                "coefficients": coefficients,
                 "n_groups": int(df[level2_var].nunique()),
                 "n_observations": len(df),
                 "interpretation": {

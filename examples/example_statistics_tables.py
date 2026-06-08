@@ -59,9 +59,9 @@ def main():
     print("\nMediation effects:")
     med_table = mediation_effects_table(med_res)
     print(export_table(med_table, fmt="markdown"))
-    flag = med_table.attrs.get("proportion_mediated_flag", "")
-    if flag:
-        print(f"NOTE: {flag}")
+    if bool(med_table["outside_bounds"].any()):
+        print("NOTE: proportion_mediated falls outside [0, 1] "
+              "(competitive/unstable mediation)")
 
     # --- Network ---  (takes a numpy adjacency matrix + node_labels)
     net = NetworkStatistics()

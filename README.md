@@ -418,17 +418,19 @@ print(f"RCS: {result['rcs']:.4f} - {result['interpretation']['robustness_level']
 ```python
 from equimed_dss.geographic import BurdenEvidenceMismatch, GeographicConcentration, WHO_REGION_IHD_BURDEN
 
+evidence = {"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2}
+
 bemi = BurdenEvidenceMismatch()
-result = bemi.calculate_bemi(
-    evidence_counts={"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2},
-    burden_shares=WHO_REGION_IHD_BURDEN
+bemi_result = bemi.calculate_bemi(
+    evidence_counts=evidence,
+    burden_shares=WHO_REGION_IHD_BURDEN,
 )
-print(f"BEMI: {result['bemi']:.3f}")  # 0 = aligned, 1 = disjoint
+print(f"BEMI: {bemi_result['bemi']:.3f}")  # 0 = aligned, 1 = disjoint
 
 gcc = GeographicConcentration()
-result = gcc.calculate_gcc({"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2})
-print(f"Gini* (G*): {result['gini_corrected']:.3f}")
-print(f"H_norm: {result['entropy_normalized']:.3f}")
+gcc_result = gcc.calculate_gcc(evidence)
+print(f"Gini* (G*): {gcc_result['gini_corrected']:.3f}")
+print(f"H_norm: {gcc_result['entropy_normalized']:.3f}")
 ```
 
 ### Reporting Tables (v1.1.0)
