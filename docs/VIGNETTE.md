@@ -599,11 +599,9 @@ burden actually falls. They use raw counts per region (normalized internally).
 
 Class: `BurdenEvidenceMismatch` in `equimed_dss.geographic`.
 
-Formula (e_r = evidence share of region r, b_r = burden share, both summing to 1):
+Formula, where $e_r$ is the evidence share of region $r$ and $b_r$ its burden share (both summing to 1):
 
-```
-BEMI = 0.5 * sum_r | e_r - b_r |
-```
+$$\mathrm{BEMI} = \frac{1}{2} \sum_{r} \left| e_r - b_r \right|$$
 
 This is the total-variation distance between the two distributions. Range
 [0, 1]: 0 means evidence tracks burden exactly, 1 means they are completely
@@ -631,16 +629,13 @@ print(result["interpretation"])            # human-readable verdict
 
 Class: `GeographicConcentration` in `equimed_dss.geographic`.
 
-Formulas (x_r = count in region r, p_r = its share, R = number of regions):
+Formulas, where $x_r$ is the count in region $r$, $p_r$ its share, and $R$ the number of regions:
 
-```
-G_raw          = ( sum_i sum_j | x_i - x_j | ) / ( 2 * R * sum_k x_k )
-Gini* (G*)     = ( R / (R - 1) ) * G_raw           # sample-corrected Gini
-H_norm         = - ( sum_r p_r * ln(p_r) ) / ln(R) # normalized Shannon entropy
-concentration  = 1 - H_norm
-```
+$$G_{\text{raw}} = \frac{\sum_{i}\sum_{j} \left| x_i - x_j \right|}{2 R \sum_{k} x_k}, \qquad G^{*} = \frac{R}{R-1}\, G_{\text{raw}}$$
 
-G* range [0, 1]: 0 = perfectly even coverage, 1 = all evidence in one region.
+$$H_{\text{norm}} = -\frac{\sum_{r} p_r \ln p_r}{\ln R}, \qquad \text{concentration} = 1 - H_{\text{norm}}$$
+
+$G^{*}$ range [0, 1]: 0 = perfectly even coverage, 1 = all evidence in one region.
 The R/(R-1) correction is required because the raw Gini of R categories can only
 reach (R-1)/R, so without it the index could never reach 1. H_norm range [0, 1]:
 1 = even, 0 = single-region. G* and H_norm run in opposite directions, so
@@ -674,103 +669,157 @@ Dividing each by the total gives its share; for example AFRO = 2730 / 18230 =
 0.150 and SEARO = 3850 / 18230 = 0.211.
 
 Where the "about 36%" comes from: AFRO and SEARO together account for
-(2730 + 3850) / 18230 = 6580 / 18230 = 0.361, that is about 36% of global IHD
-burden. That is the figure cited in the manuscript's geographic-gap finding.
+
+$$\frac{2730 + 3850}{18230} = \frac{6580}{18230} = 0.361,$$
+
+that is about 36% of global IHD burden. That is the figure cited in the
+manuscript's geographic-gap finding.
 These are published aggregate statistics (not patient-level data), so they are
 safe to bundle. Pass your own `burden_shares` to use a different reference or
 disease.
 
 ## Metric Formulas And Clinical Meaning
 
-Every formula below has been verified against its implementation. The two notes
-flag presentation caveats, not formula errors.
+Each metric is listed with its formula and its clinical interpretation. Two
+short notes flag presentation conventions worth knowing.
 
 ### Domain 1: reliability and robustness
 
-- **Decision Flip Rate (DFR)**, `DecisionFlipRate`.
-  Formula: `DFR = (1/n) * sum_i 1[ decision_i != counterfactual_decision_i ]`.
-  Range [0, 1], lower is better. Clinical meaning: the fraction of cases whose
-  recommendation changes when only a sensitive attribute (for example the race
-  label) is altered; a high value means decisions depend on identity.
-  Note: the reported `ci_lower`/`ci_upper` are percentiles of the 0/1 flip
-  vector, so they are coarse; treat `flip_rate` as the primary quantity.
-- **Embedding Consistency Score (ECS)**, `EmbeddingConsistencyScore`.
-  Formula: `ECS = mean_i ( 1 - cos(orig_i, perturbed_i) )`, where
-  `cos(a, b) = (a . b) / (||a|| * ||b||)`. Range [0, 2], lower is better.
-  Clinical meaning: how much the model's internal representation of a case
-  drifts under a benign rewording; higher means more brittle to phrasing.
-  Note: despite "Score", this returns a distance (higher = less consistent).
-- **Inter-Rater Reliability (ICC)**, `InterRaterReliability`.
-  Formula (two-way random effects ICC(2,1), Shrout and Fleiss):
-  `ICC = (MS_R - MS_E) / ( MS_R + (k-1) MS_E + (k/n)(MS_C - MS_E) )`, with k
-  raters and n items. Range about [0, 1]. Clinical meaning: agreement among
-  raters or judges scoring the same cases (for example multiple LLM judges);
-  above 0.75 is excellent. Also reports Bland-Altman limits of agreement.
+**Decision Flip Rate (DFR)**, `DecisionFlipRate`.
+
+$$\mathrm{DFR} = \frac{1}{n} \sum_{i=1}^{n} \mathbb{1}\!\left[\, d_i \neq d_i' \,\right]$$
+
+where $d_i$ and $d_i'$ are the decisions before and after a counterfactual
+perturbation. Range [0, 1], lower is better. Clinical meaning: the fraction of
+cases whose recommendation changes when only a sensitive attribute (for example
+the race label) is altered; a high value means decisions depend on identity.
+Note: the reported `ci_lower`/`ci_upper` are percentiles of the 0/1 flip vector,
+so they are coarse; treat `flip_rate` as the primary quantity.
+
+**Embedding Consistency Score (ECS)**, `EmbeddingConsistencyScore`.
+
+$$\mathrm{ECS} = \frac{1}{n} \sum_{i=1}^{n} \left( 1 - \cos(\mathbf{o}_i, \mathbf{p}_i) \right), \qquad \cos(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\lVert \mathbf{a} \rVert\, \lVert \mathbf{b} \rVert}$$
+
+for original embeddings $\mathbf{o}_i$ and perturbed embeddings $\mathbf{p}_i$.
+Range [0, 2], lower is better. Clinical meaning: how much the model's internal
+representation of a case drifts under a benign rewording; higher means more
+brittle to phrasing. Note: despite "Score", this returns a distance (higher =
+less consistent).
+
+**Inter-Rater Reliability (ICC)**, `InterRaterReliability`.
+Two-way random-effects ICC(2,1) (Shrout and Fleiss) for $k$ raters and $n$ items:
+
+$$\mathrm{ICC}(2,1) = \frac{MS_R - MS_E}{MS_R + (k-1) MS_E + \frac{k}{n}\left(MS_C - MS_E\right)}$$
+
+Range about [0, 1]. Clinical meaning: agreement among raters or judges scoring
+the same cases (for example multiple LLM judges); above 0.75 is excellent. Also
+reports Bland-Altman limits of agreement.
 
 ### Domain 2: equity, fairness, ethics
 
-- **Hierarchical Equity Ratio (HER)**, `HierarchicalEquityRatio`.
-  Formula: `HER_g = metric_g / metric_reference`; the 0.8 to 1.25 band is the
-  four-fifths rule. Clinical meaning: each group's performance relative to a
-  reference group; values near 1 indicate parity. Companion Bias-Gini:
-  `G = ( sum_i sum_j | s_i - s_j | ) / ( 2 n^2 * mean(s) )`, dispersion of
-  scores across groups (lower is better).
-- **Harm-Adjusted Fairness Gap (HAFG)**, `HarmAdjustedFairnessGap`.
-  Formula: `harm_g = FN_g * cost_FN + FP_g * cost_FP`; `HAFG = | harm_1 - harm_2 |`.
-  Clinical meaning: error-rate gaps weighted by clinical cost, so a missed
-  diagnosis (false negative) can be penalized more than an over-call.
-- **Ethical Risk Index (ERI)**, `EthicalRiskIndex`.
-  Formula: `ERI = total_severity / n_outputs`; severe-violation rate
-  `SVR = (n_violations / n_outputs) * 1000`. Clinical meaning: mean ethical
-  severity per output and the rate of severe violations per 1000 outputs.
-- **Intersectional Bias Score (IBS)**, `IntersectionalBiasScore`.
-  Formula: pairwise subgroup similarity `1 / (1 + euclidean_distance)` plus an
-  interaction analysis (variance attributable to race x gender beyond main
-  effects). Clinical meaning: detects bias that appears only at intersections
-  (for example a specific race-and-gender subgroup), not in any single axis.
+**Hierarchical Equity Ratio (HER)**, `HierarchicalEquityRatio`.
+
+$$\mathrm{HER}_g = \frac{\text{metric}_g}{\text{metric}_{\text{ref}}}$$
+
+The 0.8 to 1.25 band is the four-fifths rule. Values near 1 indicate parity with
+the reference group. Companion Bias-Gini over group scores $s_g$ (lower is
+better), with mean $\bar{s}$:
+
+$$G = \frac{\sum_{i}\sum_{j} \left| s_i - s_j \right|}{2 n^2\, \bar{s}}$$
+
+**Harm-Adjusted Fairness Gap (HAFG)**, `HarmAdjustedFairnessGap`.
+
+$$\text{harm}_g = \mathrm{FN}_g\, c_{\mathrm{FN}} + \mathrm{FP}_g\, c_{\mathrm{FP}}, \qquad \mathrm{HAFG} = \left| \text{harm}_1 - \text{harm}_2 \right|$$
+
+Error counts are weighted by clinical cost, so a missed diagnosis (false
+negative) can be penalized more heavily than an over-call.
+
+**Ethical Risk Index (ERI)**, `EthicalRiskIndex`.
+
+$$\mathrm{ERI} = \frac{\text{total severity}}{n_{\text{outputs}}}, \qquad \mathrm{SVR} = \frac{n_{\text{violations}}}{n_{\text{outputs}}} \times 1000$$
+
+Clinical meaning: mean ethical severity per output, and the rate of severe
+violations per 1000 outputs.
+
+**Intersectional Bias Score (IBS)**, `IntersectionalBiasScore`.
+Pairwise subgroup similarity from metric vectors $\mathbf{v}_i, \mathbf{v}_j$:
+
+$$\text{sim}_{ij} = \frac{1}{1 + \lVert \mathbf{v}_i - \mathbf{v}_j \rVert_2}$$
+
+plus an interaction analysis (variance attributable to race $\times$ gender
+beyond main effects). Clinical meaning: detects bias that appears only at
+intersections (for example a specific race-and-gender subgroup), not in any
+single axis.
 
 ### Domain 3: governance and transparency
 
-- **Audit Traceability Score (ATS)**, `AuditTraceabilityScore`.
-  Formula: `ATS = n_traceable / n_total`, with a Wilson 95% score interval
-  `p~ = (x + z^2/2)/(n + z^2)`, `SE = sqrt( p~(1 - p~)/(n + z^2) )`, z = 1.96.
-  Clinical meaning: the share of decisions traceable to a specific source;
-  the Wilson interval is the proper small-sample interval for a proportion.
-- **Governance Compliance Index (GCI)**, `GovernanceComplianceIndex`.
-  Formula: `GCI = n_enforced / n_mandated`. Range [0, 1]. Clinical meaning: the
-  fraction of mandated governance policies actually enforced.
-- **Temporal Fairness Drift (TFD)**, `TemporalFairnessDrift`.
-  Formula: statistical process control on a fairness time series; control
-  limits `mean +/- k * std`, drift flagged when a point falls outside. Clinical
-  meaning: detects when a deployed model's fairness metric drifts over time.
+**Audit Traceability Score (ATS)**, `AuditTraceabilityScore`.
+Proportion traceable, with a Wilson 95% score interval ($z = 1.96$):
+
+$$\mathrm{ATS} = \frac{n_{\text{traceable}}}{n_{\text{total}}}, \qquad \tilde{p} = \frac{x + z^2/2}{n + z^2}, \qquad \mathrm{SE} = \sqrt{\frac{\tilde{p}\,(1 - \tilde{p})}{n + z^2}}$$
+
+Clinical meaning: the share of decisions traceable to a specific source; the
+Wilson interval is the proper small-sample interval for a proportion.
+
+**Governance Compliance Index (GCI)**, `GovernanceComplianceIndex`.
+
+$$\mathrm{GCI} = \frac{n_{\text{enforced}}}{n_{\text{mandated}}}$$
+
+Range [0, 1]: the fraction of mandated governance policies actually enforced.
+
+**Temporal Fairness Drift (TFD)**, `TemporalFairnessDrift`.
+Statistical process control on a fairness time series with control limits
+
+$$\mu \pm k\,\sigma$$
+
+drift is flagged when a point falls outside the limits. Clinical meaning:
+detects when a deployed model's fairness metric drifts over time.
 
 ### Appendix: advanced metrics
 
-- **Bootstrap Confidence Intervals**, `BootstrapConfidenceIntervals`: percentile
-  bootstrap of any statistic over resamples (uses `RandomState` for reproducibility).
-- **Bias Concentration Index (BCI)**, `BiasConcentrationIndex`: Herfindahl-style
-  `sum_r p_r^2 / (sum_r p_r)^2` over group bias proportions.
-- **Jensen-Shannon Divergence (JSD)**, `JensenShannonDivergence`: `jensenshannon(p, q) ** 2`
-  (scipy returns the JS distance; squaring recovers the divergence). Range [0, ln 2].
-- **Mutual Information Content (MIC)**, `MutualInformationContent`: `mutual_info_score(x, y)`,
-  shared information between a decision and a demographic variable.
-- **Wasserstein Distance**, `WassersteinDistance`: earth-mover distance between two
-  score distributions (`scipy.stats.wasserstein_distance`).
-- **Network Modularity / Robustness Certification / Transparency / Statistical Power**:
-  graph modularity, certified robustness radius, transparency scoring, and power
-  and sample-size planning, respectively.
+**Bootstrap Confidence Intervals**, `BootstrapConfidenceIntervals`: percentile
+bootstrap of any statistic over resamples (uses `RandomState` for reproducibility).
+
+**Bias Concentration Index (BCI)**, `BiasConcentrationIndex`, a Herfindahl-style
+concentration of group bias proportions $p_r$:
+
+$$\mathrm{BCI} = \frac{\sum_{r} p_r^{2}}{\left(\sum_{r} p_r\right)^{2}}$$
+
+**Jensen-Shannon Divergence (JSD)**, `JensenShannonDivergence`. scipy's
+`jensenshannon` returns the JS distance, so squaring recovers the divergence:
+
+$$\mathrm{JSD}(p, q) = \mathrm{jensenshannon}(p, q)^{2}, \qquad \mathrm{JSD} \in [0, \ln 2]$$
+
+**Mutual Information Content (MIC)**, `MutualInformationContent`: the mutual
+information $I(X; Y)$ between a decision $X$ and a demographic variable $Y$
+(`mutual_info_score`).
+
+**Wasserstein Distance**, `WassersteinDistance`: the earth-mover distance
+$W_1(u, v)$ between two score distributions (`scipy.stats.wasserstein_distance`).
+
+**Network Modularity / Robustness Certification / Transparency / Statistical
+Power**: graph modularity, certified robustness radius, transparency scoring, and
+power and sample-size planning, respectively.
 
 ### Statistics module
 
-- **HierarchicalLinearModeling**: variance decomposition with
-  `ICC = var_between / (var_between + var_within)`; fixed-effect coefficients
-  (estimate, SE, t, p, 95% CI); AIC and BIC computed from the maximum-likelihood
-  fit (REML does not define them).
-- **MediationAnalysis**: indirect effect `a * b`, total `c`, direct `c'`,
-  `proportion_mediated = indirect / total` (reported unclamped; flagged when
-  outside [0, 1]); Sobel SE `sqrt( b^2 SE_a^2 + a^2 SE_b^2 )`, with a bootstrap CI.
-- **NetworkStatistics**: degree, betweenness, closeness centrality and clustering
-  from the metric correlation graph.
+**HierarchicalLinearModeling**: variance decomposition
+
+$$\mathrm{ICC} = \frac{\sigma^{2}_{\text{between}}}{\sigma^{2}_{\text{between}} + \sigma^{2}_{\text{within}}}$$
+
+plus fixed-effect coefficients (estimate, SE, $t$, $p$, 95% CI). AIC and BIC are
+computed from the maximum-likelihood fit (REML does not define them).
+
+**MediationAnalysis**: indirect effect $a \cdot b$, total effect $c$, direct
+effect $c'$, with
+
+$$\text{proportion mediated} = \frac{a\,b}{c}, \qquad \mathrm{SE}_{ab} = \sqrt{b^{2}\,\mathrm{SE}_a^{2} + a^{2}\,\mathrm{SE}_b^{2}}$$
+
+(the Sobel standard error). `proportion_mediated` is reported unclamped and
+flagged when outside [0, 1]; a bootstrap CI is also provided.
+
+**NetworkStatistics**: degree, betweenness, and closeness centrality plus
+clustering, computed from the metric correlation graph.
 
 ## Notes For Clinical Use
 

@@ -5,6 +5,20 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-06-08
+
+### Fixed
+- `export_table(path=...)` now creates the parent directory if it does not
+  exist, so writing to e.g. `results/geographic.md` no longer raises
+  FileNotFoundError.
+- The `plot_figure*` functions now create the `save_path` parent directory
+  before saving.
+- Removed a broken Build Status badge (no CI workflow) that rendered as "?".
+
+### Changed
+- Vignette: metric formulas rewritten in LaTeX (rendered math) for a clean,
+  academic presentation; removed an internal note not addressed to readers.
+
 ## [1.2.0] - 2026-06-08
 
 ### Changed (API finalized to match the documentation)
