@@ -1,4 +1,5 @@
 """Render a DataFrame to markdown / LaTeX / HTML with consistent rounding."""
+import os
 from typing import Optional
 
 import pandas as pd
@@ -38,6 +39,11 @@ def export_table(
         rendered = rounded.to_html(index=False)
 
     if path is not None:
+        # Create the parent directory if it does not exist, so callers can
+        # write to e.g. "results/geographic.md" without pre-creating "results/".
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         with open(path, "w") as fh:
             fh.write(rendered)
     return rendered

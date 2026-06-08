@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
@@ -34,6 +35,7 @@ def plot_network_graph(
     plt.title(title)
     plt.axis("off")
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
         plt.close()
     else:
@@ -51,6 +53,7 @@ def plot_correlation_matrix(
     plt.title(title)
     plt.tight_layout()
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
         plt.close()
     else:
@@ -72,6 +75,7 @@ def plot_metric_distribution(
     plt.legend()
     plt.grid(True, alpha=0.3)
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
         plt.close()
     else:
@@ -96,6 +100,7 @@ def plot_bland_altman(
     plt.ylabel("Difference")
     plt.grid(True, alpha=0.3)
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
         plt.close()
     else:
@@ -124,6 +129,7 @@ def plot_her_heatmap(
     plt.title(title)
     plt.tight_layout()
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
         plt.close()
     else:
@@ -148,6 +154,7 @@ def plot_control_chart(
     plt.ylabel("Metric Value")
     plt.grid(True, alpha=0.3)
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
         plt.close()
     else:
@@ -296,6 +303,7 @@ def plot_figure2_reliability_dashboard(
     plt.tight_layout()
 
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
     else:
@@ -460,6 +468,7 @@ def plot_figure3_corpus_comparison(
     plt.tight_layout()
 
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
     else:
@@ -620,6 +629,7 @@ def plot_figure4_temporal_robustness(
     plt.tight_layout()
 
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
     else:
@@ -780,6 +790,7 @@ def plot_figure5_ethics_governance(
     plt.tight_layout()
 
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
     else:
@@ -894,6 +905,7 @@ def plot_figure6_metric_networks(
     plt.tight_layout()
 
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
     else:
@@ -1041,6 +1053,7 @@ def plot_figure7_intersectional_heatmap(
     )
 
     if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         plt.close()
     else:
