@@ -30,6 +30,8 @@
 | **Publication-Ready Visualizations** | 6 manuscript-quality figure generators |
 | **Multi-Format Data Support** | MySQL, CSV, TSV, JSON with automatic standardization |
 | **Intersectional Analysis** | Detect bias across demographic combinations |
+| **Geographic Equity** | BEMI and GCC measure evidence-burden mismatch and regional concentration |
+| **Tidy Reporting Tables** | `export_table` renders metric results as markdown, LaTeX, or HTML |
 
 ---
 
@@ -399,6 +401,55 @@ result = rcs.calculate_rcs(original, perturbed)
 print(f"RCS: {result['rcs']:.4f} - {result['interpretation']['robustness_level']}")
 ```
 
+### Geographic Equity (v1.1.0)
+
+`equimed_dss.geographic` quantifies how well the evidence base reflects the global disease burden:
+
+- **`BurdenEvidenceMismatch` (BEMI)**: total-variation distance between the regional evidence
+  distribution and the regional disease-burden distribution. Range [0, 1]; 0 means evidence
+  tracks burden exactly, 1 means the two distributions are completely disjoint.
+- **`GeographicConcentration` (GCC)**: sample-corrected Gini coefficient (G*) and normalized
+  Shannon entropy (H_norm) for the regional distribution of included studies. G* = 0 and
+  H_norm = 1 both indicate even coverage; G* = 1 and H_norm = 0 indicate single-region
+  concentration. Note that Gini and entropy run in opposite directions.
+- **`WHO_REGION_IHD_BURDEN`**: bundled reference constant of normalized IHD DALY shares from
+  Roth GA et al., 2020 (GBD). AFRO and SEARO together carry about 36% of global IHD burden.
+
+```python
+from equimed_dss.geographic import BurdenEvidenceMismatch, GeographicConcentration, WHO_REGION_IHD_BURDEN
+
+bemi = BurdenEvidenceMismatch()
+result = bemi.calculate_bemi(
+    evidence_counts={"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2},
+    burden_shares=WHO_REGION_IHD_BURDEN
+)
+print(f"BEMI: {result['bemi']:.3f}")  # 0 = aligned, 1 = disjoint
+
+gcc = GeographicConcentration()
+result = gcc.calculate_gcc({"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2})
+print(f"Gini* (G*): {result['gini_corrected']:.3f}")
+print(f"H_norm: {result['entropy_normalized']:.3f}")
+```
+
+### Reporting Tables (v1.1.0)
+
+`equimed_dss.reporting` converts metric results into tidy DataFrames and exports them:
+
+```python
+from equimed_dss.reporting import (
+    hierarchical_coefficients_table,
+    mediation_effects_table,
+    network_centrality_table,
+    geographic_table,
+    export_table,
+)
+
+df = geographic_table(bemi_result, gcc_result)
+export_table(df, fmt="markdown", path="results/geographic.md")
+export_table(df, fmt="latex",    path="results/geographic.tex")
+export_table(df, fmt="html",     path="results/geographic.html")
+```
+
 ---
 
 ## Statistical Analyses
@@ -553,6 +604,14 @@ EquiMed_DSS/
 | `NetworkModularity` | `appendix` | Community structure |
 | `TransparencyScore` | `appendix` | Explanation quality |
 | `RobustnessCertificationScore` | `appendix` | Perturbation stability |
+| `BurdenEvidenceMismatch` | `geographic` | Evidence-burden mismatch (BEMI) |
+| `GeographicConcentration` | `geographic` | Regional concentration (GCC) |
+| `WHO_REGION_IHD_BURDEN` | `geographic` | IHD DALY burden reference shares |
+| `hierarchical_coefficients_table` | `reporting` | HLM results as tidy DataFrame |
+| `mediation_effects_table` | `reporting` | Mediation results as tidy DataFrame |
+| `network_centrality_table` | `reporting` | Network centrality as tidy DataFrame |
+| `geographic_table` | `reporting` | BEMI/GCC results as tidy DataFrame |
+| `export_table` | `reporting` | Render DataFrame to markdown/LaTeX/HTML |
 
 ---
 

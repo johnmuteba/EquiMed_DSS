@@ -402,6 +402,105 @@ Quantifies how risks propagate through interconnected system components.
 
 ---
 
+## Geographic Equity (v1.1.0)
+
+The `equimed_dss.geographic` module provides two metrics that together characterize how equitably
+a body of evidence covers the global disease burden across WHO regions.
+
+### Burden-Evidence Mismatch Index (BEMI)
+
+**Purpose**: Measures the total-variation distance between the regional distribution of evidence
+(studies or cases) and the regional distribution of disease burden.
+
+**Formula**:
+
+```
+BEMI = 0.5 * sum_r |evidence_share_r - burden_share_r|
+```
+
+where `evidence_share_r` is the fraction of studies (or cases) from region `r` and
+`burden_share_r` is the fraction of total disease burden in region `r`.
+
+**Range**: [0, 1]
+- **BEMI = 0**: evidence perfectly mirrors the burden distribution.
+- **BEMI = 1**: the two distributions are completely disjoint (no overlap).
+
+**Reference burden data**: `WHO_REGION_IHD_BURDEN` contains normalized IHD DALY shares from
+Roth GA et al., 2020 (GBD Compare for IHD). AFRO and SEARO together carry about 36% of global
+IHD burden, yet are substantially under-represented in most clinical AI literature.
+
+**Implementation**:
+```python
+from equimed_dss.geographic import BurdenEvidenceMismatch, WHO_REGION_IHD_BURDEN
+
+bemi = BurdenEvidenceMismatch()
+result = bemi.calculate_bemi(
+    evidence_counts={"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2},
+    burden_shares=WHO_REGION_IHD_BURDEN
+)
+print(f"BEMI: {result['bemi']:.3f}")
+```
+
+**Interpretation**:
+- **BEMI < 0.10**: evidence closely tracks burden (low mismatch)
+- **0.10 <= BEMI < 0.25**: moderate mismatch (some regions under-represented)
+- **BEMI >= 0.25**: high mismatch (evidence concentrated away from high-burden regions)
+
+---
+
+### Geographic Concentration of Coverage (GCC)
+
+**Purpose**: Characterizes how evenly studies are distributed across regions, using two
+complementary measures that run in opposite directions.
+
+**Sample-corrected Gini (G\*)**:
+
+```
+G* = (R / (R - 1)) * G_raw
+```
+
+where `R` is the number of regions and `G_raw` is the standard Gini coefficient computed from
+regional study counts.
+
+**Range of G\***: [0, 1]
+- **G\* = 0**: perfectly even coverage across all regions.
+- **G\* = 1**: all studies concentrated in a single region.
+
+**Normalized Shannon entropy (H_norm)**:
+
+```
+H_norm = -sum_r p_r * ln(p_r) / ln(R)
+```
+
+where `p_r` is the fraction of studies in region `r`.
+
+**Range of H_norm**: [0, 1]
+- **H_norm = 1**: perfectly even coverage (maximum entropy).
+- **H_norm = 0**: all studies in one region (minimum entropy).
+
+Note: G\* and H_norm run in opposite directions. GCC also exposes `concentration = 1 - H_norm`
+for cases where a single "high = concentrated" scale is preferred.
+
+**Implementation**:
+```python
+from equimed_dss.geographic import GeographicConcentration
+
+gcc = GeographicConcentration()
+result = gcc.calculate_gcc(
+    {"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2}
+)
+print(f"Gini* (G*):      {result['gini_corrected']:.3f}")
+print(f"H_norm:          {result['entropy_normalized']:.3f}")
+print(f"Concentration:   {result['concentration']:.3f}")
+```
+
+**Use Cases**:
+- Systematic review equity audits
+- Identifying under-represented regions for future research investment
+- Reporting geographic diversity as a manuscript quality indicator
+
+---
+
 ## Choosing the Right Metrics
 
 ### For Diagnostic Systems
