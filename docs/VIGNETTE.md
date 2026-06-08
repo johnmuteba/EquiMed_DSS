@@ -22,9 +22,24 @@ pip install -e ".[dev]"
 
 Most fairness workflows need three categories of information:
 
-- A model output, such as `prediction`, `confidence`, or a binary decision.
-- A reference outcome, such as `actual`.
-- Demographic columns, such as `race`, `gender`, `age_group`, or `ses`.
+- **A model output (`prediction`)**: what your decision-support system produced
+  for each case. This can be a continuous probability or confidence (for example
+  a sepsis model outputting `0.82`, meaning an 82% predicted risk), or a binary
+  decision (`1` = recommend admission, `0` = discharge). For calibration metrics
+  use the probability; for flip-rate or harm metrics use the binary decision.
+- **A reference outcome (`actual`)**: the ground truth you score the model
+  against. This is the observed result, for example `1` if the patient actually
+  developed sepsis and `0` if not, or the clinician-confirmed diagnosis, or the
+  documented workup. It is the "right answer" the prediction is compared to.
+- **Demographic columns**, such as `race`, `gender`, `age_group`, or `ses`,
+  used to stratify any metric and expose disparities between groups.
+
+Worked example of the pairing: a chest-pain triage model sees a patient and
+outputs `prediction = 0.73` (73% predicted probability of acute coronary
+syndrome). The patient is later confirmed to have ACS, so `actual = 1`. Across
+many patients, calibration asks whether cases predicted at 73% actually turn out
+positive about 73% of the time; a flip-rate asks whether the binary decision
+changes when only the patient's race label is swapped.
 
 The built-in sample generator creates a DataFrame with those ingredients:
 
@@ -574,6 +589,188 @@ print(f"Saved manuscript-style figures to {output_dir.resolve()}")
 5. Add appendix metrics when you need uncertainty intervals, distribution shifts, robustness checks, or sample size planning.
 6. Monitor deployment with TFD, ATS, and GCI.
 7. Save plots and metric dictionaries into your audit record so each conclusion remains reproducible.
+
+## Geographic Equity Metrics
+
+These quantify whether the evidence a system relies on matches where disease
+burden actually falls. They use raw counts per region (normalized internally).
+
+### Burden-Evidence Mismatch Index (BEMI)
+
+Class: `BurdenEvidenceMismatch` in `equimed_dss.geographic`.
+
+Formula (e_r = evidence share of region r, b_r = burden share, both summing to 1):
+
+```
+BEMI = 0.5 * sum_r | e_r - b_r |
+```
+
+This is the total-variation distance between the two distributions. Range
+[0, 1]: 0 means evidence tracks burden exactly, 1 means they are completely
+disjoint. BEMI equals the fraction of evidence that would have to be moved
+across regions to match the burden distribution.
+
+Clinical meaning: a system grounded on literature that under-represents
+high-burden regions may give advice that does not transfer to those
+populations. A high BEMI is a transferability and equity warning.
+
+```python
+from equimed_dss.geographic import BurdenEvidenceMismatch, WHO_REGION_IHD_BURDEN
+
+bemi = BurdenEvidenceMismatch()
+result = bemi.calculate_bemi(
+    evidence_counts={"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2},
+    burden_shares=WHO_REGION_IHD_BURDEN,
+)
+print(round(result["bemi"], 3))            # total-variation distance in [0, 1]
+print(result["most_underserved_region"])   # region most under-represented vs burden
+print(result["interpretation"])            # human-readable verdict
+```
+
+### Geographic Concentration of Coverage (GCC)
+
+Class: `GeographicConcentration` in `equimed_dss.geographic`.
+
+Formulas (x_r = count in region r, p_r = its share, R = number of regions):
+
+```
+G_raw          = ( sum_i sum_j | x_i - x_j | ) / ( 2 * R * sum_k x_k )
+Gini* (G*)     = ( R / (R - 1) ) * G_raw           # sample-corrected Gini
+H_norm         = - ( sum_r p_r * ln(p_r) ) / ln(R) # normalized Shannon entropy
+concentration  = 1 - H_norm
+```
+
+G* range [0, 1]: 0 = perfectly even coverage, 1 = all evidence in one region.
+The R/(R-1) correction is required because the raw Gini of R categories can only
+reach (R-1)/R, so without it the index could never reach 1. H_norm range [0, 1]:
+1 = even, 0 = single-region. G* and H_norm run in opposite directions, so
+`concentration = 1 - H_norm` gives a single "higher = more concentrated" reading.
+
+Clinical meaning: even when evidence matches burden on average (low BEMI), it can
+still be concentrated in a few regions. GCC exposes that fragility.
+
+```python
+from equimed_dss.geographic import GeographicConcentration
+
+gcc = GeographicConcentration()
+result = gcc.calculate_gcc({"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2})
+print(round(result["gini_corrected"], 3))      # G* in [0, 1]
+print(round(result["entropy_normalized"], 3))  # H_norm in [0, 1]
+```
+
+### The bundled reference: WHO_REGION_IHD_BURDEN
+
+`WHO_REGION_IHD_BURDEN` holds normalized ischaemic-heart-disease (IHD) burden
+shares per WHO region, derived from age-standardized IHD DALYs per 100,000
+reported by Roth GA et al., 2020 (GBD Compare for IHD), rounded to the nearest
+100:
+
+```
+AFRO 2730, AMRO 2070, EMRO 4200, EURO 3550, SEARO 3850, WPRO 1830
+total = 18230
+```
+
+Dividing each by the total gives its share; for example AFRO = 2730 / 18230 =
+0.150 and SEARO = 3850 / 18230 = 0.211.
+
+Where the "about 36%" comes from: AFRO and SEARO together account for
+(2730 + 3850) / 18230 = 6580 / 18230 = 0.361, that is about 36% of global IHD
+burden. That is the figure cited in the manuscript's geographic-gap finding.
+These are published aggregate statistics (not patient-level data), so they are
+safe to bundle. Pass your own `burden_shares` to use a different reference or
+disease.
+
+## Metric Formulas And Clinical Meaning
+
+Every formula below has been verified against its implementation. The two notes
+flag presentation caveats, not formula errors.
+
+### Domain 1: reliability and robustness
+
+- **Decision Flip Rate (DFR)**, `DecisionFlipRate`.
+  Formula: `DFR = (1/n) * sum_i 1[ decision_i != counterfactual_decision_i ]`.
+  Range [0, 1], lower is better. Clinical meaning: the fraction of cases whose
+  recommendation changes when only a sensitive attribute (for example the race
+  label) is altered; a high value means decisions depend on identity.
+  Note: the reported `ci_lower`/`ci_upper` are percentiles of the 0/1 flip
+  vector, so they are coarse; treat `flip_rate` as the primary quantity.
+- **Embedding Consistency Score (ECS)**, `EmbeddingConsistencyScore`.
+  Formula: `ECS = mean_i ( 1 - cos(orig_i, perturbed_i) )`, where
+  `cos(a, b) = (a . b) / (||a|| * ||b||)`. Range [0, 2], lower is better.
+  Clinical meaning: how much the model's internal representation of a case
+  drifts under a benign rewording; higher means more brittle to phrasing.
+  Note: despite "Score", this returns a distance (higher = less consistent).
+- **Inter-Rater Reliability (ICC)**, `InterRaterReliability`.
+  Formula (two-way random effects ICC(2,1), Shrout and Fleiss):
+  `ICC = (MS_R - MS_E) / ( MS_R + (k-1) MS_E + (k/n)(MS_C - MS_E) )`, with k
+  raters and n items. Range about [0, 1]. Clinical meaning: agreement among
+  raters or judges scoring the same cases (for example multiple LLM judges);
+  above 0.75 is excellent. Also reports Bland-Altman limits of agreement.
+
+### Domain 2: equity, fairness, ethics
+
+- **Hierarchical Equity Ratio (HER)**, `HierarchicalEquityRatio`.
+  Formula: `HER_g = metric_g / metric_reference`; the 0.8 to 1.25 band is the
+  four-fifths rule. Clinical meaning: each group's performance relative to a
+  reference group; values near 1 indicate parity. Companion Bias-Gini:
+  `G = ( sum_i sum_j | s_i - s_j | ) / ( 2 n^2 * mean(s) )`, dispersion of
+  scores across groups (lower is better).
+- **Harm-Adjusted Fairness Gap (HAFG)**, `HarmAdjustedFairnessGap`.
+  Formula: `harm_g = FN_g * cost_FN + FP_g * cost_FP`; `HAFG = | harm_1 - harm_2 |`.
+  Clinical meaning: error-rate gaps weighted by clinical cost, so a missed
+  diagnosis (false negative) can be penalized more than an over-call.
+- **Ethical Risk Index (ERI)**, `EthicalRiskIndex`.
+  Formula: `ERI = total_severity / n_outputs`; severe-violation rate
+  `SVR = (n_violations / n_outputs) * 1000`. Clinical meaning: mean ethical
+  severity per output and the rate of severe violations per 1000 outputs.
+- **Intersectional Bias Score (IBS)**, `IntersectionalBiasScore`.
+  Formula: pairwise subgroup similarity `1 / (1 + euclidean_distance)` plus an
+  interaction analysis (variance attributable to race x gender beyond main
+  effects). Clinical meaning: detects bias that appears only at intersections
+  (for example a specific race-and-gender subgroup), not in any single axis.
+
+### Domain 3: governance and transparency
+
+- **Audit Traceability Score (ATS)**, `AuditTraceabilityScore`.
+  Formula: `ATS = n_traceable / n_total`, with a Wilson 95% score interval
+  `p~ = (x + z^2/2)/(n + z^2)`, `SE = sqrt( p~(1 - p~)/(n + z^2) )`, z = 1.96.
+  Clinical meaning: the share of decisions traceable to a specific source;
+  the Wilson interval is the proper small-sample interval for a proportion.
+- **Governance Compliance Index (GCI)**, `GovernanceComplianceIndex`.
+  Formula: `GCI = n_enforced / n_mandated`. Range [0, 1]. Clinical meaning: the
+  fraction of mandated governance policies actually enforced.
+- **Temporal Fairness Drift (TFD)**, `TemporalFairnessDrift`.
+  Formula: statistical process control on a fairness time series; control
+  limits `mean +/- k * std`, drift flagged when a point falls outside. Clinical
+  meaning: detects when a deployed model's fairness metric drifts over time.
+
+### Appendix: advanced metrics
+
+- **Bootstrap Confidence Intervals**, `BootstrapConfidenceIntervals`: percentile
+  bootstrap of any statistic over resamples (uses `RandomState` for reproducibility).
+- **Bias Concentration Index (BCI)**, `BiasConcentrationIndex`: Herfindahl-style
+  `sum_r p_r^2 / (sum_r p_r)^2` over group bias proportions.
+- **Jensen-Shannon Divergence (JSD)**, `JensenShannonDivergence`: `jensenshannon(p, q) ** 2`
+  (scipy returns the JS distance; squaring recovers the divergence). Range [0, ln 2].
+- **Mutual Information Content (MIC)**, `MutualInformationContent`: `mutual_info_score(x, y)`,
+  shared information between a decision and a demographic variable.
+- **Wasserstein Distance**, `WassersteinDistance`: earth-mover distance between two
+  score distributions (`scipy.stats.wasserstein_distance`).
+- **Network Modularity / Robustness Certification / Transparency / Statistical Power**:
+  graph modularity, certified robustness radius, transparency scoring, and power
+  and sample-size planning, respectively.
+
+### Statistics module
+
+- **HierarchicalLinearModeling**: variance decomposition with
+  `ICC = var_between / (var_between + var_within)`; fixed-effect coefficients
+  (estimate, SE, t, p, 95% CI); AIC and BIC computed from the maximum-likelihood
+  fit (REML does not define them).
+- **MediationAnalysis**: indirect effect `a * b`, total `c`, direct `c'`,
+  `proportion_mediated = indirect / total` (reported unclamped; flagged when
+  outside [0, 1]); Sobel SE `sqrt( b^2 SE_a^2 + a^2 SE_b^2 )`, with a bootstrap CI.
+- **NetworkStatistics**: degree, betweenness, closeness centrality and clustering
+  from the metric correlation graph.
 
 ## Notes For Clinical Use
 
