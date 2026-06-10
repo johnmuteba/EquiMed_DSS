@@ -5,6 +5,16 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-06-10
+
+### Changed (documentation)
+- README: corrected the metric count (37 across five domains) on the PyPI/GitHub
+  landing; the Reporting Tables example is now self-contained and prints the table.
+- Vignette "Metric Formulas And Clinical Meaning": reordered to Domain 1-5 then
+  Statistics then Appendix; added a clinical interpretation and a runnable,
+  printed example for every metric; fixed LaTeX rendering (literal asterisks in
+  math now use \ast, so GCC and DCI render correctly).
+
 ## [1.4.0] - 2026-06-10
 
 ### Added

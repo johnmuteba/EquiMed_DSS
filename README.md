@@ -4,7 +4,7 @@
 
 <h3>A Comprehensive Python Library for Clinical AI Fairness Assessment</h3>
 
-<p>Evaluate reliability, equity, governance, and intersectionality in clinical AI systems using <strong>19 novel metrics</strong></p>
+<p>Evaluate reliability, equity, governance, and intersectionality in clinical AI systems using <strong>37 metrics across five domains</strong></p>
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/johnmuteba/EquiMed_DSS/blob/master/LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
@@ -17,13 +17,13 @@
 
 ## Overview
 
-**EquiMed_DSS** (Equitable Medical Decision Support System) provides a systematic framework for evaluating clinical AI systems across multiple dimensions of fairness, reliability, and governance. The library implements **19 novel metrics** specifically designed for healthcare applications where equity and safety are paramount.
+**EquiMed_DSS** (Equitable Medical Decision Support System) provides a systematic framework for evaluating clinical AI systems across multiple dimensions of fairness, reliability, and governance. The library implements **37 metrics across five domains** specifically designed for healthcare applications where equity and safety are paramount.
 
 ### Key Features
 
 | Feature | Description |
 |---------|-------------|
-| **19 Novel Metrics** | Comprehensive coverage across 3 domains + advanced appendix |
+| **37 Metrics** | Five domains (reliability, equity, governance, representation/robustness, technical-supplement fairness) plus geographic and advanced-appendix metrics |
 | **Clinical AI Focus** | Designed specifically for healthcare applications |
 | **Statistical Analyses** | HLM, Mediation Analysis, Network Statistics |
 | **Publication-Ready Visualizations** | 6 manuscript-quality figure generators |
@@ -437,18 +437,36 @@ print(f"H_norm: {gcc_result['entropy_normalized']:.3f}")
 `equimed_dss.reporting` converts metric results into tidy DataFrames and exports them:
 
 ```python
-from equimed_dss.reporting import (
-    hierarchical_coefficients_table,
-    mediation_effects_table,
-    network_centrality_table,
-    geographic_table,
-    export_table,
+from equimed_dss.geographic import (
+    BurdenEvidenceMismatch, GeographicConcentration, WHO_REGION_IHD_BURDEN,
 )
+from equimed_dss.reporting import geographic_table, export_table
+
+evidence = {"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2}
+bemi_result = BurdenEvidenceMismatch().calculate_bemi(
+    evidence_counts=evidence, burden_shares=WHO_REGION_IHD_BURDEN)
+gcc_result = GeographicConcentration().calculate_gcc(evidence)
 
 df = geographic_table(bemi_result, gcc_result)
+print(df)                                    # show the table in the console
+print(export_table(df, fmt="markdown"))      # render it as markdown to the screen
+
+# To also save to files, pass a path (returns None, so do not wrap these in print):
 export_table(df, fmt="markdown", path="results/geographic.md")
 export_table(df, fmt="latex",    path="results/geographic.tex")
 export_table(df, fmt="html",     path="results/geographic.html")
+```
+
+Output:
+
+```
+                       metric  value
+0                        BEMI   0.48
+1                  Gini* (G*)  0.613
+2                      H_norm  0.742
+3  concentration (1 - H_norm)  0.258
+4     most_underserved_region   EMRO
+5                   n_regions      6
 ```
 
 ---
@@ -655,7 +673,7 @@ If you use EquiMed_DSS in your research, please cite:
   author={Muteba Mwamba, John},
   year={2025},
   url={https://github.com/johnmuteba/EquiMed_DSS},
-  note={19 novel metrics for reliability, equity, and governance in clinical AI}
+  note={37 metrics for reliability, equity, governance, representation, and robustness in clinical AI}
 }
 ```
 

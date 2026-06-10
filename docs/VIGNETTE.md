@@ -655,11 +655,11 @@ Class: `GeographicConcentration` in `equimed_dss.geographic`.
 
 Formulas, where $x_r$ is the count in region $r$, $p_r$ its share, and $R$ the number of regions:
 
-$$G_{\text{raw}} = \frac{\sum_{i}\sum_{j} \left| x_i - x_j \right|}{2 R \sum_{k} x_k}, \qquad G^{*} = \frac{R}{R-1}\, G_{\text{raw}}$$
+$$G_{\text{raw}} = \frac{\sum_{i}\sum_{j} \left| x_i - x_j \right|}{2 R \sum_{k} x_k}, \qquad G^{\ast} = \frac{R}{R-1}\, G_{\text{raw}}$$
 
 $$H_{\text{norm}} = -\frac{\sum_{r} p_r \ln p_r}{\ln R}, \qquad \text{concentration} = 1 - H_{\text{norm}}$$
 
-$G^{*}$ range [0, 1]: 0 = perfectly even coverage, 1 = all evidence in one region.
+$G^{\ast}$ range [0, 1]: 0 = perfectly even coverage, 1 = all evidence in one region.
 The R/(R-1) correction is required because the raw Gini of R categories can only
 reach (R-1)/R, so without it the index could never reach 1. H_norm range [0, 1]:
 1 = even, 0 = single-region. G* and H_norm run in opposite directions, so
@@ -704,220 +704,487 @@ disease.
 
 ## Metric Formulas And Clinical Meaning
 
-Each metric is listed with its formula and its clinical interpretation. Two
-short notes flag presentation conventions worth knowing.
+Every metric below is listed with its formula, a short clinical interpretation,
+and a runnable example that prints its result. The examples share this setup:
+
+```python
+import numpy as np
+import pandas as pd
+from equimed_dss.utils import SampleDataGenerator
+
+rng = np.random.RandomState(42)
+gen = SampleDataGenerator(random_state=42)
+```
 
 ### Domain 1: reliability and robustness
 
 **Decision Flip Rate (DFR)**, `DecisionFlipRate`.
+Clinical interpretation: the fraction of cases whose recommendation changes when
+only a sensitive attribute (e.g. race) is altered; a high value means decisions
+depend on identity rather than clinical need.
 
-$$\mathrm{DFR} = \frac{1}{n} \sum_{i=1}^{n} \mathbb{1}\!\left[\, d_i \neq d_i' \,\right]$$
+$$\mathrm{DFR} = \frac{1}{n} \sum_{i=1}^{n} \mathbb{1}\!\left[ d_i \neq d_i' \right]$$
 
-where $d_i$ and $d_i'$ are the decisions before and after a counterfactual
-perturbation. Range [0, 1], lower is better. Clinical meaning: the fraction of
-cases whose recommendation changes when only a sensitive attribute (for example
-the race label) is altered; a high value means decisions depend on identity.
-Note: the reported `ci_lower`/`ci_upper` are percentiles of the 0/1 flip vector,
-so they are coarse; treat `flip_rate` as the primary quantity.
+```python
+from equimed_dss.domain1 import DecisionFlipRate
+orig = [1, 0, 1, 1, 0, 1, 0, 0]
+counterfactual = [1, 0, 1, 0, 0, 1, 1, 0]   # 2 of 8 flip
+print(DecisionFlipRate().calculate_dfr(orig, counterfactual)["flip_rate"])   # 0.25
+```
 
 **Embedding Consistency Score (ECS)**, `EmbeddingConsistencyScore`.
+Clinical interpretation: how much the model's internal representation of a case
+drifts under a benign rewording; higher means more brittle to phrasing. It is a
+distance (higher = less consistent).
 
-$$\mathrm{ECS} = \frac{1}{n} \sum_{i=1}^{n} \left( 1 - \cos(\mathbf{o}_i, \mathbf{p}_i) \right), \qquad \cos(\mathbf{a}, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\lVert \mathbf{a} \rVert\, \lVert \mathbf{b} \rVert}$$
+$$\mathrm{ECS} = \frac{1}{n}\sum_{i=1}^{n}\left(1 - \cos(\mathbf{o}_i, \mathbf{p}_i)\right)$$
 
-for original embeddings $\mathbf{o}_i$ and perturbed embeddings $\mathbf{p}_i$.
-Range [0, 2], lower is better. Clinical meaning: how much the model's internal
-representation of a case drifts under a benign rewording; higher means more
-brittle to phrasing. Note: despite "Score", this returns a distance (higher =
-less consistent).
+```python
+from equimed_dss.domain1 import EmbeddingConsistencyScore
+o = rng.normal(size=(20, 16)); p = o + rng.normal(scale=0.05, size=(20, 16))
+print(round(EmbeddingConsistencyScore().calculate_ecs(o, p)["mean_ecs"], 4))   # ~0.0015
+```
 
 **Inter-Rater Reliability (ICC)**, `InterRaterReliability`.
-Two-way random-effects ICC(2,1) (Shrout and Fleiss) for $k$ raters and $n$ items:
+Clinical interpretation: agreement among raters/judges scoring the same cases
+(e.g. several LLM judges); above 0.75 is excellent.
 
-$$\mathrm{ICC}(2,1) = \frac{MS_R - MS_E}{MS_R + (k-1) MS_E + \frac{k}{n}\left(MS_C - MS_E\right)}$$
+$$\mathrm{ICC}(2,1) = \frac{MS_R - MS_E}{MS_R + (k-1)MS_E + \frac{k}{n}\left(MS_C - MS_E\right)}$$
 
-Range about [0, 1]. Clinical meaning: agreement among raters or judges scoring
-the same cases (for example multiple LLM judges); above 0.75 is excellent. Also
-reports Bland-Altman limits of agreement.
+```python
+from equimed_dss.domain1 import InterRaterReliability
+judges = np.array([[4, 4, 5], [3, 3, 4], [5, 5, 5], [2, 3, 2], [4, 5, 4]])
+print(round(InterRaterReliability().calculate_icc_2_1(judges)["score"], 3))   # ~0.789
+```
 
 ### Domain 2: equity, fairness, ethics
 
 **Hierarchical Equity Ratio (HER)**, `HierarchicalEquityRatio`.
+Clinical interpretation: each group's performance relative to a reference group;
+values near 1 indicate parity (the 0.8 to 1.25 band is the four-fifths rule). The
+companion Bias-Gini summarizes dispersion across all groups (lower is better).
 
-$$\mathrm{HER}_g = \frac{\text{metric}_g}{\text{metric}_{\text{ref}}}$$
+$$\mathrm{HER}_g = \frac{\text{metric}_g}{\text{metric}_{\text{ref}}}, \qquad G = \frac{\sum_i\sum_j |s_i - s_j|}{2 n^2\, \bar{s}}$$
 
-The 0.8 to 1.25 band is the four-fifths rule. Values near 1 indicate parity with
-the reference group. Companion Bias-Gini over group scores $s_g$ (lower is
-better), with mean $\bar{s}$:
-
-$$G = \frac{\sum_{i}\sum_{j} \left| s_i - s_j \right|}{2 n^2\, \bar{s}}$$
+```python
+from equimed_dss.domain2 import HierarchicalEquityRatio
+scores = {"White": 0.85, "Black": 0.78, "Hispanic": 0.80, "Asian": 0.87}
+her = HierarchicalEquityRatio()
+print({k: round(v["score"], 3) for k, v in her.calculate_her(scores).items()})
+print(round(her.calculate_bias_gini(list(scores.values())), 4))   # 0.0242
+```
 
 **Harm-Adjusted Fairness Gap (HAFG)**, `HarmAdjustedFairnessGap`.
+Clinical interpretation: error-rate gap weighted by clinical cost, so a missed
+diagnosis (false negative) is penalized more than an over-call.
 
 $$\text{harm}_g = \mathrm{FN}_g\, c_{\mathrm{FN}} + \mathrm{FP}_g\, c_{\mathrm{FP}}, \qquad \mathrm{HAFG} = \left| \text{harm}_1 - \text{harm}_2 \right|$$
 
-Error counts are weighted by clinical cost, so a missed diagnosis (false
-negative) can be penalized more heavily than an over-call.
+```python
+from equimed_dss.domain2 import HarmAdjustedFairnessGap
+print(HarmAdjustedFairnessGap().calculate_hafg({"fn": 5, "fp": 10}, {"fn": 2, "fp": 5})["hafg"])   # 45.0
+```
 
 **Ethical Risk Index (ERI)**, `EthicalRiskIndex`.
+Clinical interpretation: mean ethical severity per output, plus the rate of
+severe violations per 1000 outputs.
 
 $$\mathrm{ERI} = \frac{\text{total severity}}{n_{\text{outputs}}}, \qquad \mathrm{SVR} = \frac{n_{\text{violations}}}{n_{\text{outputs}}} \times 1000$$
 
-Clinical meaning: mean ethical severity per output, and the rate of severe
-violations per 1000 outputs.
+```python
+from equimed_dss.domain2 import EthicalRiskIndex
+v = [{"severity": 0.8}, {"severity": 0.3}, {"severity": 0.9}]
+print(EthicalRiskIndex().calculate_eri(v, n_total_outputs=100)["eri"])   # 0.02
+```
 
 **Intersectional Bias Score (IBS)**, `IntersectionalBiasScore`.
-Pairwise subgroup similarity from metric vectors $\mathbf{v}_i, \mathbf{v}_j$:
+Clinical interpretation: detects bias that appears only at intersections (e.g. a
+specific race-and-gender subgroup) by flagging outlier subgroups.
 
 $$\text{sim}_{ij} = \frac{1}{1 + \lVert \mathbf{v}_i - \mathbf{v}_j \rVert_2}$$
 
-plus an interaction analysis (variance attributable to race $\times$ gender
-beyond main effects). Clinical meaning: detects bias that appears only at
-intersections (for example a specific race-and-gender subgroup), not in any
-single axis.
+```python
+from equimed_dss.domain2 import IntersectionalBiasScore
+sub = {"White_M": np.array([0.85, 0.9]), "Black_F": np.array([0.7, 0.6]),
+       "Asian_M": np.array([0.88, 0.85])}
+print(IntersectionalBiasScore().calculate_subgroup_similarity(sub)["outlier_subgroup"])   # Black_F
+```
 
 ### Domain 3: governance and transparency
 
 **Audit Traceability Score (ATS)**, `AuditTraceabilityScore`.
-Proportion traceable, with a Wilson 95% score interval ($z = 1.96$):
+Clinical interpretation: the share of decisions traceable to a specific source,
+with a Wilson 95% interval (the proper small-sample interval for a proportion).
 
-$$\mathrm{ATS} = \frac{n_{\text{traceable}}}{n_{\text{total}}}, \qquad \tilde{p} = \frac{x + z^2/2}{n + z^2}, \qquad \mathrm{SE} = \sqrt{\frac{\tilde{p}\,(1 - \tilde{p})}{n + z^2}}$$
+$$\mathrm{ATS} = \frac{n_{\text{traceable}}}{n_{\text{total}}}, \qquad \tilde{p} = \frac{x + z^2/2}{n + z^2}$$
 
-Clinical meaning: the share of decisions traceable to a specific source; the
-Wilson interval is the proper small-sample interval for a proportion.
+```python
+from equimed_dss.domain3 import AuditTraceabilityScore
+print(AuditTraceabilityScore().calculate_ats(n_traceable=92, n_total=100)["ats_score"])   # 0.92
+```
 
 **Governance Compliance Index (GCI)**, `GovernanceComplianceIndex`.
+Clinical interpretation: the fraction of mandated governance policies actually
+enforced.
 
 $$\mathrm{GCI} = \frac{n_{\text{enforced}}}{n_{\text{mandated}}}$$
 
-Range [0, 1]: the fraction of mandated governance policies actually enforced.
+```python
+from equimed_dss.domain3 import GovernanceComplianceIndex
+policies = {"audit_logging": True, "bias_testing": True, "human_oversight": False}
+print(round(GovernanceComplianceIndex().calculate_gci(policies)["gci"], 3))   # 0.667
+```
 
 **Temporal Fairness Drift (TFD)**, `TemporalFairnessDrift`.
-Statistical process control on a fairness time series with control limits
+Clinical interpretation: detects when a deployed model's fairness metric drifts
+over time, using statistical-process-control limits.
 
-$$\mu \pm k\,\sigma$$
+$$\text{control limits} = \mu \pm k\,\sigma$$
 
-drift is flagged when a point falls outside the limits. Clinical meaning:
-detects when a deployed model's fairness metric drifts over time.
-
-### Appendix: advanced metrics
-
-**Bootstrap Confidence Intervals**, `BootstrapConfidenceIntervals`: percentile
-bootstrap of any statistic over resamples (uses `RandomState` for reproducibility).
-
-**Bias Concentration Index (BCI)**, `BiasConcentrationIndex`, a Herfindahl-style
-concentration of group bias proportions $p_r$:
-
-$$\mathrm{BCI} = \frac{\sum_{r} p_r^{2}}{\left(\sum_{r} p_r\right)^{2}}$$
-
-**Jensen-Shannon Divergence (JSD)**, `JensenShannonDivergence`. scipy's
-`jensenshannon` returns the JS distance, so squaring recovers the divergence:
-
-$$\mathrm{JSD}(p, q) = \mathrm{jensenshannon}(p, q)^{2}, \qquad \mathrm{JSD} \in [0, \ln 2]$$
-
-**Mutual Information Content (MIC)**, `MutualInformationContent`: the mutual
-information $I(X; Y)$ between a decision $X$ and a demographic variable $Y$
-(`mutual_info_score`).
-
-**Wasserstein Distance**, `WassersteinDistance`: the earth-mover distance
-$W_1(u, v)$ between two score distributions (`scipy.stats.wasserstein_distance`).
-
-**Network Modularity / Robustness Certification / Transparency / Statistical
-Power**: graph modularity, certified robustness radius, transparency scoring, and
-power and sample-size planning, respectively.
-
-### Statistics module
-
-**HierarchicalLinearModeling**: variance decomposition
-
-$$\mathrm{ICC} = \frac{\sigma^{2}_{\text{between}}}{\sigma^{2}_{\text{between}} + \sigma^{2}_{\text{within}}}$$
-
-plus fixed-effect coefficients (estimate, SE, $t$, $p$, 95% CI). AIC and BIC are
-computed from the maximum-likelihood fit (REML does not define them).
-
-**MediationAnalysis**: indirect effect $a \cdot b$, total effect $c$, direct
-effect $c'$, with
-
-$$\text{proportion mediated} = \frac{a\,b}{c}, \qquad \mathrm{SE}_{ab} = \sqrt{b^{2}\,\mathrm{SE}_a^{2} + a^{2}\,\mathrm{SE}_b^{2}}$$
-
-(the Sobel standard error). `proportion_mediated` is reported unclamped and
-flagged when outside [0, 1]; a bootstrap CI is also provided.
-
-**NetworkStatistics**: degree, betweenness, and closeness centrality plus
-clustering, computed from the metric correlation graph.
+```python
+from equimed_dss.domain3 import TemporalFairnessDrift
+print(TemporalFairnessDrift().calculate_drift([0.80, 0.82, 0.79, 0.85, 0.91, 0.95])["drift_detected"])
+```
 
 ### Domain 4: representation and robustness
 
-**Semantic Parity Gap (SPG)**, `SemanticParityGap`. Centroid distance between the
-embeddings of clinical prompts differing only by a protected attribute:
+**Semantic Parity Gap (SPG)**, `SemanticParityGap`.
+Clinical interpretation: how strongly the model's latent representation of an
+identical clinical case shifts when only a protected attribute changes; a larger
+gap means more demographic sensitivity in the model's internal encoding.
 
-$$\mathrm{SPG} = \left\lVert \frac{1}{n}\sum_i E(x_{p,i}) - \frac{1}{m}\sum_j E(x_{m,j}) \right\rVert_2, \qquad \mathrm{SPG}_{\cos} = 1 - \frac{\bar{v}_p \cdot \bar{v}_m}{\lVert \bar{v}_p\rVert\,\lVert \bar{v}_m\rVert}$$
+$$\mathrm{SPG} = \left\lVert \frac{1}{n}\sum_i E(x_{p,i}) - \frac{1}{m}\sum_j E(x_{m,j}) \right\rVert_2$$
 
-**Clinical Hallucination Rate (CHR)**, `ClinicalHallucinationRate`. Fraction of
-clinical claims not supported by the retrieved context (support score below tau):
+```python
+from equimed_dss.domain4 import SemanticParityGap
+ep = rng.normal(size=(10, 8)); em = rng.normal(loc=0.3, size=(10, 8))
+print(round(SemanticParityGap().calculate_spg(ep, em)["spg_euclidean"], 3))
+```
 
-$$\mathrm{CHR} = \frac{1}{|C(y)|}\sum_{c \in C(y)} \mathbb{1}\!\left[ S(c, K) < \tau \right], \qquad \mathrm{CHR}_{w} = \frac{\sum_c w_c\,\mathbb{1}[S(c,K)<\tau]}{\sum_c w_c}$$
+**Clinical Hallucination Rate (CHR)**, `ClinicalHallucinationRate`.
+Clinical interpretation: the fraction of clinical claims a response makes that
+are not supported by the retrieved evidence (below an entailment threshold);
+higher is worse and signals unsupported assertions.
+
+$$\mathrm{CHR} = \frac{1}{|C(y)|}\sum_{c} \mathbb{1}\!\left[ S(c, K) < \tau \right]$$
+
+```python
+from equimed_dss.domain4 import ClinicalHallucinationRate
+print(ClinicalHallucinationRate().calculate_chr([0.2, 0.4, 0.8, 0.9], tau=0.5)["chr"])   # 0.5
+```
 
 **Instructional Vulnerability Index (IVI)**, `InstructionalVulnerabilityIndex`.
-Decision-flip rate between a neutral and a biased instruction:
+Clinical interpretation: how susceptible the model is to bias-priming, i.e. how
+often a biased or leading instruction changes the clinical decision relative to a
+neutral one; higher means the model can be steered by suggestive prompts.
 
-$$\mathrm{IVI} = P\!\left( f(q_b, K) \neq f(q_0, K) \right), \qquad \mathrm{IVI}_{\text{effect}} = \mathbb{E}[Y \mid q_b] - \mathbb{E}[Y \mid q_0]$$
+$$\mathrm{IVI} = P\!\left( f(q_b, K) \neq f(q_0, K) \right)$$
 
-**Geographic Representation Index (GRI)**, `GeographicRepresentationIndex`. Non-Western
-share of represented locations, with the geographic-bias correlation:
+```python
+from equimed_dss.domain4 import InstructionalVulnerabilityIndex
+neutral = ["acs", "non_cardiac", "acs"]; biased = ["acs", "acs", "acs"]
+print(round(InstructionalVulnerabilityIndex().calculate_ivi(neutral, biased)["ivi_flip_rate"], 3))
+```
 
-$$\mathrm{GRI} = \frac{|L| - |W|}{|L|}, \qquad \mathrm{GB} = \rho\!\left( \mathrm{GRI}(K),\ \text{error rate}_m \right)$$
+**Geographic Representation Index (GRI)**, `GeographicRepresentationIndex`.
+Clinical interpretation: the share of represented locations that are non-Western;
+values near 0 indicate a Western-centric knowledge base (by variety of locations).
+
+$$\mathrm{GRI} = \frac{|L| - |W|}{|L|}$$
+
+```python
+from equimed_dss.domain4 import GeographicRepresentationIndex
+res = GeographicRepresentationIndex().calculate_gri(["US", "GB", "BR", "CN", "TZ"], ["US", "GB", "DE"])
+print(res["gri"])   # 0.6
+```
 
 ### Domain 5: technical-supplement fairness metrics
 
-**Intersectional Calibration Error (ICE)**, `IntersectionalCalibrationError`:
+**Intersectional Calibration Error (ICE)**, `IntersectionalCalibrationError`.
+Clinical interpretation: reveals calibration that is good on average but poor for
+a specific intersectional subgroup; dICE is the worst-case calibration gap.
 
-$$\mathrm{ECE}_i = \sum_{b=1}^{B} \frac{|S_{i,b}|}{|S_i|}\,\bigl|\mathrm{acc}(S_{i,b}) - \mathrm{conf}(S_{i,b})\bigr|, \quad \mathrm{ICE} = \sum_i w_i\,\mathrm{ECE}_i, \quad \Delta\mathrm{ICE} = \max_{i,j} |\mathrm{ECE}_i - \mathrm{ECE}_j|$$
+$$\mathrm{ECE}_i = \sum_{b=1}^{B} \frac{|S_{i,b}|}{|S_i|}\,\bigl|\mathrm{acc}(S_{i,b}) - \mathrm{conf}(S_{i,b})\bigr|, \quad \Delta\mathrm{ICE} = \max_{i,j} |\mathrm{ECE}_i - \mathrm{ECE}_j|$$
 
-**Weighted Clinical Harm-Adjusted Fairness Gap (wHAFG)**, `WeightedClinicalHarmAdjustedFairnessGap`:
+```python
+from equimed_dss.domain5 import IntersectionalCalibrationError
+g = ["A"] * 4 + ["B"] * 4
+print(round(IntersectionalCalibrationError().calculate_ice(
+    g, [0.9] * 8, [1, 1, 1, 0, 0, 0, 0, 0], n_bins=5)["delta_ice"], 3))
+```
+
+**Weighted Clinical Harm-Adjusted Fairness Gap (wHAFG)**, `WeightedClinicalHarmAdjustedFairnessGap`.
+Clinical interpretation: the largest gap in clinical-severity-weighted harm
+between groups, prioritizing disparities that cause the most clinical harm.
 
 $$H(g) = \frac{1}{n_g}\sum_i \omega(Y_i)\,L(\hat{Y}_i, Y_i), \qquad \mathrm{wHAFG} = \max_{g,g'} |H(g) - H(g')|$$
 
-**Lexical Diversity Disparity Index (LDDI)**, `LexicalDiversityDisparityIndex`:
+```python
+from equimed_dss.domain5 import WeightedClinicalHarmAdjustedFairnessGap
+print(WeightedClinicalHarmAdjustedFairnessGap().calculate_whafg(
+    ["m", "m", "p", "p"], [1, 1, 1, 1], [1, 1, 0, 0])["whafg_max"])   # 1.0
+```
+
+**Lexical Diversity Disparity Index (LDDI)**, `LexicalDiversityDisparityIndex`.
+Clinical interpretation: whether response vocabulary richness varies by group; a
+large value can indicate more templated or stereotyped responses for some groups.
 
 $$\mathrm{RTTR}(g) = \frac{|V(\cup_i R_i^g)|}{\sqrt{\sum_i |R_i^g|}}, \qquad \mathrm{LDDI} = \max_g \mathrm{RTTR}(g) - \min_g \mathrm{RTTR}(g)$$
 
-**Recommendation Entropy Gap (REG)**, `RecommendationEntropyGap`:
+```python
+from equimed_dss.domain5 import LexicalDiversityDisparityIndex
+print(round(LexicalDiversityDisparityIndex().calculate_lddi(
+    {"A": ["pain pain pain"], "B": ["chest pain radiating to the left arm"]})["lddi"], 3))
+```
+
+**Recommendation Entropy Gap (REG)**, `RecommendationEntropyGap`.
+Clinical interpretation: whether the spread of treatment/diagnosis
+recommendations differs across groups, signalling differential treatment patterns.
 
 $$H(T\mid g) = -\sum_t P(t\mid g)\log_2 P(t\mid g), \qquad \mathrm{REG} = \max_{g,g'} |H(T\mid g) - H(T\mid g')|$$
 
-**Counterfactual Parity Score (CPS)**, `CounterfactualParityScore`:
+```python
+from equimed_dss.domain5 import RecommendationEntropyGap
+print(RecommendationEntropyGap().calculate_reg(
+    {"A": ["acs", "acs"], "B": ["acs", "non_cardiac"]})["reg"])   # 1.0
+```
+
+**Counterfactual Parity Score (CPS)**, `CounterfactualParityScore`.
+Clinical interpretation: how similar the full response stays when only the
+patient's protected attribute is swapped; CPS near 1 is good, CFU = 1 - CPS is
+the counterfactual unfairness.
 
 $$\mathrm{CPS}(a,a') = \frac{1}{n}\sum_i \mathrm{sim}\!\left( f(x_i), f(x_{i, A\leftarrow a'}) \right), \qquad \mathrm{CFU} = 1 - \min_{a,a'} \mathrm{CPS}(a,a')$$
 
-**Clinical Information Density Ratio (CIDR)**, `ClinicalInformationDensityRatio`:
+```python
+from equimed_dss.domain5 import CounterfactualParityScore
+res = CounterfactualParityScore().calculate_cps([1.0, 0.8, 0.9])
+print(res["cps"], res["cfu"])   # 0.9 0.1
+```
+
+**Clinical Information Density Ratio (CIDR)**, `ClinicalInformationDensityRatio`.
+Clinical interpretation: whether responses are equally concept-rich across
+groups; CIDR_min near 1 means parity, lower means some group gets thinner
+clinical content. Takes precomputed (concepts, tokens) per response.
 
 $$\mathrm{CID}(r) = \frac{|C(r)|}{|\text{tokens}(r)|}\times 100, \qquad \mathrm{CIDR}_{\min} = \min_g \frac{\mathrm{CID}(g)}{\max_{g'} \mathrm{CID}(g')}$$
 
-**Diagnostic Completeness Index (DCI)**, `DiagnosticCompletenessIndex`:
+```python
+from equimed_dss.domain5 import ClinicalInformationDensityRatio
+print(ClinicalInformationDensityRatio().calculate_cidr(
+    {"A": [(5, 100)], "B": [(10, 100)]})["cidr_min"])   # 0.5
+```
 
-$$\mathrm{DCI}(r) = \frac{|D(r) \cap D^{*}|}{|D^{*}|}, \qquad \Delta\mathrm{DCI} = \max_g \mathrm{DCI}(g) - \min_g \mathrm{DCI}(g)$$
+**Diagnostic Completeness Index (DCI)**, `DiagnosticCompletenessIndex`.
+Clinical interpretation: whether responses cover the guideline-required
+differential diagnoses equally across groups; dDCI is the worst-case coverage gap.
 
-**Uncertainty Quantification Gap (UQG)**, `UncertaintyQuantificationGap`:
+$$\mathrm{DCI}(r) = \frac{|D(r) \cap D^{\ast}|}{|D^{\ast}|}, \qquad \Delta\mathrm{DCI} = \max_g \mathrm{DCI}(g) - \min_g \mathrm{DCI}(g)$$
+
+```python
+from equimed_dss.domain5 import DiagnosticCompletenessIndex
+print(round(DiagnosticCompletenessIndex().calculate_dci(
+    ["ACS", "PE", "GERD"], {"A": [["ACS", "PE", "GERD"]], "B": [["ACS"]]})["delta_dci"], 3))   # 0.667
+```
+
+**Uncertainty Quantification Gap (UQG)**, `UncertaintyQuantificationGap`.
+Clinical interpretation: whether the model hedges (expresses uncertainty) equally
+across groups; a large gap can indicate overconfidence for some groups, a
+missed-diagnosis risk.
 
 $$\mathrm{UD}(r) = \frac{|\{t \in r : t \in U\}|}{|\text{sentences}(r)|}, \qquad \mathrm{UQG} = \max_g \mathrm{UD}(g) - \min_g \mathrm{UD}(g)$$
 
+```python
+from equimed_dss.domain5 import UncertaintyQuantificationGap
+print(round(UncertaintyQuantificationGap().calculate_uqg(
+    {"A": ["This is ACS."], "B": ["This may be ACS. Consider PE."]})["uqg"], 3))
+```
+
 **Geographic Representation Bias Index (GRBI)**, `GeographicRepresentationBiasIndex`.
-KL divergence of corpus geography from disease burden (complements BEMI, which is
-the total-variation distance):
+Clinical interpretation: how far the corpus geography departs from global disease
+burden (KL divergence); the HIC ratio shows high-income overrepresentation.
+Complements BEMI (which is the symmetric total-variation distance).
 
-$$\mathrm{GRBI} = D_{\mathrm{KL}}\!\left( P_C \,\|\, P_{\text{burden}} \right) = \sum_r P_C(r)\log\frac{P_C(r)}{P_{\text{burden}}(r)}, \qquad \mathrm{HIC\ ratio} = \frac{P_C(\mathrm{HIC})}{P_{\text{burden}}(\mathrm{HIC})}$$
+$$\mathrm{GRBI} = D_{\mathrm{KL}}\!\left( P_C \,\|\, P_{\text{burden}} \right) = \sum_r P_C(r)\log\frac{P_C(r)}{P_{\text{burden}}(r)}$$
 
-**Healthcare System Stratified Fairness (HSSF)**, `HealthcareSystemStratifiedFairness`:
+```python
+from equimed_dss.domain5 import GeographicRepresentationBiasIndex
+print(round(GeographicRepresentationBiasIndex().calculate_grbi(
+    {"AMRO": 100, "EURO": 10, "AFRO": 1}, {"AMRO": 0.2, "EURO": 0.4, "AFRO": 0.4})["grbi"], 3))
+```
+
+**Healthcare System Stratified Fairness (HSSF)**, `HealthcareSystemStratifiedFairness`.
+Clinical interpretation: separates demographic disparity within each healthcare
+system from variation between systems, so an apparent group gap is not mistaken
+for a system (access) effect.
 
 $$\Delta_s(g,g') = \bigl| \mathbb{E}[Y \mid g, s] - \mathbb{E}[Y \mid g', s] \bigr|, \qquad \mathrm{HSSF} = \sum_s P(s)\,\max_{g,g'} \Delta_s(g,g')$$
 
-**Intersectional Shapley Fairness Value (ISFV)**, `IntersectionalShapleyFairnessValue`:
+```python
+from equimed_dss.domain5 import HealthcareSystemStratifiedFairness
+print(HealthcareSystemStratifiedFairness().calculate_hssf(
+    ["US", "US", "UK", "UK"], ["m", "p", "m", "p"], [0.0, 0.4, 0.1, 0.2])["hssf"])
+```
 
-$$\phi_i = \sum_{S \subseteq A\setminus\{i\}} \frac{|S|!\,(m-|S|-1)!}{m!}\bigl( v(S\cup\{i\}) - v(S) \bigr), \qquad I(A_i,A_j) = v(\{i,j\}) - v(\{i\}) - v(\{j\}) + v(\varnothing)$$
+**Intersectional Shapley Fairness Value (ISFV)**, `IntersectionalShapleyFairnessValue`.
+Clinical interpretation: fairly attributes an intersectional disparity to each
+protected attribute and their interaction; a positive interaction is a
+superadditive (intersectional) penalty.
 
-**Semantic Robustness Parity Index (SRPI)**, `SemanticRobustnessParityIndex`:
+$$\phi_i = \sum_{S \subseteq A\setminus\{i\}} \frac{|S|!\,(m-|S|-1)!}{m!}\bigl( v(S\cup\{i\}) - v(S) \bigr)$$
 
-$$R(g) = \frac{1}{n_g}\sum_{x} \frac{1}{|\mathrm{Para}(x)|^2}\sum_{i,j} \mathrm{sim}\!\left(f(x_i), f(x_j)\right), \qquad \mathrm{SRPI} = \frac{\min_g R(g)}{\max_g R(g)}$$
+```python
+from equimed_dss.domain5 import IntersectionalShapleyFairnessValue
+race = rng.choice(["W", "B"], 200); gender = rng.choice(["F", "M"], 200)
+isfv = IntersectionalShapleyFairnessValue(min_cell=5).calculate_isfv(
+    {"race": race, "gender": gender}, (race == "B").astype(float))
+print({k: round(v, 3) for k, v in isfv["shapley_by_attribute"].items()})
+```
+
+**Semantic Robustness Parity Index (SRPI)**, `SemanticRobustnessParityIndex`.
+Clinical interpretation: whether the model is equally robust to paraphrasing
+across groups; SRPI near 1 means equal robustness, lower means some group's
+outputs are more sensitive to wording.
+
+$$\mathrm{SRPI} = \frac{\min_g R(g)}{\max_g R(g)}$$
+
+```python
+from equimed_dss.domain5 import SemanticRobustnessParityIndex
+print(round(SemanticRobustnessParityIndex().calculate_srpi(
+    {"A": [0.9, 0.9], "B": [0.6, 0.6]})["srpi"], 3))   # 0.667
+```
+
+### Statistics module
+
+**HierarchicalLinearModeling**: variance decomposition with
+$\mathrm{ICC} = \sigma^{2}_{\text{between}} / (\sigma^{2}_{\text{between}} + \sigma^{2}_{\text{within}})$,
+fixed-effect coefficients (estimate, SE, t, p, 95% CI), and AIC/BIC from the
+maximum-likelihood fit. Use it to quantify how much variation sits at the
+institution/group level versus the individual level.
+
+```python
+from equimed_dss.statistics import HierarchicalLinearModeling
+rows = []
+for grp in range(8):
+    ge = rng.normal(0, 2)
+    for _ in range(25):
+        x = rng.normal(0, 1); rows.append({"group": grp, "x": x, "y": ge + 0.5 * x + rng.normal(0, 1)})
+df = pd.DataFrame(rows)
+res = HierarchicalLinearModeling().fit_model(df, outcome_var="y", level1_predictors=["x"], level2_var="group")
+print(round(res["icc"], 3), round(res["aic"], 1))
+```
+
+**MediationAnalysis**: indirect effect $a\,b$, total $c$, direct $c'$,
+$\text{proportion mediated} = ab/c$, with a Sobel standard error and a bootstrap
+CI. Use it to test whether a demographic effect operates through an intermediate
+mechanism.
+
+```python
+from equimed_dss.statistics import MediationAnalysis
+n = 300; X = rng.normal(0, 1, n); M = 0.5 * X + rng.normal(0, 1, n); Y = 0.3 * X + 0.4 * M + rng.normal(0, 1, n)
+res = MediationAnalysis().analyze_mediation(
+    pd.DataFrame({"X": X, "M": M, "Y": Y}), treatment_var="X", mediator_var="M", outcome_var="Y")
+print(round(res["proportion_mediated"], 3))
+```
+
+**NetworkStatistics**: degree, betweenness, and closeness centrality plus
+clustering from a metric correlation graph; use it to see which metrics cluster
+together.
+
+```python
+from equimed_dss.statistics import NetworkStatistics
+adj = np.array([[0, .6, .2, 0], [.6, 0, 0, .5], [.2, 0, 0, 0], [0, .5, 0, 0]])
+res = NetworkStatistics().analyze_network(adj, node_labels=["DFR", "ECS", "HER", "IBS"])
+print(round(res["density"], 3))
+```
+
+**ReliabilityAnalysis**: Cronbach's alpha and Bland-Altman limits of agreement
+for rater/instrument reliability.
+
+```python
+from equimed_dss.statistics import ReliabilityAnalysis
+ratings = np.array([[4, 4, 5], [3, 3, 4], [5, 5, 5], [2, 3, 2], [4, 5, 4]])
+print(round(ReliabilityAnalysis().cronbachs_alpha(ratings)["alpha"], 3))
+```
+
+### Appendix: advanced metrics
+
+**Bias Concentration Index (BCI)**, `BiasConcentrationIndex`. Herfindahl-style
+concentration of bias across groups: $\sum_r p_r^2 / (\sum_r p_r)^2$.
+
+```python
+from equimed_dss.appendix import BiasConcentrationIndex
+print(round(BiasConcentrationIndex().calculate_bci([0.1, 0.4, 0.3, 0.2])["bci"], 3))
+```
+
+**Bootstrap Confidence Intervals**, `BootstrapConfidenceIntervals`. Percentile
+bootstrap CI for any statistic (uses `RandomState` for reproducibility).
+
+```python
+from equimed_dss.appendix import BootstrapConfidenceIntervals
+boot = BootstrapConfidenceIntervals(n_bootstrap=500, random_state=42).calculate_bci(rng.normal(0.7, 0.1, 100))
+print(round(boot["ci_lower"], 3), round(boot["ci_upper"], 3))
+```
+
+**Jensen-Shannon Divergence (JSD)**, `JensenShannonDivergence`. Symmetric
+distributional distance, $\mathrm{JSD} = \mathrm{jensenshannon}(p,q)^2 \in [0, \ln 2]$.
+
+```python
+from equimed_dss.appendix import JensenShannonDivergence
+p = np.array([0.9, 0.85, 0.78, 0.92]); q = np.array([0.75, 0.70, 0.68, 0.72])
+print(round(JensenShannonDivergence().calculate_jsd(p, q)["jsd"], 4))
+```
+
+**Wasserstein Distance (WD)**, `WassersteinDistance`. Earth-mover distance
+$W_1(u,v)$ between two score distributions.
+
+```python
+from equimed_dss.appendix import WassersteinDistance
+print(round(WassersteinDistance().calculate_wd(p, q)["wasserstein_distance"], 4))
+```
+
+**Mutual Information Content (MIC)**, `MutualInformationContent`. Shared
+information $I(X;Y)$ between a decision and a demographic variable.
+
+```python
+from equimed_dss.appendix import MutualInformationContent
+print(round(MutualInformationContent().calculate_mic(rng.randint(0, 2, 200), rng.randint(0, 2, 200))["mic"], 4))
+```
+
+**Network Modularity (NM)**, `NetworkModularity`. Community structure of a metric
+graph.
+
+```python
+from equimed_dss.appendix import NetworkModularity
+adj = np.array([[0, .8, .1, 0], [.8, 0, 0, .7], [.1, 0, 0, .6], [0, .7, .6, 0]])
+print(round(NetworkModularity().calculate_modularity(adj)["modularity"], 3))
+```
+
+**Robustness Certification Score (RCS)**, `RobustnessCertificationScore`. Certified
+stability of predictions under bounded perturbations.
+
+```python
+from equimed_dss.appendix import RobustnessCertificationScore
+orig = rng.normal(0.8, 0.05, 50); pert = [rng.normal(0.8, 0.05, 50) for _ in range(5)]
+print(round(RobustnessCertificationScore().calculate_rcs(orig, pert, epsilon=0.1)["rcs"], 3))
+```
+
+**Transparency Score (TS)**, `TransparencyScore`. Quality of model explanations.
+
+```python
+from equimed_dss.appendix import TransparencyScore
+exps = [{"explanation_quality": 0.9, "feature_importance": 0.8, "interpretability": 0.85},
+        {"explanation_quality": 0.7, "feature_importance": 0.6, "interpretability": 0.65}]
+print(round(TransparencyScore().calculate_ts(exps)["ts"], 3))   # 0.75
+```
+
+**Statistical Power Analysis (SPA)**, `StatisticalPowerAnalysis`. Sample-size and
+power planning for disparity detection.
+
+```python
+from equimed_dss.appendix import StatisticalPowerAnalysis
+print(StatisticalPowerAnalysis().calculate_sample_size(effect_size=0.2, alpha=0.05, power=0.8)["n_per_group"])   # 394
+```
 
 ## Notes For Clinical Use
 
