@@ -41,6 +41,26 @@ from .reporting import (
     mediation_effects_table,
     network_centrality_table,
 )
+from .domain4 import (
+    SemanticParityGap,
+    ClinicalHallucinationRate,
+    InstructionalVulnerabilityIndex,
+    GeographicRepresentationIndex,
+)
+from .domain5 import (
+    IntersectionalCalibrationError,
+    WeightedClinicalHarmAdjustedFairnessGap,
+    LexicalDiversityDisparityIndex,
+    RecommendationEntropyGap,
+    CounterfactualParityScore,
+    ClinicalInformationDensityRatio,
+    DiagnosticCompletenessIndex,
+    UncertaintyQuantificationGap,
+    GeographicRepresentationBiasIndex,
+    HealthcareSystemStratifiedFairness,
+    IntersectionalShapleyFairnessValue,
+    SemanticRobustnessParityIndex,
+)
 
 __all__ = [
     "__version__",
@@ -58,4 +78,20 @@ __all__ = [
     "hierarchical_coefficients_table",
     "mediation_effects_table",
     "network_centrality_table",
+    "SemanticParityGap",
+    "ClinicalHallucinationRate",
+    "InstructionalVulnerabilityIndex",
+    "GeographicRepresentationIndex",
+    "IntersectionalCalibrationError",
+    "WeightedClinicalHarmAdjustedFairnessGap",
+    "LexicalDiversityDisparityIndex",
+    "RecommendationEntropyGap",
+    "CounterfactualParityScore",
+    "ClinicalInformationDensityRatio",
+    "DiagnosticCompletenessIndex",
+    "UncertaintyQuantificationGap",
+    "GeographicRepresentationBiasIndex",
+    "HealthcareSystemStratifiedFairness",
+    "IntersectionalShapleyFairnessValue",
+    "SemanticRobustnessParityIndex",
 ]

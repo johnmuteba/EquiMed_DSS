@@ -5,6 +5,35 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-06-10
+
+### Added
+- `equimed_dss.domain5`: twelve technical-supplement fairness metrics.
+  IntersectionalCalibrationError (ICE), WeightedClinicalHarmAdjustedFairnessGap
+  (wHAFG), LexicalDiversityDisparityIndex (LDDI), RecommendationEntropyGap (REG),
+  CounterfactualParityScore (CPS), ClinicalInformationDensityRatio (CIDR),
+  DiagnosticCompletenessIndex (DCI), UncertaintyQuantificationGap (UQG),
+  GeographicRepresentationBiasIndex (GRBI), HealthcareSystemStratifiedFairness
+  (HSSF), IntersectionalShapleyFairnessValue (ISFV), and
+  SemanticRobustnessParityIndex (SRPI).
+- These complement, and do not duplicate, existing metrics: wHAFG generalizes
+  HAFG (per-sample severity weighting), GRBI complements BEMI (KL vs
+  total-variation), ISFV complements IBS (Shapley vs ANOVA), CPS/SRPI complement
+  DFR/SPG/ECS/RCS.
+
+## [1.3.0] - 2026-06-08
+
+### Added
+- `equimed_dss.domain4`: four representation/robustness metrics.
+  - `SemanticParityGap` (SPG): Euclidean centroid and cosine distance between the
+    embedding clusters of clinical prompts differing only by a protected attribute.
+  - `ClinicalHallucinationRate` (CHR): unsupported-claim rate from per-claim
+    entailment support scores, with a severity-weighted variant.
+  - `InstructionalVulnerabilityIndex` (IVI): decision-flip rate (and directional
+    effect) between neutral and biased/leading instructions.
+  - `GeographicRepresentationIndex` (GRI): set-based non-Western location share,
+    plus `calculate_geographic_bias` (correlation of GRI with error rate).
+
 ## [1.2.3] - 2026-06-08
 
 ### Fixed

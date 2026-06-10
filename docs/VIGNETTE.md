@@ -845,6 +845,80 @@ flagged when outside [0, 1]; a bootstrap CI is also provided.
 **NetworkStatistics**: degree, betweenness, and closeness centrality plus
 clustering, computed from the metric correlation graph.
 
+### Domain 4: representation and robustness
+
+**Semantic Parity Gap (SPG)**, `SemanticParityGap`. Centroid distance between the
+embeddings of clinical prompts differing only by a protected attribute:
+
+$$\mathrm{SPG} = \left\lVert \frac{1}{n}\sum_i E(x_{p,i}) - \frac{1}{m}\sum_j E(x_{m,j}) \right\rVert_2, \qquad \mathrm{SPG}_{\cos} = 1 - \frac{\bar{v}_p \cdot \bar{v}_m}{\lVert \bar{v}_p\rVert\,\lVert \bar{v}_m\rVert}$$
+
+**Clinical Hallucination Rate (CHR)**, `ClinicalHallucinationRate`. Fraction of
+clinical claims not supported by the retrieved context (support score below tau):
+
+$$\mathrm{CHR} = \frac{1}{|C(y)|}\sum_{c \in C(y)} \mathbb{1}\!\left[ S(c, K) < \tau \right], \qquad \mathrm{CHR}_{w} = \frac{\sum_c w_c\,\mathbb{1}[S(c,K)<\tau]}{\sum_c w_c}$$
+
+**Instructional Vulnerability Index (IVI)**, `InstructionalVulnerabilityIndex`.
+Decision-flip rate between a neutral and a biased instruction:
+
+$$\mathrm{IVI} = P\!\left( f(q_b, K) \neq f(q_0, K) \right), \qquad \mathrm{IVI}_{\text{effect}} = \mathbb{E}[Y \mid q_b] - \mathbb{E}[Y \mid q_0]$$
+
+**Geographic Representation Index (GRI)**, `GeographicRepresentationIndex`. Non-Western
+share of represented locations, with the geographic-bias correlation:
+
+$$\mathrm{GRI} = \frac{|L| - |W|}{|L|}, \qquad \mathrm{GB} = \rho\!\left( \mathrm{GRI}(K),\ \text{error rate}_m \right)$$
+
+### Domain 5: technical-supplement fairness metrics
+
+**Intersectional Calibration Error (ICE)**, `IntersectionalCalibrationError`:
+
+$$\mathrm{ECE}_i = \sum_{b=1}^{B} \frac{|S_{i,b}|}{|S_i|}\,\bigl|\mathrm{acc}(S_{i,b}) - \mathrm{conf}(S_{i,b})\bigr|, \quad \mathrm{ICE} = \sum_i w_i\,\mathrm{ECE}_i, \quad \Delta\mathrm{ICE} = \max_{i,j} |\mathrm{ECE}_i - \mathrm{ECE}_j|$$
+
+**Weighted Clinical Harm-Adjusted Fairness Gap (wHAFG)**, `WeightedClinicalHarmAdjustedFairnessGap`:
+
+$$H(g) = \frac{1}{n_g}\sum_i \omega(Y_i)\,L(\hat{Y}_i, Y_i), \qquad \mathrm{wHAFG} = \max_{g,g'} |H(g) - H(g')|$$
+
+**Lexical Diversity Disparity Index (LDDI)**, `LexicalDiversityDisparityIndex`:
+
+$$\mathrm{RTTR}(g) = \frac{|V(\cup_i R_i^g)|}{\sqrt{\sum_i |R_i^g|}}, \qquad \mathrm{LDDI} = \max_g \mathrm{RTTR}(g) - \min_g \mathrm{RTTR}(g)$$
+
+**Recommendation Entropy Gap (REG)**, `RecommendationEntropyGap`:
+
+$$H(T\mid g) = -\sum_t P(t\mid g)\log_2 P(t\mid g), \qquad \mathrm{REG} = \max_{g,g'} |H(T\mid g) - H(T\mid g')|$$
+
+**Counterfactual Parity Score (CPS)**, `CounterfactualParityScore`:
+
+$$\mathrm{CPS}(a,a') = \frac{1}{n}\sum_i \mathrm{sim}\!\left( f(x_i), f(x_{i, A\leftarrow a'}) \right), \qquad \mathrm{CFU} = 1 - \min_{a,a'} \mathrm{CPS}(a,a')$$
+
+**Clinical Information Density Ratio (CIDR)**, `ClinicalInformationDensityRatio`:
+
+$$\mathrm{CID}(r) = \frac{|C(r)|}{|\text{tokens}(r)|}\times 100, \qquad \mathrm{CIDR}_{\min} = \min_g \frac{\mathrm{CID}(g)}{\max_{g'} \mathrm{CID}(g')}$$
+
+**Diagnostic Completeness Index (DCI)**, `DiagnosticCompletenessIndex`:
+
+$$\mathrm{DCI}(r) = \frac{|D(r) \cap D^{*}|}{|D^{*}|}, \qquad \Delta\mathrm{DCI} = \max_g \mathrm{DCI}(g) - \min_g \mathrm{DCI}(g)$$
+
+**Uncertainty Quantification Gap (UQG)**, `UncertaintyQuantificationGap`:
+
+$$\mathrm{UD}(r) = \frac{|\{t \in r : t \in U\}|}{|\text{sentences}(r)|}, \qquad \mathrm{UQG} = \max_g \mathrm{UD}(g) - \min_g \mathrm{UD}(g)$$
+
+**Geographic Representation Bias Index (GRBI)**, `GeographicRepresentationBiasIndex`.
+KL divergence of corpus geography from disease burden (complements BEMI, which is
+the total-variation distance):
+
+$$\mathrm{GRBI} = D_{\mathrm{KL}}\!\left( P_C \,\|\, P_{\text{burden}} \right) = \sum_r P_C(r)\log\frac{P_C(r)}{P_{\text{burden}}(r)}, \qquad \mathrm{HIC\ ratio} = \frac{P_C(\mathrm{HIC})}{P_{\text{burden}}(\mathrm{HIC})}$$
+
+**Healthcare System Stratified Fairness (HSSF)**, `HealthcareSystemStratifiedFairness`:
+
+$$\Delta_s(g,g') = \bigl| \mathbb{E}[Y \mid g, s] - \mathbb{E}[Y \mid g', s] \bigr|, \qquad \mathrm{HSSF} = \sum_s P(s)\,\max_{g,g'} \Delta_s(g,g')$$
+
+**Intersectional Shapley Fairness Value (ISFV)**, `IntersectionalShapleyFairnessValue`:
+
+$$\phi_i = \sum_{S \subseteq A\setminus\{i\}} \frac{|S|!\,(m-|S|-1)!}{m!}\bigl( v(S\cup\{i\}) - v(S) \bigr), \qquad I(A_i,A_j) = v(\{i,j\}) - v(\{i\}) - v(\{j\}) + v(\varnothing)$$
+
+**Semantic Robustness Parity Index (SRPI)**, `SemanticRobustnessParityIndex`:
+
+$$R(g) = \frac{1}{n_g}\sum_{x} \frac{1}{|\mathrm{Para}(x)|^2}\sum_{i,j} \mathrm{sim}\!\left(f(x_i), f(x_j)\right), \qquad \mathrm{SRPI} = \frac{\min_g R(g)}{\max_g R(g)}$$
+
 ## Notes For Clinical Use
 
 EquiMed-DSS is an assessment library. It does not determine whether a clinical model is safe, legal, or ready for deployment by itself. Use the metrics as structured evidence inside a broader review process that includes clinical validation, data governance, regulatory review, and stakeholder oversight.
