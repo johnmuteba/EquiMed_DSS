@@ -43,7 +43,10 @@
   - [Domain 1: Reliability & Calibration](#domain-1-reliability--calibration)
   - [Domain 2: Fairness, Equity & Ethics](#domain-2-fairness-equity--ethics)
   - [Domain 3: Governance & Transparency](#domain-3-governance--transparency)
+  - Domain 4: Representation & Robustness (SPG, CHR, IVI, GRI)
+  - Domain 5: Technical-supplement fairness (ICE, wHAFG, LDDI, REG, CPS, CIDR, DCI, UQG, GRBI, HSSF, ISFV, SRPI)
   - [Appendix: Advanced Metrics](#appendix-advanced-metrics)
+  - Full formulas, clinical meaning, and runnable examples: see [docs/VIGNETTE.md](https://github.com/johnmuteba/EquiMed_DSS/blob/master/docs/VIGNETTE.md)
 - [Statistical Analyses](#statistical-analyses)
 - [Visualizations](#visualizations)
 - [Examples](#examples)
@@ -573,9 +576,9 @@ For an end-to-end tutorial with data loading, metric calculations, statistical a
 EquiMed_DSS/
 ├── equimed_dss/
 │   ├── domain1/              # Reliability & Calibration (3 metrics)
-│   │   ├── dfr.py            # Dynamic Fairness Ratio
-│   │   ├── ecs.py            # Expected Calibration Score
-│   │   └── icc.py            # Intraclass Correlation Coefficient
+│   │   ├── dfr.py            # Decision Flip Rate (DFR)
+│   │   ├── ecs.py            # Embedding Consistency Score (ECS)
+│   │   └── icc.py            # Inter-Rater Reliability (ICC)
 │   ├── domain2/              # Fairness, Equity & Ethics (4 metrics)
 │   │   ├── her.py            # Hierarchical Equity Ratio + Bias-Gini
 │   │   ├── hafg.py           # Harm-Adjusted Fairness Gap
@@ -585,8 +588,28 @@ EquiMed_DSS/
 │   │   ├── tfd.py            # Temporal Fairness Drift
 │   │   ├── ats.py            # Audit Traceability Score
 │   │   └── gci.py            # Governance Compliance Index
+│   ├── domain4/              # Representation & Robustness (4 metrics)
+│   │   ├── spg.py            # Semantic Parity Gap (SPG)
+│   │   ├── chr.py            # Clinical Hallucination Rate (CHR)
+│   │   ├── ivi.py            # Instructional Vulnerability Index (IVI)
+│   │   └── gri.py            # Geographic Representation Index (GRI)
+│   ├── domain5/              # Technical-supplement fairness (12 metrics)
+│   │   ├── calibration.py    # Intersectional Calibration Error (ICE)
+│   │   ├── harm.py           # Weighted Clinical Harm-Adjusted Fairness Gap (wHAFG)
+│   │   ├── text.py           # LDDI, REG, CIDR, DCI, UQG
+│   │   ├── counterfactual.py # Counterfactual Parity Score (CPS), SRPI
+│   │   ├── geographic_bias.py# Geographic Representation Bias Index (GRBI)
+│   │   ├── system.py         # Healthcare System Stratified Fairness (HSSF)
+│   │   └── shapley.py        # Intersectional Shapley Fairness Value (ISFV)
+│   ├── geographic/           # Geographic equity (2 metrics + reference)
+│   │   ├── burden_evidence.py# Burden-Evidence Mismatch (BEMI)
+│   │   ├── concentration.py  # Geographic Concentration of Coverage (GCC)
+│   │   └── reference_data.py # WHO_REGION_IHD_BURDEN reference shares
 │   ├── appendix/             # Advanced Metrics (9 metrics)
 │   │   └── advanced_metrics.py
+│   ├── reporting/            # Tidy result tables + export
+│   │   ├── tables.py         # hierarchical/mediation/network/geographic tables
+│   │   └── export.py         # export_table (markdown/LaTeX/HTML)
 │   ├── statistics/           # Statistical Analyses
 │   │   ├── hierarchical.py   # Hierarchical Linear Modeling
 │   │   ├── mediation.py      # Mediation Analysis
@@ -597,9 +620,9 @@ EquiMed_DSS/
 │       ├── visualization.py   # Publication-ready figures
 │       └── sample_data.py     # Sample data generation
 ├── examples/                 # Usage examples
-├── tests/                    # Test suite (68 tests)
-├── docs/                     # Documentation
-└── setup.py
+├── tests/                    # Test suite (124 tests)
+├── docs/                     # Documentation (incl. VIGNETTE.md)
+└── pyproject.toml
 ```
 
 ---
@@ -610,16 +633,32 @@ EquiMed_DSS/
 
 | Class | Module | Description |
 |-------|--------|-------------|
-| `DynamicFairnessRatio` | `domain1` | Performance consistency |
-| `ExpectedCalibrationScore` | `domain1` | Calibration quality |
-| `IntraclassCorrelationCoefficient` | `domain1` | Inter-rater reliability |
-| `HierarchicalEquityRatio` | `domain2` | Group equity ratios |
+| `DecisionFlipRate` | `domain1` | Decision instability under counterfactual inputs |
+| `EmbeddingConsistencyScore` | `domain1` | Representation stability under perturbation |
+| `InterRaterReliability` | `domain1` | Inter-rater reliability (ICC(2,1)) |
+| `HierarchicalEquityRatio` | `domain2` | Group equity ratios + Bias-Gini |
 | `HarmAdjustedFairnessGap` | `domain2` | Clinical harm gaps |
 | `EthicalRiskIndex` | `domain2` | Ethical violations |
 | `IntersectionalBiasScore` | `domain2` | Subgroup bias detection |
 | `TemporalFairnessDrift` | `domain3` | Fairness over time |
 | `AuditTraceabilityScore` | `domain3` | Audit completeness |
 | `GovernanceComplianceIndex` | `domain3` | Regulatory compliance |
+| `SemanticParityGap` | `domain4` | Latent demographic sensitivity (SPG) |
+| `ClinicalHallucinationRate` | `domain4` | Unsupported-claim rate (CHR) |
+| `InstructionalVulnerabilityIndex` | `domain4` | Susceptibility to bias-priming (IVI) |
+| `GeographicRepresentationIndex` | `domain4` | Non-Western location share (GRI) |
+| `IntersectionalCalibrationError` | `domain5` | Intersectional calibration gap (ICE) |
+| `WeightedClinicalHarmAdjustedFairnessGap` | `domain5` | Severity-weighted harm gap (wHAFG) |
+| `LexicalDiversityDisparityIndex` | `domain5` | Vocabulary-richness disparity (LDDI) |
+| `RecommendationEntropyGap` | `domain5` | Recommendation-entropy gap (REG) |
+| `CounterfactualParityScore` | `domain5` | Counterfactual response parity (CPS) |
+| `ClinicalInformationDensityRatio` | `domain5` | Clinical-concept density ratio (CIDR) |
+| `DiagnosticCompletenessIndex` | `domain5` | Guideline-differential coverage (DCI) |
+| `UncertaintyQuantificationGap` | `domain5` | Hedging-density gap (UQG) |
+| `GeographicRepresentationBiasIndex` | `domain5` | KL geography-vs-burden divergence (GRBI) |
+| `HealthcareSystemStratifiedFairness` | `domain5` | System-stratified fairness (HSSF) |
+| `IntersectionalShapleyFairnessValue` | `domain5` | Shapley disparity attribution (ISFV) |
+| `SemanticRobustnessParityIndex` | `domain5` | Cross-group paraphrase robustness (SRPI) |
 | `BootstrapConfidenceIntervals` | `appendix` | Uncertainty quantification |
 | `StatisticalPowerAnalysis` | `appendix` | Sample size planning |
 | `BiasConcentrationIndex` | `appendix` | Bias distribution |

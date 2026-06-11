@@ -5,6 +5,15 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-06-10
+
+### Changed (documentation)
+- README: API Reference "Core Classes" table now lists all Domain 4 and Domain 5
+  classes and uses the correct Domain 1 class names (DecisionFlipRate,
+  EmbeddingConsistencyScore, InterRaterReliability; the old names were stale).
+- README: Project Structure now shows domain4/, domain5/, geographic/, and
+  reporting/ packages; test count updated to 124.
+
 ## [1.4.1] - 2026-06-10
 
 ### Changed (documentation)
