@@ -1,545 +1,204 @@
-# EquiMed_DSS Metrics Guide
+# EquiMed-DSS Metrics Guide
 
-Comprehensive guide to all 19 metrics in the EquiMed_DSS library.
+EquiMed-DSS implements **37 metrics**: five core domains (26), a geographic
+module (2), and an advanced appendix (9). Every entry below lists the exact
+class, method, formula as implemented, output range, and interpretation. All
+classes are instantiated with no arguments unless noted.
 
-## Table of Contents
-
-1. [Domain 1: Reliability and Calibration Assessment](#domain-1-reliability-and-calibration-assessment)
-2. [Domain 2: Fairness, Equity, and Ethics Assessment](#domain-2-fairness-equity-and-ethics-assessment)
-3. [Domain 3: Governance and Transparency Assessment](#domain-3-governance-and-transparency-assessment)
-4. [Appendix: Advanced Metrics](#appendix-advanced-metrics)
-
----
-
-## Domain 1: Reliability and Calibration Assessment
-
-### 1. Dynamic Fairness Ratio (DFR)
-
-**Purpose**: Measures how well a model maintains performance consistency across dynamic conditions.
-
-**Formula**: DFR = Dynamic Metric / Baseline Metric
-
-**Clinical Relevance**: In healthcare, models must perform consistently across different patient populations, time periods, and clinical settings. DFR helps identify when performance degrades in real-world deployment.
-
-**Implementation**:
-```python
-from equimed_dss.domain1 import DynamicFairnessRatio
-
-dfr = DynamicFairnessRatio()
-result = dfr.calculate_dfr(baseline_metric=0.85, dynamic_metric=0.80)
-```
-
-**Interpretation**:
-- **DFR ≥ 0.9**: Acceptable performance retention
-- **0.8 ≤ DFR < 0.9**: Moderate degradation (investigate)
-- **DFR < 0.8**: Significant degradation (requires intervention)
-
-**Use Cases**:
-- Monitoring model performance over time
-- Comparing performance across different hospitals or sites
-- Evaluating robustness to distribution shift
+| Domain | Module | Metrics |
+|---|---|---|
+| 1. Reliability & robustness | `domain1` | DecisionFlipRate, EmbeddingConsistencyScore, InterRaterReliability (ICC) |
+| 2. Fairness, equity & ethics | `domain2` | HER, HAFG, ERI, IBS |
+| 3. Governance & transparency | `domain3` | TFD, ATS, GCI |
+| 4. Representation & robustness | `domain4` | SPG, CHR, IVI, GRI |
+| 5. Technical-supplement fairness | `domain5` | ICE, wHAFG, LDDI, REG, CPS, CIDR, DCI, UQG, GRBI, HSSF, ISFV, SRPI |
+| Geographic | `geographic` | BEMI, GCC |
+| Appendix | `appendix` | BCI, power, Bland-Altman, MIC, JSD, WD, NM, TS, RCS |
 
 ---
 
-### 2. Expected Calibration Score (ECS)
+## Domain 1 — Reliability & robustness
 
-**Purpose**: Quantifies how well predicted probabilities match actual outcomes.
+### Decision Flip Rate (DFR) — `domain1.DecisionFlipRate.calculate_dfr`
+Diagnostic instability under input perturbation (e.g. a demographic flip).
+**Formula:** `DFR = (1/n) Σ 1[decision_i ≠ counterfactual_i]`, range [0, 1].
+Reported with a **Wilson 95% interval** (`ci_lower`, `ci_upper`), `n_flipped`,
+`n_samples`. Lower is better: <0.05 excellent, <0.15 moderate, else high instability.
 
-**Formula**: ECS = Σ |Predicted Probability - Actual Frequency| / N_bins
+### Embedding Consistency Score (ECS) — `domain1.EmbeddingConsistencyScore.calculate_ecs`
+Semantic shift of embeddings under perturbation. **Formula:** per item
+`1 − cos(E_orig, E_pert)`; returns `mean_ecs`, `std_ecs`, `median_ecs`,
+range [0, 2] (typically [0, 1]). Lower = more consistent.
 
-**Clinical Relevance**: Calibration is critical in clinical decision-making. If a model predicts 80% probability of disease, approximately 80% of such cases should actually have the disease.
-
-**Implementation**:
-```python
-from equimed_dss.domain1 import ExpectedCalibrationScore
-
-ecs = ExpectedCalibrationScore()
-predictions = [0.9, 0.8, 0.7, 0.6, 0.5]
-actuals = [1, 1, 0, 1, 0]
-result = ecs.calculate_ecs(predictions, actuals, n_bins=5)
-```
-
-**Interpretation**:
-- **ECS < 0.05**: Well-calibrated (excellent)
-- **0.05 ≤ ECS < 0.1**: Moderately calibrated (acceptable)
-- **ECS ≥ 0.1**: Poorly calibrated (requires recalibration)
-
-**Use Cases**:
-- Risk prediction models
-- Diagnostic support systems
-- Treatment recommendation systems
+### Inter-Rater Reliability (ICC) — `domain1.InterRaterReliability.calculate_icc_2_1`
+ICC(2,1), two-way random effects, single measure, absolute agreement.
+**Formula:** `ICC = (MSR − MSE) / (MSR + (k−1)·MSE + (k/n)(MSC − MSE))`, range
+[0, 1]. `bland_altman_analysis` reports mean difference and 95% limits of
+agreement (sample SD). >0.75 excellent, >0.6 good, >0.4 fair.
 
 ---
 
-### 3. Intraclass Correlation Coefficient (ICC)
+## Domain 2 — Fairness, equity & ethics
 
-**Purpose**: Assesses consistency and reliability of measurements across different raters, conditions, or time points.
+### Hierarchical Equity Ratio (HER) — `domain2.HierarchicalEquityRatio`
+`calculate_her(group_scores, reference_group)` → `HER_g = score_g / score_ref`
+(4/5ths rule: equitable in [0.8, 1.25]). `calculate_bias_gini(scores)` returns
+the standard Gini of group scores (dispersion).
 
-**Formula**: ICC = (Between-group variance - Within-group variance) / Total variance
+### Harm-Adjusted Fairness Gap (HAFG) — `domain2.HarmAdjustedFairnessGap`
+Constructor `HarmAdjustedFairnessGap(cost_fn=10.0, cost_fp=3.0)`; method
+`calculate_hafg(group1_errors, group2_errors)` with `{"fn":…, "fp":…}` counts.
+**Formula:** `H_g = fn_g·cost_fn + fp_g·cost_fp`;
+`HAFG = |H1 − H2| / max(H1, H2)`, range **[0, 1]** (normalized; the raw gap is
+also returned as `absolute_harm_gap`). <0.1 minimal, <0.2 moderate, else significant.
 
-**Clinical Relevance**: Essential for evaluating inter-rater reliability, test-retest reliability, and consistency of AI predictions across different conditions.
+### Ethical Risk Index (ERI) — `domain2.EthicalRiskIndex.calculate_eri`
+`ERI = Σ severity_i / n_total_outputs`; also returns `svr` (violations per 1000).
+Lower is better.
 
-**Implementation**:
-```python
-from equimed_dss.domain1 import IntraclassCorrelationCoefficient
-
-icc = IntraclassCorrelationCoefficient()
-ratings = [[3, 4, 3], [5, 5, 4], [2, 3, 2]]  # Multiple raters
-result = icc.calculate_icc(ratings)
-```
-
-**Interpretation**:
-- **ICC > 0.75**: Excellent reliability
-- **0.6 ≤ ICC ≤ 0.75**: Good reliability
-- **0.4 ≤ ICC < 0.6**: Moderate reliability
-- **ICC < 0.4**: Poor reliability
-
-**Use Cases**:
-- Validating AI systems against multiple clinicians
-- Assessing temporal stability of predictions
-- Evaluating consistency across clinical sites
+### Intersectional Bias Score (IBS) — `domain2.IntersectionalBiasScore`
+`calculate_subgroup_similarity(vectors)`: pairwise Euclidean distances,
+similarity `1/(1+d)`, flags the subgroup with the largest mean distance.
+`interaction_analysis(df)`: variance-decomposition (eta²-style) main and
+race×gender interaction effects (does not mutate the input DataFrame).
 
 ---
 
-## Domain 2: Fairness, Equity, and Ethics Assessment
+## Domain 3 — Governance & transparency
 
-### 4. Hierarchical Equity Ratio (HER)
+### Temporal Fairness Drift (TFD) — `domain3.TemporalFairnessDrift.calculate_drift`
+3-sigma statistical process control: `UCL/LCL = mean ± 3·SD` (sample SD);
+flags out-of-control points. Drift detected if any point exceeds the limits.
 
-**Purpose**: Measures equity across demographic groups by comparing performance metrics relative to a reference group.
+### Audit Traceability Score (ATS) — `domain3.AuditTraceabilityScore.calculate_ats`
+`calculate_ats(n_traceable, n_total)` → proportion traceable with a **Wilson 95%
+interval**; meets standard at ≥0.95.
 
-**Formula**: HER_group = Performance_group / Performance_reference
-
-**Clinical Relevance**: Ensures AI systems don't systematically disadvantage certain demographic groups. Based on the 4/5ths rule from employment discrimination law.
-
-**Implementation**:
-```python
-from equimed_dss.domain2 import HierarchicalEquityRatio
-
-her = HierarchicalEquityRatio()
-scores = {
-    'White': 0.85,
-    'Black': 0.68,
-    'Hispanic': 0.75,
-    'Asian': 0.87
-}
-her_scores = her.calculate_her(scores, reference_group='White')
-gini = her.calculate_bias_gini(list(scores.values()))
-```
-
-**Interpretation**:
-- **0.8 ≤ HER ≤ 1.25**: Equitable performance
-- **HER < 0.8 or HER > 1.25**: Potential disparity
-
-**Bias-Gini Index**:
-- **Gini < 0.2**: Low dispersion (equitable)
-- **0.2 ≤ Gini < 0.4**: Moderate dispersion
-- **Gini ≥ 0.4**: High dispersion (concerning)
-
-**Use Cases**:
-- Auditing diagnostic algorithms for racial bias
-- Evaluating treatment recommendation fairness
-- Risk stratification equity analysis
+### Governance Compliance Index (GCI) — `domain3.GovernanceComplianceIndex.calculate_gci`
+`calculate_gci(policy_compliance: Dict[str,bool])` → `met / total`, range [0, 1];
+returns `compliance_gaps`. 1.0 = full compliance.
 
 ---
 
-### 5. Harm-Adjusted Fairness Gap (HAFG)
+## Domain 4 — Representation & robustness
 
-**Purpose**: Quantifies fairness gaps weighted by the clinical harm of different error types.
+### Semantic Parity Gap (SPG) — `domain4.SemanticParityGap.calculate_spg`
+Latent bias as the distance between embedding centroids of identical cases that
+differ only by a protected attribute. Returns **both** `spg_euclidean`
+(`‖c_p − c_m‖₂`) and `spg_cosine` (`1 − cos(c_p, c_m)`). Larger = more identity
+sensitivity. (State which variant you report.)
 
-**Formula**: HAFG = |Harm_group1 - Harm_group2| / max(Harm_group1, Harm_group2)
+### Clinical Hallucination Rate (CHR) — `domain4.ClinicalHallucinationRate.calculate_chr`
+`CHR = (1/|C|) Σ 1[support(c) < τ]` over per-claim NLI/entailment support scores
+(default τ=0.5); severity-weighted variant via `weights`. Range [0, 1]; higher is worse.
 
-**Clinical Relevance**: Not all errors are equal. False negatives in cancer screening carry much more harm than false positives. HAFG accounts for this reality.
+### Instructional Vulnerability Index (IVI) — `domain4.InstructionalVulnerabilityIndex.calculate_ivi`
+`IVI = P(f(q_biased) ≠ f(q_neutral))` over paired neutral/biased outputs;
+`ivi_effect` is the directional mean change for numeric outputs. Range [0, 1].
 
-**Implementation**:
-```python
-from equimed_dss.domain2 import HarmAdjustedFairnessGap
-
-hafg = HarmAdjustedFairnessGap()
-group1_errors = {'fn': 5, 'fp': 10}  # False negatives, false positives
-group2_errors = {'fn': 2, 'fp': 5}
-result = hafg.calculate_hafg(
-    group1_errors,
-    group2_errors,
-    fn_harm_weight=10.0,  # False negative much worse
-    fp_harm_weight=1.0
-)
-```
-
-**Interpretation**:
-- **HAFG < 0.1**: Minimal harm disparity (acceptable)
-- **0.1 ≤ HAFG < 0.2**: Moderate harm disparity (investigate)
-- **HAFG ≥ 0.2**: Significant harm disparity (requires intervention)
-
-**Use Cases**:
-- Cancer screening algorithms
-- Sepsis prediction systems
-- Emergency triage systems
+### Geographic Representation Index (GRI) — `domain4.GeographicRepresentationIndex`
+`calculate_gri(locations, western_locations)` → `(|L| − |W|)/|L|` (set-based
+non-Western variety, [0, 1]). `calculate_geographic_bias(gri_values, error_rates)`
+correlates GRI with non-Western error rate.
 
 ---
 
-### 6. Ethical Risk Index (ERI)
+## Domain 5 — Technical-supplement fairness
 
-**Purpose**: Aggregates ethical violations weighted by severity to provide an overall ethical risk score.
+### Intersectional Calibration Error (ICE) — `domain5.IntersectionalCalibrationError.calculate_ice`
+Per intersectional group, `ECE_i = Σ_b (|S_ib|/|S_i|)·|acc − conf|`;
+`ICE = Σ_i w_i·ECE_i` (population weighted); `dICE = max_i ECE_i − min_i ECE_i`.
 
-**Formula**: ERI = Σ(Severity_i × Frequency_i) / Total_Outputs
+### Weighted Clinical Harm-Adjusted Fairness Gap (wHAFG) — `domain5.WeightedClinicalHarmAdjustedFairnessGap.calculate_whafg`
+`H(g) = (1/n_g) Σ ω(Y_i)·L(Ŷ_i, Y_i)`; `wHAFG = max_g H(g) − min_g H(g)`.
+Per-sample, severity-weighted generalization of domain-2 HAFG.
 
-**Clinical Relevance**: Systematically tracks and quantifies ethical issues like privacy violations, bias incidents, and safety concerns.
+### Lexical Diversity Disparity Index (LDDI) — `domain5.LexicalDiversityDisparityIndex.calculate_lddi`
+Root Type-Token Ratio `RTTR(g) = |V_g|/√(tokens_g)`; `LDDI = max_g − min_g`,
+plus `lddi_norm`.
 
-**Implementation**:
-```python
-from equimed_dss.domain2 import EthicalRiskIndex
+### Recommendation Entropy Gap (REG) — `domain5.RecommendationEntropyGap.calculate_reg`
+`H(T|g) = −Σ_t P(t|g) log₂ P(t|g)`; `REG = max_g − min_g` (bits).
 
-eri = EthicalRiskIndex()
-violations = [
-    {'severity': 2.5, 'type': 'privacy'},
-    {'severity': 1.0, 'type': 'bias'},
-    {'severity': 5.0, 'type': 'safety'}
-]
-result = eri.calculate_eri(violations, n_total_outputs=1000)
-```
+### Counterfactual Parity Score (CPS) — `domain5.CounterfactualParityScore.calculate_cps`
+`CPS = mean response similarity under a demographic swap`; counterfactual
+unfairness `CFU = 1 − min_pair CPS` (or `1 − CPS` for a single pair). Range [0, 1].
 
-**Severity Scale**:
-- **1-2**: Minor (e.g., suboptimal communication)
-- **3-4**: Moderate (e.g., privacy concern)
-- **5-7**: Severe (e.g., patient harm)
-- **8-10**: Critical (e.g., life-threatening)
+### Clinical Information Density Ratio (CIDR) — `domain5.ClinicalInformationDensityRatio.calculate_cidr`
+`CID(g) = mean (concepts/tokens)·100`; `CIDR(g) = CID(g)/max_g CID`; `cidr_min`
+is the most information-sparse group (1.0 = parity).
 
-**Interpretation**:
-- **ERI < 0.05**: Low ethical risk (acceptable)
-- **0.05 ≤ ERI < 0.1**: Moderate ethical risk (monitor)
-- **ERI ≥ 0.1**: High ethical risk (immediate action)
+### Diagnostic Completeness Index (DCI) — `domain5.DiagnosticCompletenessIndex.calculate_dci`
+`DCI(r) = |D(r) ∩ D*| / |D*|` against a reference differential set D*;
+group means and `dDCI = max − min`; optional severity weights.
 
-**Use Cases**:
-- AI ethics monitoring dashboards
-- Regulatory compliance reporting
-- Risk management systems
+### Uncertainty Quantification Gap (UQG) — `domain5.UncertaintyQuantificationGap.calculate_uqg`
+`UD(r) = hedging terms / sentences`; `UQG = max_g − min_g` (hedging-density disparity).
 
----
+### Geographic Representation Bias Index (GRBI) — `domain5.GeographicRepresentationBiasIndex.calculate_grbi`
+`GRBI = D_KL(P_corpus ‖ P_burden) = Σ_r p_c(r) log(p_c(r)/p_b(r))` (nats);
+optional HIC over-representation ratio. Directed KL complement to BEMI.
 
-### 7. Intersectional Bias Score (IBS)
+### Healthcare System Stratified Fairness (HSSF) — `domain5.HealthcareSystemStratifiedFairness.calculate_hssf`
+`HSSF = Σ_s P(s)·max_{g,g'}|E[Y|g,s] − E[Y|g',s]|` (within-system gap);
+`delta_between = Var_s(E[Y|s])` (between-system).
 
-**Purpose**: Detects bias in intersectional subgroups (e.g., Black women, elderly Asian men) using distance-based outlier detection.
+### Intersectional Shapley Fairness Value (ISFV) — `domain5.IntersectionalShapleyFairnessValue.calculate_isfv`
+Cooperative-game Shapley attribution of the disparity
+`v(S) = max−min of E[Y | A_S]` to each protected attribute, plus pairwise
+interactions `v({i,j}) − v({i}) − v({j})`. Shapley values sum to the total disparity.
 
-**Formula**: Distance = ||Performance_subgroup - Mean_performance_all||
-
-**Clinical Relevance**: Single-axis fairness analysis misses intersectional discrimination. A system might be fair for "women" and "elderly" separately but unfair for "elderly women."
-
-**Implementation**:
-```python
-from equimed_dss.domain2 import IntersectionalBiasScore
-
-ibs = IntersectionalBiasScore()
-vectors = {
-    'White_Male': np.array([0.85, 0.90, 0.88]),
-    'Black_Female': np.array([0.50, 0.55, 0.52]),  # Outlier
-    'Hispanic_Male': np.array([0.82, 0.87, 0.85]),
-    'Asian_Female': np.array([0.88, 0.91, 0.89])
-}
-result = ibs.calculate_subgroup_similarity(vectors)
-```
-
-**Interpretation**:
-- Identifies subgroups with significantly different performance
-- Higher distance = greater intersectional bias
-- Threshold typically set at 1.5× standard deviation
-
-**Use Cases**:
-- Intersectional fairness audits
-- Multi-dimensional bias detection
-- Equity impact assessments
+### Semantic Robustness Parity Index (SRPI) — `domain5.SemanticRobustnessParityIndex.calculate_srpi`
+`SRPI = min_g R(g) / max_g R(g)` over per-group paraphrase robustness (1 = equal).
 
 ---
 
-## Domain 3: Governance and Transparency Assessment
+## Geographic
 
-### 8. Temporal Fairness Drift (TFD)
+### Burden-Evidence Mismatch Index (BEMI) — `geographic.BurdenEvidenceMismatch.calculate_bemi`
+**Total-variation distance** between regional evidence and disease-burden shares:
+`BEMI = ½ Σ_r |evidence_r − burden_r|`, range **[0, 1]** (0 = evidence tracks
+burden, 1 = disjoint). Use `WHO_REGION_IHD_BURDEN` (normalized IHD DALY-rate
+shares, Roth et al. 2020). <0.10 low, <0.25 moderate, ≥0.25 high mismatch.
 
-**Purpose**: Tracks how fairness metrics change over time using statistical process control methods.
-
-**Method**: Uses control charts with 3-sigma limits to detect statistically significant drift.
-
-**Clinical Relevance**: Models can degrade over time due to distribution shift, data drift, or changing clinical practices. TFD provides early warning.
-
-**Implementation**:
-```python
-from equimed_dss.domain3 import TemporalFairnessDrift
-
-tfd = TemporalFairnessDrift()
-time_series = [0.85, 0.84, 0.86, 0.83, 0.75, 0.84, 0.82]
-result = tfd.calculate_drift(time_series)
-```
-
-**Interpretation**:
-- **Stable Process**: All points within 3σ control limits
-- **Warning**: 2 of 3 consecutive points > 2σ
-- **Out of Control**: Any point > 3σ
-
-**Use Cases**:
-- Continuous model monitoring
-- Performance degradation detection
-- Trigger for model retraining
+### Geographic Concentration of Coverage (GCC) — `geographic.GeographicConcentration.calculate_gcc`
+Sample-corrected Gini `G* = R/(R−1)·G_raw` (0 even, 1 single-region) and
+normalized Shannon entropy `H_norm = −Σ p_r ln p_r / ln R` (1 even, 0 single);
+`concentration = 1 − H_norm`.
 
 ---
 
-### 9. Audit Traceability Score (ATS)
+## Appendix — advanced metrics (`appendix.advanced_metrics`, also re-exported)
 
-**Purpose**: Measures the completeness and quality of audit trails for AI system decisions.
+- **BootstrapConfidenceIntervals** `calculate_bci` — percentile bootstrap CI for any statistic.
+- **StatisticalPowerAnalysis** `calculate_sample_size` / `calculate_power`.
+- **BiasConcentrationIndex** `calculate_bci` — concentration of bias across subgroups.
+- **MutualInformationContent (MIC)** `calculate_mic` — **mutual information** between
+  demographics and outcomes (NOT the Reshef Maximal Information Coefficient);
+  prefer `normalized_mic` for cross-setting comparison.
+- **JensenShannonDivergence (JSD)** `calculate_jsd` — JS **divergence**, base 2,
+  range [0, 1]; `jsd_distance` is its square root. (Consistent with
+  `appendix.info_theory.AdvancedInfoTheoryMetrics.calculate_jsd`.)
+- **WassersteinDistance (WD)** `calculate_wd` — earth-mover distance (scipy).
+- **NetworkModularity (NM)** `calculate_modularity` — Newman modularity Q over
+  greedy (Clauset-Newman-Moore) communities.
+- **TransparencyScore (TS)**, **RobustnessCertificationScore (RCS)**.
 
-**Formula**: ATS = Σ(Completeness_i) / Total_Decisions
-
-**Clinical Relevance**: For regulatory compliance and accountability, every AI decision must be traceable with complete metadata.
-
-**Implementation**:
-```python
-from equimed_dss.domain3 import AuditTraceabilityScore
-
-ats = AuditTraceabilityScore()
-logs = [
-    {'timestamp': True, 'user': True, 'action': True, 'details': True},
-    {'timestamp': True, 'user': True, 'action': False, 'details': True},
-    {'timestamp': True, 'user': False, 'action': True, 'details': False}
-]
-result = ats.calculate_ats(logs)
-```
-
-**Required Fields**:
-- Timestamp
-- User/System identifier
-- Action taken
-- Decision details
-- Input data snapshot
-- Model version
-
-**Interpretation**:
-- **ATS ≥ 0.9**: Excellent traceability
-- **0.7 ≤ ATS < 0.9**: Adequate traceability
-- **ATS < 0.7**: Poor traceability (non-compliant)
-
-**Use Cases**:
-- HIPAA compliance
-- FDA regulatory submissions
-- Malpractice liability protection
+`appendix.info_theory`, `appendix.network`, and `appendix.reliability` provide
+thin aggregator classes over the same statistics; the canonical implementations
+live in `advanced_metrics.py`.
 
 ---
 
-### 10. Governance Compliance Index (GCI)
-
-**Purpose**: Assesses adherence to governance frameworks, regulations, and best practices.
-
-**Formula**: GCI = N_requirements_met / N_total_requirements
-
-**Clinical Relevance**: Healthcare AI must comply with multiple regulatory frameworks (FDA, HIPAA, state laws, hospital policies).
-
-**Implementation**:
-```python
-from equimed_dss.domain3 import GovernanceComplianceIndex
-
-gci = GovernanceComplianceIndex()
-requirements = [
-    True,   # FDA 510(k) clearance
-    True,   # HIPAA compliance
-    False,  # State-specific regulations
-    True,   # Institutional review
-    True    # Ethics committee approval
-]
-result = gci.calculate_gci(requirements)
-```
-
-**Common Requirements**:
-- Regulatory approvals
-- Privacy compliance
-- Security standards
-- Clinical validation
-- Ethics review
-- Documentation standards
-
-**Interpretation**:
-- **GCI = 1.0**: Full compliance
-- **0.8 ≤ GCI < 1.0**: Mostly compliant (address gaps)
-- **GCI < 0.8**: Non-compliant (major issues)
-
-**Use Cases**:
-- Pre-deployment readiness assessment
-- Regulatory audit preparation
-- Continuous compliance monitoring
-
----
-
-## Appendix: Advanced Metrics
-
-### Advanced Reliability Metrics
-
-#### Bias Concentration Index (BCI)
-Measures whether bias is concentrated in specific subgroups or distributed evenly.
-
-#### Subgroup Performance Analyzer (SPA)
-Statistical analysis of performance variations across demographic subgroups.
-
-#### Bland-Altman Bias
-Assesses agreement between two measurement methods using difference vs. mean plots.
-
-### Advanced Information-Theoretic Metrics
-
-#### Maximal Information Coefficient (MIC)
-Detects both linear and non-linear relationships between variables.
-
-#### Jensen-Shannon Divergence (JSD)
-Symmetric measure of similarity between two probability distributions.
-
-#### Wasserstein Distance (WD)
-Optimal transport distance between distributions, sensitive to tail behavior.
-
-### Advanced Network and Governance Metrics
-
-#### Network Modularity (NM)
-Analyzes community structure in bias correlation networks.
-
-#### Topic Sensitivity (TS)
-Measures how much performance varies across different clinical topics or conditions.
-
-#### Risk Cascade Score (RCS)
-Quantifies how risks propagate through interconnected system components.
-
----
-
-## Geographic Equity (v1.1.0)
-
-The `equimed_dss.geographic` module provides two metrics that together characterize how equitably
-a body of evidence covers the global disease burden across WHO regions.
-
-### Burden-Evidence Mismatch Index (BEMI)
-
-**Purpose**: Measures the total-variation distance between the regional distribution of evidence
-(studies or cases) and the regional distribution of disease burden.
-
-**Formula**:
-
-```
-BEMI = 0.5 * sum_r |evidence_share_r - burden_share_r|
-```
-
-where `evidence_share_r` is the fraction of studies (or cases) from region `r` and
-`burden_share_r` is the fraction of total disease burden in region `r`.
-
-**Range**: [0, 1]
-- **BEMI = 0**: evidence perfectly mirrors the burden distribution.
-- **BEMI = 1**: the two distributions are completely disjoint (no overlap).
-
-**Reference burden data**: `WHO_REGION_IHD_BURDEN` contains normalized IHD DALY shares from
-Roth GA et al., 2020 (GBD Compare for IHD). AFRO and SEARO together carry about 36% of global
-IHD burden, yet are substantially under-represented in most clinical AI literature.
-
-**Implementation**:
-```python
-from equimed_dss.geographic import BurdenEvidenceMismatch, WHO_REGION_IHD_BURDEN
-
-bemi = BurdenEvidenceMismatch()
-result = bemi.calculate_bemi(
-    evidence_counts={"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2},
-    burden_shares=WHO_REGION_IHD_BURDEN
-)
-print(f"BEMI: {result['bemi']:.3f}")
-```
-
-**Interpretation**:
-- **BEMI < 0.10**: evidence closely tracks burden (low mismatch)
-- **0.10 <= BEMI < 0.25**: moderate mismatch (some regions under-represented)
-- **BEMI >= 0.25**: high mismatch (evidence concentrated away from high-burden regions)
-
----
-
-### Geographic Concentration of Coverage (GCC)
-
-**Purpose**: Characterizes how evenly studies are distributed across regions, using two
-complementary measures that run in opposite directions.
-
-**Sample-corrected Gini (G\*)**:
-
-```
-G* = (R / (R - 1)) * G_raw
-```
-
-where `R` is the number of regions and `G_raw` is the standard Gini coefficient computed from
-regional study counts.
-
-**Range of G\***: [0, 1]
-- **G\* = 0**: perfectly even coverage across all regions.
-- **G\* = 1**: all studies concentrated in a single region.
-
-**Normalized Shannon entropy (H_norm)**:
-
-```
-H_norm = -sum_r p_r * ln(p_r) / ln(R)
-```
-
-where `p_r` is the fraction of studies in region `r`.
-
-**Range of H_norm**: [0, 1]
-- **H_norm = 1**: perfectly even coverage (maximum entropy).
-- **H_norm = 0**: all studies in one region (minimum entropy).
-
-Note: G\* and H_norm run in opposite directions. GCC also exposes `concentration = 1 - H_norm`
-for cases where a single "high = concentrated" scale is preferred.
-
-**Implementation**:
-```python
-from equimed_dss.geographic import GeographicConcentration
-
-gcc = GeographicConcentration()
-result = gcc.calculate_gcc(
-    {"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2}
-)
-print(f"Gini* (G*):      {result['gini_corrected']:.3f}")
-print(f"H_norm:          {result['entropy_normalized']:.3f}")
-print(f"Concentration:   {result['concentration']:.3f}")
-```
-
-**Use Cases**:
-- Systematic review equity audits
-- Identifying under-represented regions for future research investment
-- Reporting geographic diversity as a manuscript quality indicator
-
----
-
-## Choosing the Right Metrics
-
-### For Diagnostic Systems
-- **Primary**: ECS (calibration), HER (equity), TFD (drift)
-- **Secondary**: DFR (robustness), HAFG (harm analysis)
-
-### For Risk Prediction
-- **Primary**: ECS (calibration), DFR (consistency), TFD (drift)
-- **Secondary**: HER (equity), IBS (intersectional fairness)
-
-### For Treatment Recommendation
-- **Primary**: HAFG (harm), ERI (ethics), ICC (reliability)
-- **Secondary**: HER (equity), GCI (compliance)
-
-### For Regulatory Submission
-- **Primary**: GCI (compliance), ATS (traceability), ICC (reliability)
-- **Secondary**: All fairness metrics (HER, HAFG, IBS)
-
----
-
-## Best Practices
-
-1. **Establish Baselines**: Measure all metrics before deployment
-2. **Continuous Monitoring**: Track metrics over time, not just at deployment
-3. **Intersectional Analysis**: Always check intersectional subgroups
-4. **Clinical Context**: Interpret metrics in clinical context, not just statistically
-5. **Stakeholder Input**: Involve clinicians, patients, and ethicists in interpretation
-6. **Documentation**: Document all metric calculations and interpretations
-7. **Action Thresholds**: Define clear thresholds that trigger investigations or interventions
-
----
-
-## References and Further Reading
-
-1. Rajkomar, A., et al. (2018). "Ensuring Fairness in Machine Learning to Advance Health Equity"
-2. FDA (2021). "Artificial Intelligence/Machine Learning-Based Software as a Medical Device"
-3. Obermeyer, Z., et al. (2019). "Dissecting racial bias in an algorithm used to manage the health of populations"
-4. Chen, I. Y., et al. (2021). "Ethical Machine Learning in Healthcare"
-
----
-
-For implementation examples, see the `examples/` directory in the repository.
+## Choosing metrics
+
+- **Diagnostic systems:** ICE/ECS (calibration/consistency), HER (equity), TFD (drift), CHR (faithfulness).
+- **Triage/decision support:** IVI (prompt robustness), SPG/CPS (identity sensitivity), HSSF (system confounding).
+- **Evidence/corpus audits:** BEMI, GCC, GRBI, GRI (geographic equity).
+- **Governance/regulatory:** GCI, ATS, ICC (reliability), ERI.
+
+## References
+1. Rajkomar A, et al. Ensuring Fairness in ML to Advance Health Equity. 2018.
+2. Obermeyer Z, et al. Dissecting racial bias in an algorithm. Science 2019.
+3. Roth GA, et al. Global Burden of Cardiovascular Diseases (GBD). 2020.
+4. Shrout PE, Fleiss JL. Intraclass correlations. Psychol Bull 1979.

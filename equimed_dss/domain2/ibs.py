@@ -70,6 +70,10 @@ class IntersectionalBiasScore:
         Returns:
             Dictionary of interaction effect sizes (eta-squared proxies).
         """
+        # Work on a copy so the caller's DataFrame is never mutated (a temporary
+        # 'race_gender' column is added below for the interaction term).
+        df = df.copy()
+
         # Simplified approach: Compare variance of subgroups vs total variance
         total_var = df["score"].var()
 

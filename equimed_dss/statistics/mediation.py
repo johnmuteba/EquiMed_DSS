@@ -1,13 +1,14 @@
 """
 Mediation Analysis for Causal Pathway Investigation
 
-Implements mediation analysis as described in Manuscript Section 2.4:
-- M = α0 + α1X + ε1 (mediator model)
-- Y = β0 + β1X + β2M + ε2 (outcome model)
-- Indirect effect = α1 × β2
+Product-of-coefficients mediation:
+- M = a0 + a1*X + e1            (mediator model)
+- Y = b0 + b1*X + b2*M + e2     (outcome model)
+- indirect effect = a1 * b2; total effect = direct + indirect;
+- proportion mediated = indirect / total.
 
-Key Finding: 72.1% of bias effects operate through indirect pathways
-(β_indirect = 1.274, 95% CI: 1.098-1.451)
+The indirect-effect confidence interval is obtained by nonparametric
+bootstrap; a CI that excludes zero indicates a significant indirect pathway.
 """
 
 from typing import Any, Dict, List, Optional, Tuple

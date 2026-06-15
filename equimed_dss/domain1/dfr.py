@@ -1,6 +1,21 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
+
+
+def _wilson_ci(n_success: int, n: int, z: float = 1.96) -> Tuple[float, float]:
+    """Wilson score 95% interval for a binomial proportion.
+
+    The flip rate is a proportion, so its uncertainty is a binomial confidence
+    interval, not a percentile of the 0/1 indicator vector.
+    """
+    if n == 0:
+        return 0.0, 0.0
+    p = n_success / n
+    denom = 1.0 + z**2 / n
+    centre = (p + z**2 / (2 * n)) / denom
+    half = (z * np.sqrt(p * (1 - p) / n + z**2 / (4 * n**2))) / denom
+    return float(max(0.0, centre - half)), float(min(1.0, centre + half))
 
 
 class DecisionFlipRate:
@@ -36,7 +51,9 @@ class DecisionFlipRate:
             for o, c in zip(original_decisions, counterfactual_decisions)
         ]
 
+        n_flipped = int(np.sum(flips))
         flip_rate = float(np.mean(flips))
+        ci_lower, ci_upper = _wilson_ci(n_flipped, n_samples)
 
         # Interpretation
         if flip_rate < 0.05:
@@ -48,8 +65,10 @@ class DecisionFlipRate:
 
         return {
             "flip_rate": flip_rate,
-            "ci_lower": float(np.percentile(flips, 2.5)),
-            "ci_upper": float(np.percentile(flips, 97.5)),
+            "n_flipped": n_flipped,
+            "n_samples": n_samples,
+            "ci_lower": ci_lower,
+            "ci_upper": ci_upper,
             "interpretation": {
                 "range": "[0, 1]",
                 "ideal": "Lower is better (close to 0)",

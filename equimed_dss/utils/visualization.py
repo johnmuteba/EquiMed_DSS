@@ -15,7 +15,7 @@ def plot_network_graph(
     save_path: Optional[str] = None,
 ):
     """Plot a NetworkX graph."""
-    plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(10, 8))
     pos = nx.spring_layout(G, seed=42)
     nx.draw(
         G,
@@ -37,8 +37,7 @@ def plot_network_graph(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 def plot_correlation_matrix(
@@ -47,15 +46,14 @@ def plot_correlation_matrix(
     save_path: Optional[str] = None,
 ):
     """Plot correlation matrix heatmap."""
-    plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(10, 8))
     sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", vmin=-1, vmax=1, center=0)
     plt.title(title)
     plt.tight_layout()
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 def plot_metric_distribution(
@@ -64,7 +62,7 @@ def plot_metric_distribution(
     save_path: Optional[str] = None,
 ):
     """Plot distribution of a metric (e.g., bootstrap results)."""
-    plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(10, 6))
     sns.histplot(data, kde=True, color="blue", alpha=0.3)
     plt.axvline(
         np.mean(data), color="red", linestyle="--", label=f"Mean: {np.mean(data):.2f}"
@@ -75,8 +73,7 @@ def plot_metric_distribution(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 def plot_bland_altman(
@@ -87,7 +84,7 @@ def plot_bland_altman(
     save_path: Optional[str] = None,
 ):
     """Plot Bland-Altman analysis."""
-    plt.figure(figsize=(8, 6))
+    fig = plt.figure(figsize=(8, 6))
     plt.scatter(means, diffs, alpha=0.5)
     plt.axhline(np.mean(diffs), color="black", linestyle="-")
     plt.axhline(limits[0], color="red", linestyle="--")
@@ -99,8 +96,7 @@ def plot_bland_altman(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 def plot_her_heatmap(
@@ -117,7 +113,7 @@ def plot_her_heatmap(
         for j, group in enumerate(groups):
             matrix[i, j] = her_scores[corpus].get(group, 0)
 
-    plt.figure(figsize=(10, 6))
+    fig = plt.figure(figsize=(10, 6))
     plt.imshow(matrix, cmap="RdYlGn", vmin=0.5, vmax=1.5, aspect="auto")
     plt.colorbar(label="HER")
     plt.yticks(range(len(corpora)), corpora)
@@ -127,8 +123,7 @@ def plot_her_heatmap(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 def plot_control_chart(
@@ -139,7 +134,7 @@ def plot_control_chart(
     save_path: Optional[str] = None,
 ):
     """Plot process control chart."""
-    plt.figure(figsize=(10, 5))
+    fig = plt.figure(figsize=(10, 5))
     plt.plot(data, marker="o")
     plt.axhline(np.mean(data), color="green", linestyle="-")
     plt.axhline(ucl, color="red", linestyle="--")
@@ -151,8 +146,7 @@ def plot_control_chart(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path)
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 # ========================================================================
@@ -299,8 +293,7 @@ def plot_figure2_reliability_dashboard(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 def plot_figure3_corpus_comparison(
@@ -463,8 +456,7 @@ def plot_figure3_corpus_comparison(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 def plot_figure4_temporal_robustness(
@@ -533,7 +525,7 @@ def plot_figure4_temporal_robustness(
     ax1.axvline(0, color="black", linestyle="-", linewidth=1)
     ax1.set_xlabel("Effect Size (β)", fontsize=12)
     ax1.set_title(
-        "A. Mediation Analysis\n(72.1% Indirect Pathway)",
+        "A. Mediation Analysis\n(Direct vs Indirect Pathway)",
         fontsize=14,
         fontweight="bold",
     )
@@ -623,8 +615,7 @@ def plot_figure4_temporal_robustness(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 def plot_figure5_ethics_governance(
@@ -783,8 +774,7 @@ def plot_figure5_ethics_governance(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 def plot_figure6_metric_networks(
@@ -897,8 +887,7 @@ def plot_figure6_metric_networks(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig
 
 
 def plot_figure7_intersectional_heatmap(
@@ -1044,5 +1033,4 @@ def plot_figure7_intersectional_heatmap(
     if save_path:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    # Always render the figure (inline in notebooks); saving does not suppress it.
-    plt.show()
+    return fig

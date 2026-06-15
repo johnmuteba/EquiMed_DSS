@@ -484,8 +484,8 @@ EquiMed_DSS includes advanced statistical methods:
 from equimed_dss.statistics import HierarchicalLinearModeling
 
 hlm = HierarchicalLinearModeling()
-# Analyze variance decomposition across hospital levels
-# Key finding: 55.8% of variance at hospital level
+# Decompose outcome variance into between-group (e.g. hospital) vs within-group
+# components; the ICC reports the between-group share.
 ```
 
 ### Mediation Analysis
@@ -494,8 +494,8 @@ hlm = HierarchicalLinearModeling()
 from equimed_dss.statistics import MediationAnalysis
 
 mediation = MediationAnalysis(n_bootstrap=1000)
-# Analyze bias pathways
-# Key finding: 72.1% of bias through indirect pathways
+# Decompose a total effect into direct and indirect (mediated) pathways with a
+# bootstrap CI for the indirect effect.
 ```
 
 ### Network Statistics

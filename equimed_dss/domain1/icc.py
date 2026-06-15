@@ -96,7 +96,8 @@ class InterRaterReliability:
                 means = (judge_matrix[:, i] + judge_matrix[:, j]) / 2
                 differences = judge_matrix[:, i] - judge_matrix[:, j]
                 mean_diff = np.mean(differences)
-                std_diff = np.std(differences)
+                # Sample SD (ddof=1) is the convention for Bland-Altman limits.
+                std_diff = np.std(differences, ddof=1) if len(differences) > 1 else 0.0
 
                 results[pair_name] = {
                     "mean_difference": float(mean_diff),

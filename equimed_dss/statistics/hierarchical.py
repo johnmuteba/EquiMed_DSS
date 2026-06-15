@@ -1,11 +1,13 @@
 """
 Hierarchical Linear Modeling (HLM) / Mixed Effects Models
 
-Implements variance decomposition and hierarchical analysis as described in
-Manuscript Section 2.4: Yij = γ00 + γ10Xij + u0j + rij
+Variance decomposition for nested data: Y_ij = gamma_00 + gamma_10 X_ij + u_0j
++ r_ij. The intraclass correlation (ICC) reports the share of outcome variance
+that lies between groups (e.g. hospitals/sites) rather than within them.
 
-Key Finding from Manuscript: 55.8% of outcome variance at hospital/institutional
-levels, not patient characteristics.
+Note: this is a Gaussian mixed model (statsmodels MixedLM). For a binary outcome
+(e.g. a recommend / do-not-recommend decision) use a logistic mixed model; the
+intersectional VPC on the latent scale is sigma_u^2 / (sigma_u^2 + pi^2/3).
 """
 
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -93,7 +95,10 @@ class HierarchicalLinearModeling:
             var_within = null_model.scale
             icc = var_between / (var_between + var_within)
 
-            # Variance explained
+            # Variance explained. NOTE: this is the proportional reduction in
+            # total variance from null to full model (a pseudo-R^2), not the
+            # Nakagawa-Schielzeth marginal R^2; the key name is kept for
+            # backward compatibility.
             total_var_null = var_between + var_within
             total_var_full = full_model.cov_re.iloc[0, 0] + full_model.scale
             r_squared_marginal = 1 - (total_var_full / total_var_null)

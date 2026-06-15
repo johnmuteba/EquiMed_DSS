@@ -5,6 +5,50 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-06-13
+
+Pre-release correctness audit of all 37 metrics. Formulas were verified against
+their documentation; the fixes below change the behaviour of a few metrics,
+hence the minor version bump.
+
+### Added
+- `tests/test_regression_bugfixes.py`: 12 regression tests pinning the four
+  corrected behaviours (Wilson CI, JSD consistency, HAFG normalization, sample-SD
+  / no input mutation). Suite total: 136 tests.
+- `examples/regression_bugfix_report.py` + `docs/REGRESSION_BUGFIX_REPORT.md`:
+  a formatted report with a bug-fix verification table and publication-style
+  mixed-effects regression coefficient and mediation tables.
+
+### Fixed (correctness)
+- **DecisionFlipRate (DFR):** the confidence interval was a percentile of the
+  0/1 flip-indicator vector (effectively always [0,1]); it is now a proper
+  **Wilson 95% interval** for the flip proportion. Adds `n_flipped`, `n_samples`.
+- **JensenShannonDivergence (JSD):** the two implementations disagreed
+  (`advanced_metrics` returned the distance, `info_theory` the divergence). Both
+  now return the **JS divergence in base 2** (range [0,1]); `advanced_metrics`
+  also exposes `jsd_distance`.
+- **HarmAdjustedFairnessGap (HAFG):** `hafg` is now **normalized** to [0,1]
+  (`|H1-H2|/max(H1,H2)`) as documented, with a principled verdict; the raw gap
+  is returned as `absolute_harm_gap`.
+- **IntersectionalBiasScore (IBS):** `interaction_analysis` no longer mutates the
+  caller's DataFrame.
+- **Bland-Altman (ICC) and TFD control chart:** now use the sample SD (ddof=1).
+
+### Changed (documentation)
+- **MutualInformationContent (MIC):** clarified that it computes mutual
+  information, **not** the Reshef Maximal Information Coefficient.
+- **NetworkModularity:** docstring corrected (greedy Clauset-Newman-Moore, not
+  Louvain).
+- Rewrote `docs/METRICS_GUIDE.md` to match the actual 37-metric API (correct
+  Domain-1 classes; added Domains 4-5); fixed `docs/API_REFERENCE.md` Domain-1
+  classes and the HAFG/ATS/GCI signatures; updated the package docstring to 37
+  metrics; removed stale embedded findings ("55.8%", "72.1%") from docstrings,
+  README examples, and a figure title.
+
+### Changed (visualization)
+- All `utils.visualization` plot functions now **return the Matplotlib figure**
+  and no longer call `plt.show()` (library-friendly; still honours `save_path`).
+
 ## [1.4.2] - 2026-06-10
 
 ### Changed (documentation)

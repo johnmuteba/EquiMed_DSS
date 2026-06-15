@@ -1,8 +1,10 @@
 """
-Advanced metrics from Appendix A of the EquiMed_DSS manuscript.
+Advanced appendix metrics for the EquiMed-DSS suite.
 
-These 9 additional metrics complete the comprehensive 19-metric evaluation suite
-for clinical AI fairness, reliability, and governance assessment.
+These nine metrics (bootstrap confidence intervals, statistical power, bias
+concentration, mutual information, Jensen-Shannon divergence, Wasserstein
+distance, network modularity, transparency, robustness certification)
+complement the five core domains and the geographic module (37 metrics total).
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -268,10 +270,11 @@ class MutualInformationContent:
     """
     Appendix Metric: Mutual Information Content (MIC)
 
-    Quantifies information shared between demographic attributes and
-    diagnostic outcomes, detecting inappropriate information leakage.
-
-    Reference: Manuscript Equation (14)
+    Mutual information between demographic attributes and diagnostic outcomes,
+    detecting inappropriate information leakage. This is (normalized) mutual
+    information -- NOT the Reshef Maximal Information Coefficient. Raw mutual
+    information is unbounded and grows with the number of categories, so prefer
+    ``normalized_mic`` for comparison across settings.
     """
 
     def calculate_mic(
@@ -328,9 +331,9 @@ class JensenShannonDivergence:
     Appendix Metric: Jensen-Shannon Divergence (JSD)
 
     Measures distributional differences between demographic groups in
-    model outputs (symmetric, bounded version of KL divergence).
-
-    Reference: Manuscript Equation (15)
+    model outputs (symmetric, bounded version of KL divergence). Returns the
+    Jensen-Shannon DIVERGENCE in base 2 (range [0, 1]); ``jsd_distance`` is the
+    corresponding metric distance (its square root).
     """
 
     def calculate_jsd(
@@ -355,11 +358,15 @@ class JensenShannonDivergence:
         p = np.array(distribution_p) / np.sum(distribution_p)
         q = np.array(distribution_q) / np.sum(distribution_q)
 
-        jsd = jensenshannon(p, q)
+        # Jensen-Shannon DIVERGENCE in base 2 (range [0, 1]). scipy's
+        # jensenshannon returns the metric DISTANCE (sqrt of the divergence) in
+        # the given base, so we square it; jsd_distance exposes the distance.
+        jsd_distance = float(jensenshannon(p, q, base=2))
+        jsd = jsd_distance**2
 
         return {
             "jsd": float(jsd),
-            "jsd_squared": float(jsd**2),
+            "jsd_distance": jsd_distance,
             "interpretation": {
                 "range": "[0, 1]",
                 "similarity": (
@@ -439,9 +446,8 @@ class NetworkModularity:
     Appendix Metric: Network Modularity (NM)
 
     Identifies clustered relationships among fairness metrics within
-    each corpus using community detection.
-
-    Reference: Manuscript Equation (17)
+    each corpus using community detection (Newman modularity Q over greedy
+    Clauset-Newman-Moore communities).
     """
 
     def calculate_modularity(self, adjacency_matrix: np.ndarray) -> Dict[str, Any]:
@@ -461,7 +467,7 @@ class NetworkModularity:
         """
         G = nx.from_numpy_array(np.abs(adjacency_matrix))
 
-        # Detect communities using Louvain method
+        # Detect communities with greedy modularity (Clauset-Newman-Moore)
         try:
             from networkx.algorithms.community import (
                 greedy_modularity_communities,

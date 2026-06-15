@@ -45,17 +45,27 @@ class HarmAdjustedFairnessGap:
         )
 
         gap = abs(harm1 - harm2)
+        # HAFG is normalized by the larger harm so it lies in [0, 1] and is
+        # comparable across datasets: HAFG = |H1 - H2| / max(H1, H2).
+        denom = max(harm1, harm2)
+        hafg = float(gap / denom) if denom > 0 else 0.0
+
+        if hafg < 0.1:
+            verdict = "Minimal harm disparity"
+        elif hafg < 0.2:
+            verdict = "Moderate harm disparity"
+        else:
+            verdict = "Significant harm disparity"
 
         return {
             "harm_group1": float(harm1),
             "harm_group2": float(harm2),
-            "hafg": float(gap),
+            "hafg": hafg,
+            "absolute_harm_gap": float(gap),
             "ratio": float(harm1 / harm2) if harm2 > 0 else float("inf"),
             "interpretation": {
-                "range": "[0, inf)",
-                "ideal": "Lower gap is better (close to 0)",
-                "verdict": (
-                    "Significant Harm Disparity" if gap > 10 else "Acceptable"
-                ),  # Arbitrary threshold for example
+                "range": "[0, 1]",
+                "ideal": "Lower is better (close to 0)",
+                "verdict": verdict,
             },
         }

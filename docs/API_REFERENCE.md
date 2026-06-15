@@ -1,102 +1,98 @@
 # API Reference
 
-Complete API reference for EquiMed_DSS library.
+API reference for the EquiMed-DSS library (37 metrics). This page covers
+Domains 1-3, geographic, and reporting. **Domains 4-5 (SPG, CHR, IVI, GRI,
+ICE, wHAFG, LDDI, REG, CPS, CIDR, DCI, UQG, GRBI, HSSF, ISFV, SRPI) and the
+appendix metrics are documented in [`METRICS_GUIDE.md`](METRICS_GUIDE.md),
+which lists every class, method, formula, and range.**
 
-## Domain 1: Reliability and Calibration
+## Domain 1: Reliability and Robustness
 
-### equimed_dss.domain1.DynamicFairnessRatio
+### equimed_dss.domain1.DecisionFlipRate
 
 ```python
-class DynamicFairnessRatio()
+class DecisionFlipRate()
 ```
 
-Measures performance consistency across dynamic conditions.
+Diagnostic instability under input perturbation (e.g. demographic flips).
 
 #### Methods
 
 ##### calculate_dfr
 ```python
 def calculate_dfr(
-    baseline_metric: float,
-    dynamic_metric: float
-) -> Dict[str, Union[float, str]]
+    original_decisions: List[Any],
+    counterfactual_decisions: List[Any]
+) -> Dict[str, Any]
 ```
 
-Calculate Dynamic Fairness Ratio.
+Calculate the Decision Flip Rate: `DFR = mean(original != counterfactual)`.
 
 **Parameters:**
-- `baseline_metric` (float): Performance metric in baseline condition
-- `dynamic_metric` (float): Performance metric in dynamic condition
+- `original_decisions` (List): decisions on the original inputs
+- `counterfactual_decisions` (List): decisions after perturbation (same order)
 
 **Returns:**
-- Dictionary with keys:
-  - `dfr` (float): The DFR score
-  - `interpretation` (str): Human-readable interpretation
+- Dict with `flip_rate`, `n_flipped`, `n_samples`, `ci_lower`, `ci_upper`
+  (Wilson 95% interval), and `interpretation`.
 
 **Example:**
 ```python
-dfr = DynamicFairnessRatio()
-result = dfr.calculate_dfr(baseline_metric=0.85, dynamic_metric=0.80)
-print(result['dfr'])  # 0.941
+dfr = DecisionFlipRate()
+result = dfr.calculate_dfr(["acs", "acs", "non_cardiac"], ["acs", "non_cardiac", "non_cardiac"])
+print(result["flip_rate"])  # 0.333
 ```
 
 ---
 
-### equimed_dss.domain1.ExpectedCalibrationScore
+### equimed_dss.domain1.EmbeddingConsistencyScore
 
 ```python
-class ExpectedCalibrationScore()
+class EmbeddingConsistencyScore()
 ```
 
-Measures calibration quality of predictions.
+Semantic shift of embeddings under perturbation (cosine distance).
 
 #### Methods
 
 ##### calculate_ecs
 ```python
 def calculate_ecs(
-    predictions: List[float],
-    actuals: List[int],
-    n_bins: int = 10
-) -> Dict[str, Union[float, str]]
+    original_embeddings: np.ndarray,
+    perturbed_embeddings: np.ndarray
+) -> Dict[str, float]
 ```
 
-Calculate Expected Calibration Score.
-
-**Parameters:**
-- `predictions` (List[float]): Predicted probabilities (0-1)
-- `actuals` (List[int]): Actual outcomes (0 or 1)
-- `n_bins` (int): Number of calibration bins (default: 10)
-
-**Returns:**
-- Dictionary with ECS score and interpretation
+`ECS_i = 1 - cos(E_orig_i, E_pert_i)`; returns `mean_ecs`, `std_ecs`,
+`median_ecs` (range [0, 2], typically [0, 1]; lower = more consistent).
 
 ---
 
-### equimed_dss.domain1.IntraclassCorrelationCoefficient
+### equimed_dss.domain1.InterRaterReliability
 
 ```python
-class IntraclassCorrelationCoefficient()
+class InterRaterReliability()
 ```
 
-Assesses reliability across raters or conditions.
+ICC(2,1) and Bland-Altman agreement.
 
 #### Methods
 
-##### calculate_icc
+##### calculate_icc_2_1
 ```python
-def calculate_icc(
-    ratings: List[List[float]]
-) -> Dict[str, Union[float, str]]
+def calculate_icc_2_1(
+    judge_matrix: np.ndarray  # shape (n_items, n_judges)
+) -> Dict[str, Union[float, Dict]]
 ```
 
-Calculate Intraclass Correlation Coefficient.
+`ICC(2,1) = (MSR - MSE) / (MSR + (k-1)*MSE + (k/n)(MSC - MSE))`, range [0, 1].
 
-**Parameters:**
-- `ratings` (List[List[float]]): Matrix where each row is a subject and each column is a rater
+##### bland_altman_analysis
+```python
+def bland_altman_analysis(judge_matrix: np.ndarray) -> Dict[str, Dict[str, float]]
+```
 
-**Returns:**
-- Dictionary with ICC score and interpretation
+Per judge-pair mean difference and 95% limits of agreement (sample SD).
 
 ---
 
@@ -159,26 +155,26 @@ Quantifies fairness gaps weighted by clinical harm.
 
 #### Methods
 
+Costs are constructor arguments: `HarmAdjustedFairnessGap(cost_fn=10.0, cost_fp=3.0)`.
+
 ##### calculate_hafg
 ```python
 def calculate_hafg(
     group1_errors: Dict[str, int],
-    group2_errors: Dict[str, int],
-    fn_harm_weight: float = 10.0,
-    fp_harm_weight: float = 1.0
-) -> Dict[str, Union[float, str]]
+    group2_errors: Dict[str, int]
+) -> Dict[str, float]
 ```
 
-Calculate Harm-Adjusted Fairness Gap.
+`H_g = fn_g*cost_fn + fp_g*cost_fp`; `HAFG = |H1 - H2| / max(H1, H2)`, range
+**[0, 1]** (normalized). 
 
 **Parameters:**
-- `group1_errors` (Dict[str, int]): Error counts for group 1 with keys 'fn', 'fp'
-- `group2_errors` (Dict[str, int]): Error counts for group 2 with keys 'fn', 'fp'
-- `fn_harm_weight` (float): Weight for false negative harm (default: 10.0)
-- `fp_harm_weight` (float): Weight for false positive harm (default: 1.0)
+- `group1_errors` (Dict[str, int]): error counts for group 1 with keys 'fn', 'fp'
+- `group2_errors` (Dict[str, int]): error counts for group 2 with keys 'fn', 'fp'
 
 **Returns:**
-- Dictionary with HAFG score and interpretation
+- Dict with `hafg` (normalized, [0,1]), `absolute_harm_gap`, `harm_group1`,
+  `harm_group2`, `ratio`, and `interpretation`.
 
 ---
 
@@ -280,17 +276,19 @@ Measures audit trail completeness.
 ##### calculate_ats
 ```python
 def calculate_ats(
-    audit_logs: List[Dict[str, bool]]
-) -> Dict[str, Union[float, str]]
+    n_traceable: int,
+    n_total: int
+) -> Dict[str, float]
 ```
 
-Calculate Audit Traceability Score.
+Proportion of traceable decisions with a **Wilson 95% interval**.
 
 **Parameters:**
-- `audit_logs` (List[Dict]): List of audit entries with required fields as boolean flags
+- `n_traceable` (int): number of fully traceable decisions
+- `n_total` (int): total number of decisions audited
 
 **Returns:**
-- Dictionary with ATS score and interpretation
+- Dict with `ats_score`, `ci_lower`, `ci_upper`, `meets_95_standard`, `interpretation`.
 
 ---
 
@@ -307,17 +305,18 @@ Assesses governance and regulatory compliance.
 ##### calculate_gci
 ```python
 def calculate_gci(
-    requirements: List[bool]
-) -> Dict[str, Union[float, str]]
+    policy_compliance: Dict[str, bool]
+) -> Dict[str, Any]
 ```
 
-Calculate Governance Compliance Index.
+`GCI = (# policies met) / (# policies)`, range [0, 1].
 
 **Parameters:**
-- `requirements` (List[bool]): List of compliance requirements met (True/False)
+- `policy_compliance` (Dict[str, bool]): policy name -> compliant (True/False)
 
 **Returns:**
-- Dictionary with GCI score and interpretation
+- Dict with `gci`, `policies_enforced`, `policies_mandated`, `compliance_gaps`,
+  `interpretation`.
 
 ---
 

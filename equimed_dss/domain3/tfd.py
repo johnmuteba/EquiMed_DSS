@@ -29,7 +29,8 @@ class TemporalFairnessDrift:
 
         metrics = np.array(time_series_metrics)
         mean_val = np.mean(metrics)
-        std_val = np.std(metrics)
+        # Sample SD (ddof=1) for the control-chart sigma estimate.
+        std_val = np.std(metrics, ddof=1) if len(metrics) > 1 else 0.0
 
         # Control limits (3-sigma)
         ucl = mean_val + 3 * std_val
