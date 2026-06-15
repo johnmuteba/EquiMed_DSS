@@ -5,6 +5,16 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-06-13
+
+### Fixed (documentation / packaging)
+- README: added the missing **Domain 4** (SPG, CHR, IVI, GRI) and **Domain 5**
+  (ICE, wHAFG, LDDI, REG, CPS, CIDR, DCI, UQG, GRBI, HSSF, ISFV, SRPI) sections
+  with metric tables and runnable examples; the table-of-contents links to them
+  now resolve (they were plain text pointing nowhere on the PyPI/GitHub page).
+- `pyproject.toml`: package summary corrected from "19 novel metrics" to
+  "37 metrics across five domains" (this is the one-line description shown on PyPI).
+
 ## [1.5.0] - 2026-06-13
 
 Pre-release correctness audit of all 37 metrics. Formulas were verified against

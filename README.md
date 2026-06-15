@@ -43,8 +43,8 @@
   - [Domain 1: Reliability & Calibration](#domain-1-reliability--calibration)
   - [Domain 2: Fairness, Equity & Ethics](#domain-2-fairness-equity--ethics)
   - [Domain 3: Governance & Transparency](#domain-3-governance--transparency)
-  - Domain 4: Representation & Robustness (SPG, CHR, IVI, GRI)
-  - Domain 5: Technical-supplement fairness (ICE, wHAFG, LDDI, REG, CPS, CIDR, DCI, UQG, GRBI, HSSF, ISFV, SRPI)
+  - [Domain 4: Representation & Robustness](#domain-4-representation--robustness)
+  - [Domain 5: Technical-supplement Fairness](#domain-5-technical-supplement-fairness)
   - [Appendix: Advanced Metrics](#appendix-advanced-metrics)
   - Full formulas, clinical meaning, and runnable examples: see [docs/VIGNETTE.md](https://github.com/johnmuteba/EquiMed_DSS/blob/master/docs/VIGNETTE.md)
 - [Statistical Analyses](#statistical-analyses)
@@ -324,6 +324,86 @@ print(f"Drift Detected: {result['drift_detected']}")
 ats = AuditTraceabilityScore()
 result = ats.calculate_ats(n_traceable=8, n_total=10)
 print(f"ATS: {result['ats_score']:.3f} - {result['interpretation']['verdict']}")
+```
+
+### Domain 4: Representation & Robustness
+
+| Metric | Abbreviation | Range | Ideal | Description |
+|--------|--------------|-------|-------|-------------|
+| Semantic Parity Gap | SPG | [0, ∞) | close to 0 | Embedding-centroid distance between identical cases differing only by a protected attribute |
+| Clinical Hallucination Rate | CHR | [0, 1] | close to 0 | Fraction of response claims unsupported by the retrieved context (NLI entailment) |
+| Instructional Vulnerability Index | IVI | [0, 1] | close to 0 | Proportion of decisions that flip under a biased/leading instruction |
+| Geographic Representation Index | GRI | [0, 1] | higher | Set-based non-Western variety of represented locations |
+
+```python
+import numpy as np
+from equimed_dss.domain4 import (
+    SemanticParityGap, ClinicalHallucinationRate,
+    InstructionalVulnerabilityIndex, GeographicRepresentationIndex,
+)
+
+# Clinical Hallucination Rate (CHR): unsupported claims at entailment threshold tau
+chr_ = ClinicalHallucinationRate()
+result = chr_.calculate_chr(support_scores=[0.9, 0.2, 0.4, 0.8, 0.1], tau=0.5)
+print(f"CHR: {result['chr']:.3f} ({result['n_unsupported']}/{result['n_claims']} unsupported)")
+
+# Instructional Vulnerability Index (IVI): decision flips under a biased prompt
+ivi = InstructionalVulnerabilityIndex()
+result = ivi.calculate_ivi(neutral_outputs=['acs', 'non_cardiac', 'acs', 'other'],
+                           biased_outputs=['acs', 'acs', 'acs', 'other'])
+print(f"IVI: {result['ivi_flip_rate']:.3f} ({result['n_flipped']}/{result['n_pairs']})")
+
+# Semantic Parity Gap (SPG): centroid distance between two demographic embedding clusters
+spg = SemanticParityGap()
+rng = np.random.RandomState(0)
+result = spg.calculate_spg(privileged_embeddings=rng.rand(20, 16),
+                           marginalized_embeddings=rng.rand(20, 16) + 0.1)
+print(f"SPG euclidean: {result['spg_euclidean']:.3f}; cosine: {result['spg_cosine']:.3f}")
+```
+
+### Domain 5: Technical-supplement Fairness
+
+| Metric | Abbreviation | Range | Ideal | Description |
+|--------|--------------|-------|-------|-------------|
+| Intersectional Calibration Error | ICE | [0, 1] | close to 0 | Population-weighted calibration error across intersectional groups; `dICE` = max gap |
+| Weighted Clinical Harm-Adjusted Fairness Gap | wHAFG | [0, 1] | close to 0 | Severity-weighted harm gap across groups |
+| Lexical Diversity Disparity Index | LDDI | [0, ∞) | close to 0 | Root type-token-ratio gap across groups |
+| Recommendation Entropy Gap | REG | [0, ∞) bits | close to 0 | Max-min recommendation-distribution entropy across groups |
+| Counterfactual Parity Score | CPS | [0, 1] | 1.0 | Mean response similarity under a demographic swap (CFU = 1 − CPS) |
+| Clinical Information Density Ratio | CIDR | [0, 1] | 1.0 | Group concept-density relative to the richest group |
+| Diagnostic Completeness Index | DCI | [0, 1] | higher | Coverage of a reference differential set; `dDCI` = max gap |
+| Uncertainty Quantification Gap | UQG | [0, ∞) | close to 0 | Hedging-density disparity across groups |
+| Geographic Representation Bias Index | GRBI | [0, ∞) nats | close to 0 | KL divergence of corpus geography from disease burden |
+| Healthcare System Stratified Fairness | HSSF | [0, 1] | close to 0 | Population-weighted within-system demographic gap |
+| Intersectional Shapley Fairness Value | ISFV | varies | low | Shapley attribution of disparity to each attribute + interactions |
+| Semantic Robustness Parity Index | SRPI | [0, 1] | 1.0 | Min/max paraphrase robustness across groups |
+
+```python
+from equimed_dss.domain5 import (
+    CounterfactualParityScore, GeographicRepresentationBiasIndex,
+    IntersectionalShapleyFairnessValue,
+)
+
+# Counterfactual Parity Score (CPS) and counterfactual unfairness (CFU)
+cps = CounterfactualParityScore()
+result = cps.calculate_cps([0.95, 0.88, 0.91, 0.86])
+print(f"CPS: {result['cps']:.3f}; CFU: {result['cfu']:.3f}")
+
+# Geographic Representation Bias Index (GRBI): KL of corpus geography from burden
+grbi = GeographicRepresentationBiasIndex()
+result = grbi.calculate_grbi(
+    corpus_counts={'AMRO': 78, 'EURO': 11, 'WPRO': 8, 'EMRO': 3, 'AFRO': 0, 'SEARO': 0},
+    burden_shares={'AMRO': 0.11, 'EURO': 0.19, 'WPRO': 0.10, 'EMRO': 0.23, 'AFRO': 0.15, 'SEARO': 0.21},
+)
+print(f"GRBI: {result['grbi']:.3f} nats")
+
+# Intersectional Shapley Fairness Value (ISFV): attribute attribution of disparity
+isfv = IntersectionalShapleyFairnessValue()
+result = isfv.calculate_isfv(
+    attributes={'race': ['A', 'A', 'B', 'B'], 'sex': ['M', 'F', 'M', 'F']},
+    outcomes=[0.8, 0.7, 0.5, 0.6],
+)
+print(f"ISFV by attribute: {result['shapley_by_attribute']}")
 ```
 
 ### Appendix: Advanced Metrics
