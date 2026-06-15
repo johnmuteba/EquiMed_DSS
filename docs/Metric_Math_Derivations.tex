@@ -1,0 +1,1031 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue
+}
+
+\title{\textbf{Metric Mathematical Derivations for EquiMed-DSS}\\
+\large Formulae Matched to the EquiMed-DSS Library Implementation}
+\author{John Weirstrass Muteba Mwamba\\
+\small School of Health Policy and Management, York University, Toronto, Canada\\
+\small Developer and Modeler of EquiMed-DSS\\
+\small \href{mailto:jwmm@yorku.ca}{jwmm@yorku.ca}}
+\date{EquiMed-DSS version 1.5.1}
+
+\newcommand{\ind}{\mathbb{I}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\Cov}{\mathrm{Cov}}
+\newcommand{\KL}{D_{\mathrm{KL}}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+
+\begin{document}
+\maketitle
+
+\section*{Purpose and Verification Scope}
+
+This technical document derives the mathematical definitions used by the
+EquiMed-DSS library, version 1.5.1. The formulae below are aligned with the
+local implementation in the package source code, especially the modules
+\texttt{domain1}, \texttt{domain2}, \texttt{domain3}, \texttt{domain4},
+\texttt{domain5}, \texttt{geographic}, \texttt{appendix}, and
+\texttt{statistics}. Where an earlier derivation document used a more general
+or theoretical expression, the implementation-specific expression is reported
+here as the authoritative formula.
+
+The library documentation lists 37 named metrics. This document gives 39
+derivations by adding two implemented statistical estimands used with the
+metric suite: hierarchical variance partitioning and mediation/proportion
+mediated. These two estimands are implemented in \texttt{equimed\_dss.statistics}
+and are included because they are used to interpret fairness and governance
+results in the EquiMed-DSS framework.
+
+Each metric is numbered in the overview table and in its subsection title. Some
+implemented classes return companion quantities, for example HER with Bias-Gini
+or CPS with CFU. These companion quantities use the parent metric number with a
+letter suffix. Every displayed equation is written in a numbered LaTeX
+\texttt{equation} or \texttt{align} environment so it can be referenced directly
+after compilation.
+
+\section*{Notation}
+
+Let $i=1,\ldots,n$ index observations, $g \in \mathcal{G}$ index demographic or
+intersectional groups, $s \in \mathcal{S}$ index healthcare-system strata, and
+$r \in \mathcal{R}$ index geographic regions. Let $\hat{Y}_i$ denote a model
+prediction, $Y_i$ the corresponding reference outcome, $C_i$ a confidence score,
+and $Z_i=\ind(\hat{Y}_i=Y_i)$ a correctness indicator. For text outputs, let
+$R_i$ denote a response, $D(R_i)$ the set of diagnoses mentioned in the response,
+and $D^\star$ a reference differential diagnosis set. Unless otherwise stated,
+all means are empirical means over the supplied input arrays.
+
+\begin{longtable}{p{0.08\linewidth}p{0.32\linewidth}p{0.18\linewidth}p{0.32\linewidth}}
+\toprule
+No. & Metric & Abbreviation & Canonical implementation \\
+\midrule
+\endhead
+1 & Inter-rater reliability & ICC(2,1) & \texttt{domain1.icc} \\
+2 & Embedding consistency score & ECS & \texttt{domain1.ecs} \\
+3 & Decision flip rate & DFR & \texttt{domain1.dfr} \\
+4 & Hierarchical equity ratio and Bias-Gini & HER & \texttt{domain2.her} \\
+5 & Harm-adjusted fairness gap & HAFG & \texttt{domain2.hafg} \\
+6 & Ethical risk index and safety violation rate & ERI & \texttt{domain2.eri} \\
+7 & Intersectional bias score & IBS & \texttt{domain2.ibs} \\
+8 & Temporal fairness drift & TFD & \texttt{domain3.tfd} \\
+9 & Audit traceability score & ATS & \texttt{domain3.ats} \\
+10 & Governance compliance index & GCI & \texttt{domain3.gci} \\
+11 & Semantic parity gap & SPG & \texttt{domain4.spg} \\
+12 & Clinical hallucination rate & CHR & \texttt{domain4.chr} \\
+13 & Instructional vulnerability index & IVI & \texttt{domain4.ivi} \\
+14 & Geographic representation index and geographic bias & GRI & \texttt{domain4.gri} \\
+15 & Intersectional calibration error & ICE & \texttt{domain5.calibration} \\
+16 & Weighted clinical harm-adjusted fairness gap & wHAFG & \texttt{domain5.harm} \\
+17 & Counterfactual parity score and counterfactual unfairness & CPS & \texttt{domain5.counterfactual} \\
+18 & Semantic robustness parity index & SRPI & \texttt{domain5.counterfactual} \\
+19 & Lexical diversity disparity index & LDDI & \texttt{domain5.text} \\
+20 & Recommendation entropy gap & REG & \texttt{domain5.text} \\
+21 & Clinical information density ratio & CIDR & \texttt{domain5.text} \\
+22 & Diagnostic completeness index & DCI & \texttt{domain5.text} \\
+23 & Uncertainty quantification gap & UQG & \texttt{domain5.text} \\
+24 & Geographic representation bias index & GRBI & \texttt{domain5.geographic\_bias} \\
+25 & Healthcare system stratified fairness & HSSF & \texttt{domain5.system} \\
+26 & Intersectional Shapley fairness value & ISFV & \texttt{domain5.shapley} \\
+27 & Burden-evidence mismatch index & BEMI & \texttt{geographic.burden\_evidence} \\
+28 & Geographic concentration of coverage & GCC & \texttt{geographic.concentration} \\
+29 & Bootstrap confidence interval & BCI & \texttt{appendix.advanced\_metrics} \\
+30 & Statistical power analysis & SPA & \texttt{appendix.advanced\_metrics} \\
+31 & Bias concentration index & BCI-bias & \texttt{appendix.advanced\_metrics} \\
+32 & Mutual information content & MIC & \texttt{appendix.advanced\_metrics} \\
+33 & Jensen-Shannon divergence & JSD & \texttt{appendix.advanced\_metrics} \\
+34 & Wasserstein distance & WD & \texttt{appendix.advanced\_metrics} \\
+35 & Network modularity & NM & \texttt{appendix.advanced\_metrics} \\
+36 & Transparency score & TS & \texttt{appendix.advanced\_metrics} \\
+37 & Robustness certification score & RCS & \texttt{appendix.advanced\_metrics} \\
+38 & Hierarchical variance partitioning & HLM/VPC & \texttt{statistics.hierarchical} \\
+39 & Causal mediation and proportion mediated & PM & \texttt{statistics.mediation} \\
+\bottomrule
+\end{longtable}
+
+\section{Domain 1: Reliability and Robustness}
+
+\subsection{Metric 1: Inter-rater Reliability, ICC(2,1)}
+
+Let $X_{ij}$ be the score assigned to item $i$ by judge $j$, with $n$ items and
+$k$ judges. Define the grand mean $\bar{X}_{..}$, item means $\bar{X}_{i.}$,
+and judge means $\bar{X}_{.j}$. This follows the Shrout-Fleiss ICC family and
+the Bland-Altman agreement convention \cite{shrout1979,blandaltman1986}. The
+implementation computes
+\begin{align}
+SS_{\mathrm{items}} &= k \sum_{i=1}^{n}(\bar{X}_{i.}-\bar{X}_{..})^2,\\
+SS_{\mathrm{judges}} &= n \sum_{j=1}^{k}(\bar{X}_{.j}-\bar{X}_{..})^2,\\
+SS_{\mathrm{error}} &= \sum_{i=1}^{n}\sum_{j=1}^{k}(X_{ij}-\bar{X}_{..})^2
+ - SS_{\mathrm{items}} - SS_{\mathrm{judges}}.
+\end{align}
+The mean squares are
+\begin{align}
+MS_R &= \frac{SS_{\mathrm{items}}}{n-1},&
+MS_C &= \frac{SS_{\mathrm{judges}}}{k-1},&
+MS_E &= \frac{SS_{\mathrm{error}}}{(n-1)(k-1)}.
+\end{align}
+EquiMed-DSS implements the two-way random-effects, single-measure, absolute
+agreement intraclass correlation coefficient as
+\begin{equation}
+ICC(2,1)=
+\frac{MS_R-MS_E}
+{MS_R+(k-1)MS_E+\frac{k}{n}(MS_C-MS_E)}.
+\end{equation}
+The same class also computes Bland-Altman pairwise agreement. For two judges
+$a$ and $b$,
+\begin{align}
+d_i &= X_{ia}-X_{ib},\\
+\bar{d} &= \frac{1}{n}\sum_{i=1}^{n}d_i,\\
+s_d &= \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}(d_i-\bar{d})^2},\\
+LOA_{\mathrm{lower}}, LOA_{\mathrm{upper}} &= \bar{d}\pm 1.96s_d.
+\end{align}
+
+\subsection{Metric 2: Embedding Consistency Score}
+
+For paired original and perturbed embedding vectors $e_i$ and $\tilde e_i$, the
+library calculates cosine distance, not cosine similarity:
+\begin{equation}
+ECS_i = 1-\frac{e_i^\top \tilde e_i}{\norm{e_i}_2\norm{\tilde e_i}_2}.
+\end{equation}
+If either vector has zero norm, the implementation sets the cosine similarity
+to zero, so $ECS_i=1$. The reported summary statistics are
+\begin{align}
+\overline{ECS} &= \frac{1}{n}\sum_{i=1}^{n}ECS_i,\\
+SD(ECS) &= \sqrt{\frac{1}{n}\sum_{i=1}^{n}(ECS_i-\overline{ECS})^2},\\
+\widetilde{ECS} &= \mathrm{median}(ECS_1,\ldots,ECS_n).
+\end{align}
+Lower values indicate greater embedding stability.
+
+\subsection{Metric 3: Decision Flip Rate}
+
+Let $A_i$ be the model decision on the original input and $B_i$ the decision on
+the paired counterfactual or perturbed input. EquiMed-DSS defines
+\begin{equation}
+DFR = \frac{1}{n}\sum_{i=1}^{n}\ind(A_i\ne B_i).
+\end{equation}
+If $x=\sum_i\ind(A_i\ne B_i)$ and $\hat p=x/n$, the Wilson interval returned by
+the library is
+\begin{align}
+d &= 1+\frac{z^2}{n},\\
+c &= \frac{\hat p+\frac{z^2}{2n}}{d},\\
+h &= \frac{z\sqrt{\frac{\hat p(1-\hat p)}{n}+\frac{z^2}{4n^2}}}{d},\\
+CI_{95\%} &= [\max(0,c-h),\min(1,c+h)],
+\end{align}
+with $z=1.96$, following Wilson's score interval for binomial proportions
+\cite{wilson1927}.
+
+\section{Domain 2: Fairness, Equity, and Ethics}
+
+\subsection{Metric 4: Hierarchical Equity Ratio}
+
+Let $q_g$ be a group-specific performance score and $q_0$ the reference-group
+score. The implementation calculates
+\begin{equation}
+HER_g = \frac{q_g}{q_0},
+\end{equation}
+with $HER_g=0$ if $q_0=0$. Values in $[0.8,1.25]$ are labelled equitable by the
+implemented four-fifths-rule convention \cite{uniformguidelines1978}.
+
+\subsection{Metric 4a: Bias-Gini Dispersion}
+
+For group scores $q_1,\ldots,q_K$ with mean $\bar q$, the implemented dispersion
+index is the standard Gini coefficient \cite{gini1912}:
+\begin{equation}
+G_{\mathrm{bias}}=
+\frac{\sum_{i=1}^{K}\sum_{j=1}^{K}|q_i-q_j|}
+{2K^2\bar q}.
+\end{equation}
+If the score list is empty or $\bar q=0$, the function returns zero.
+
+\subsection{Metric 5: Harm-adjusted Fairness Gap}
+
+For two groups, let $FN_g$ and $FP_g$ be false-negative and false-positive
+counts. With default costs $c_{FN}=10$ and $c_{FP}=3$, group harm is
+\begin{equation}
+H_g = c_{FN}FN_g+c_{FP}FP_g.
+\end{equation}
+EquiMed-DSS reports the absolute gap
+\begin{equation}
+\Delta_H = |H_1-H_2|
+\end{equation}
+and the normalized harm-adjusted fairness gap
+\begin{equation}
+HAFG=\frac{|H_1-H_2|}{\max(H_1,H_2)}.
+\end{equation}
+If both group harms are zero, the denominator is zero and the implemented value
+is $0$.
+
+\subsection{Metric 6: Ethical Risk Index}
+
+Let $v=1,\ldots,V$ index detected ethical or safety violations and let $s_v$ be
+their severity scores. For $N$ total model outputs,
+\begin{equation}
+ERI = \frac{\sum_{v=1}^{V}s_v}{N}.
+\end{equation}
+If $N=0$, the function returns zero.
+
+\subsection{Metric 6a: Safety Violation Rate}
+
+In the same implementation as ERI, the safety violation rate is
+\begin{equation}
+SVR = 1000\frac{V}{N},
+\end{equation}
+that is, violations per 1000 model outputs.
+
+\subsection{Metric 7: Intersectional Bias Score}
+
+Let $u_g\in\R^d$ be a vector of metrics for subgroup $g$. The implementation
+calculates Euclidean distances
+\begin{equation}
+d(g,h)=\norm{u_g-u_h}_2
+\end{equation}
+and converts them to similarities by inverse distance:
+\begin{equation}
+S(g,h)=\frac{1}{1+d(g,h)}.
+\end{equation}
+The outlier subgroup is the subgroup with the largest mean distance over the
+full distance row, including the zero self-distance used by the implementation:
+\begin{equation}
+g^\star=\arg\max_g \frac{1}{K}\sum_{h\in\mathcal{G}} d(g,h).
+\end{equation}
+The same class also computes simplified eta-squared-style interaction effects.
+For a categorical attribute $A$, with grand mean $\bar Y$ and group means
+$\bar Y_a$, the main-effect proxy is
+\begin{equation}
+\eta_A^2 =
+\frac{\sum_a n_a(\bar Y_a-\bar Y)^2}
+{\sum_i(Y_i-\bar Y)^2}.
+\end{equation}
+For the race-by-gender interaction, the implementation subtracts the race and
+gender main-effect proxies from the combined race-gender proxy.
+
+\section{Domain 3: Governance and Transparency}
+
+\subsection{Metric 8: Temporal Fairness Drift}
+
+For a time series of fairness metric values $m_1,\ldots,m_T$, EquiMed-DSS
+computes
+\begin{align}
+\bar m &= \frac{1}{T}\sum_{t=1}^{T}m_t,\\
+s_m &= \sqrt{\frac{1}{T-1}\sum_{t=1}^{T}(m_t-\bar m)^2}.
+\end{align}
+The three-sigma control limits are
+\begin{align}
+UCL &= \bar m+3s_m,\\
+LCL &= \bar m-3s_m.
+\end{align}
+A drift point is flagged when $m_t>UCL$ or $m_t<LCL$, following the
+Shewhart-style control-chart logic used in statistical process control
+\cite{shewhart1931}.
+
+\subsection{Metric 9: Audit Traceability Score}
+
+Let $x$ be the number of traceable decisions among $n$ audited decisions. The
+score is
+\begin{equation}
+ATS=\frac{x}{n}.
+\end{equation}
+The implementation returns a Wilson-style shrinkage interval using
+\begin{align}
+z &= 1.96,\\
+\tilde p &= \frac{x+z^2/2}{n+z^2},\\
+SE_{\tilde p} &= \sqrt{\frac{\tilde p(1-\tilde p)}{n+z^2}},\\
+CI_{95\%} &= [\max(0,\tilde p-zSE_{\tilde p}),\min(1,\tilde p+zSE_{\tilde p})].
+\end{align}
+The interval uses Wilson score shrinkage for a binomial proportion
+\cite{wilson1927}.
+The score is labelled compliant at $ATS\ge 0.95$.
+
+\subsection{Metric 10: Governance Compliance Index}
+
+Let $M$ be the number of mandated policies and $E$ the number evaluated as
+enforced. The implementation defines
+\begin{equation}
+GCI=\frac{E}{M}.
+\end{equation}
+When no policies are provided, the returned value is zero.
+
+\section{Domain 4: Representation and Robustness}
+
+\subsection{Metric 11: Semantic Parity Gap}
+
+Let $P=\{p_i\}_{i=1}^{n_p}$ be embeddings for privileged-group prompts and
+$M=\{m_j\}_{j=1}^{n_m}$ embeddings for matched marginalized-group prompts.
+Their centroids are
+\begin{align}
+\bar p &= \frac{1}{n_p}\sum_{i=1}^{n_p}p_i,&
+\bar m &= \frac{1}{n_m}\sum_{j=1}^{n_m}m_j.
+\end{align}
+The Euclidean SPG reported by the implementation is
+\begin{equation}
+SPG_{\mathrm{Euc}}=\norm{\bar p-\bar m}_2.
+\end{equation}
+The cosine variant is
+\begin{equation}
+SPG_{\mathrm{cos}}=1-\frac{\bar p^\top \bar m}{\norm{\bar p}_2\norm{\bar m}_2},
+\end{equation}
+with value zero if the denominator is zero.
+
+\subsection{Metric 12: Clinical Hallucination Rate}
+
+Let $c=1,\ldots,C$ index extracted clinical claims and $S(c,K)\in[0,1]$ be a
+precomputed support score against retrieved context $K$. With entailment
+threshold $\tau$, the implemented hallucination rate is
+\begin{equation}
+CHR=\frac{1}{C}\sum_{c=1}^{C}\ind\{S(c,K)<\tau\}.
+\end{equation}
+With optional severity weights $w_c$,
+\begin{equation}
+CHR_w=
+\frac{\sum_{c=1}^{C}w_c\ind\{S(c,K)<\tau\}}
+{\sum_{c=1}^{C}w_c}.
+\end{equation}
+If no weights are supplied, the implementation sets $CHR_w=CHR$.
+
+\subsection{Metric 13: Instructional Vulnerability Index}
+
+Let $A_i$ be the neutral-output decision and $B_i$ the paired biased-instruction
+decision for the same case. The flip component is
+\begin{equation}
+IVI=\frac{1}{n}\sum_{i=1}^{n}\ind(A_i\ne B_i).
+\end{equation}
+If the outputs can be coerced to numeric values, the implementation also returns
+the directional effect
+\begin{equation}
+IVI_{\mathrm{effect}}=\frac{1}{n}\sum_{i=1}^{n}B_i-\frac{1}{n}\sum_{i=1}^{n}A_i.
+\end{equation}
+The paired-counterfactual framing is conceptually related to counterfactual
+fairness, although IVI targets prompt framing rather than protected-attribute
+interventions \cite{kusner2017}.
+
+\subsection{Metric 14: Geographic Representation Index}
+
+Let $L$ be the set of unique locations represented in a corpus and let
+$W\subseteq L$ be those counted as Western or high-income. The implemented index
+is set-based:
+\begin{equation}
+GRI=\frac{|L|-|W|}{|L|}.
+\end{equation}
+Duplicates do not change the score.
+
+\subsection{Metric 14a: Geographic Bias Correlation}
+
+For paired values $(x_i,y_i)$, where $x_i$ is a per-query GRI value and $y_i$ is
+the corresponding non-Western error rate, the library returns either Pearson or
+Spearman correlation. For Pearson,
+\begin{equation}
+GB =
+\frac{\sum_i(x_i-\bar x)(y_i-\bar y)}
+{\sqrt{\sum_i(x_i-\bar x)^2}\sqrt{\sum_i(y_i-\bar y)^2}}.
+\end{equation}
+
+\section{Domain 5: Technical-supplement Fairness}
+
+\subsection{Metric 15: Intersectional Calibration Error}
+
+For group $g$ and bin $b$, let $S_{gb}$ be samples in intersectional group $g$
+whose confidence falls in bin $b$. The implementation uses equal-width bins on
+$[0,1]$. This extends expected calibration error as used in neural-network
+calibration studies \cite{guo2017}. Let
+\begin{align}
+acc(S_{gb}) &= \frac{1}{|S_{gb}|}\sum_{i\in S_{gb}}Z_i,\\
+conf(S_{gb}) &= \frac{1}{|S_{gb}|}\sum_{i\in S_{gb}}C_i.
+\end{align}
+The group-specific calibration error is
+\begin{equation}
+ECE_g = \sum_b \frac{|S_{gb}|}{|S_g|}
+\left|acc(S_{gb})-conf(S_{gb})\right|.
+\end{equation}
+The intersectional calibration error is the population-weighted average
+\begin{equation}
+ICE = \sum_g \frac{|S_g|}{\sum_h |S_h|}ECE_g.
+\end{equation}
+The maximum calibration gap returned as \texttt{delta\_ice} is
+\begin{equation}
+\Delta ICE = \max_g ECE_g-\min_g ECE_g.
+\end{equation}
+
+\subsection{Metric 16: Weighted Clinical Harm-adjusted Fairness Gap}
+
+Let $w_i$ be a clinical severity weight and $\ell_i=L(\hat Y_i,Y_i)$ be a
+per-sample loss. For group $g$,
+\begin{equation}
+H(g)=\frac{1}{n_g}\sum_{i:G_i=g}w_i\ell_i.
+\end{equation}
+The implemented maximum gap is
+\begin{equation}
+wHAFG_{\max}=\max_g H(g)-\min_g H(g).
+\end{equation}
+
+\subsection{Metric 17: Counterfactual Parity Score}
+
+Let $s_i\in[0,1]$ be a precomputed semantic similarity between the original
+response and the response under a demographic swap. For a single pair type,
+\begin{equation}
+CPS=\frac{1}{n}\sum_{i=1}^{n}s_i.
+\end{equation}
+The demographic-swap construction is grounded in the counterfactual fairness
+intuition that decisions should be stable under protected-attribute changes
+when clinically relevant facts are unchanged \cite{kusner2017}.
+For multiple swap-pair labels $p$, the library calculates
+\begin{equation}
+CPS_p=\frac{1}{n_p}\sum_{i\in p}s_i,\qquad
+CPS=\frac{1}{\sum_p n_p}\sum_p\sum_{i\in p}s_i.
+\end{equation}
+
+\subsection{Metric 17a: Counterfactual Unfairness}
+
+The implementation returns a complement to CPS. For a single pair,
+\begin{equation}
+CFU=1-CPS.
+\end{equation}
+For multiple pairs,
+\begin{equation}
+CFU=1-\min_p CPS_p.
+\end{equation}
+
+\subsection{Metric 18: Semantic Robustness Parity Index}
+
+Let $R_i$ be a per-query robustness score, usually the mean similarity among
+responses to semantically equivalent paraphrases. For group $g$,
+\begin{equation}
+R(g)=\frac{1}{n_g}\sum_{i:G_i=g}R_i.
+\end{equation}
+The implemented parity ratio is
+\begin{equation}
+SRPI=\frac{\min_g R(g)}{\max_g R(g)}.
+\end{equation}
+If the maximum group robustness is zero, the function returns zero.
+
+\subsection{Metric 19: Lexical Diversity Disparity Index}
+
+Let $T_g$ be the multiset of tokens pooled across all responses in group $g$ and
+$V_g$ its vocabulary. The implemented root type-token ratio is
+\begin{equation}
+RTTR(g)=\frac{|V_g|}{\sqrt{|T_g|}}.
+\end{equation}
+The disparity index is
+\begin{equation}
+LDDI=\max_g RTTR(g)-\min_g RTTR(g).
+\end{equation}
+With $RTTR_{\mathrm{all}}$ computed after pooling all groups,
+\begin{equation}
+LDDI_{\mathrm{norm}}=\frac{LDDI}{RTTR_{\mathrm{all}}}.
+\end{equation}
+
+\subsection{Metric 20: Recommendation Entropy Gap}
+
+Let $P_g(t)$ be the empirical distribution of recommendation labels $t$ in group
+$g$. The group recommendation entropy is based on Shannon entropy
+\cite{shannon1948}:
+\begin{equation}
+H(T\mid g)=-\sum_t P_g(t)\log_2 P_g(t).
+\end{equation}
+The implemented gap is
+\begin{equation}
+REG=\max_g H(T\mid g)-\min_g H(T\mid g).
+\end{equation}
+The implementation also returns
+\begin{equation}
+REG_{KL}=\max_g \sum_t P_g(t)\log_2\frac{P_g(t)}{P(t)},
+\end{equation}
+where $P(t)$ is the marginal recommendation distribution.
+
+\subsection{Metric 21: Clinical Information Density Ratio}
+
+For response $i$, let $a_i$ be the number of extracted clinical concepts and
+$b_i$ the number of tokens. The response-level clinical information density is
+\begin{equation}
+CID_i=100\frac{a_i}{b_i}.
+\end{equation}
+For group $g$,
+\begin{equation}
+CID(g)=\frac{1}{n_g}\sum_{i:G_i=g}CID_i.
+\end{equation}
+The group ratio is
+\begin{equation}
+CIDR(g)=\frac{CID(g)}{\max_h CID(h)},
+\end{equation}
+and the reported parity summary is
+\begin{equation}
+CIDR_{\min}=\min_g CIDR(g).
+\end{equation}
+If the maximum group density is zero, all implemented ratios are set to zero.
+
+\subsection{Metric 22: Diagnostic Completeness Index}
+
+Let $D^\star$ be the reference differential diagnosis set. For response $i$,
+\begin{equation}
+DCI_i=\frac{|D(R_i)\cap D^\star|}{|D^\star|}.
+\end{equation}
+The group mean is
+\begin{equation}
+DCI(g)=\frac{1}{n_g}\sum_{i:G_i=g}DCI_i,
+\end{equation}
+and the implemented disparity is
+\begin{equation}
+\Delta DCI=\max_g DCI(g)-\min_g DCI(g).
+\end{equation}
+When diagnosis weights $w_d$ are supplied, the weighted response score is
+\begin{equation}
+wDCI_i=
+\frac{\sum_{d\in D(R_i)\cap D^\star}w_d}{\sum_{d\in D^\star}w_d}.
+\end{equation}
+
+\subsection{Metric 23: Uncertainty Quantification Gap}
+
+Let $h_i$ be the number of hedging terms in response $R_i$ and $q_i$ the number
+of sentences. The uncertainty density is
+\begin{equation}
+UD_i=\frac{h_i}{q_i}.
+\end{equation}
+If no sentence is detected, $UD_i=0$. For group $g$,
+\begin{equation}
+UD(g)=\frac{1}{n_g}\sum_{i:G_i=g}UD_i.
+\end{equation}
+The implemented uncertainty quantification gap is
+\begin{equation}
+UQG=\max_g UD(g)-\min_g UD(g).
+\end{equation}
+
+\subsection{Metric 24: Geographic Representation Bias Index}
+
+Let $p_c(r)$ be the normalized corpus evidence share in region $r$ and $p_b(r)$
+the normalized burden share. EquiMed-DSS implements directed KL divergence in
+nats \cite{kullback1951}:
+\begin{equation}
+GRBI=\KL(P_c\Vert P_b)=\sum_{r:p_c(r)>0}p_c(r)\log\frac{p_c(r)}{p_b(r)}.
+\end{equation}
+If $p_c(r)>0$ and $p_b(r)=0$, the implementation raises an error because KL is
+undefined. With optional high-income regions $\mathcal{H}$, the high-income
+overrepresentation ratio is
+\begin{equation}
+HIC_{\mathrm{ratio}}=
+\frac{\sum_{r\in\mathcal{H}}p_c(r)}
+{\sum_{r\in\mathcal{H}}p_b(r)}.
+\end{equation}
+
+\subsection{Metric 25: Healthcare System Stratified Fairness}
+
+For system stratum $s$, let
+\begin{equation}
+\Delta_s=\max_g \E[Y\mid G=g,S=s]-\min_g \E[Y\mid G=g,S=s].
+\end{equation}
+The implemented within-system fairness gap is
+\begin{equation}
+HSSF=\sum_s P(S=s)\Delta_s.
+\end{equation}
+The implementation returns $\Delta_{\mathrm{within}}=HSSF$. It also returns the
+population-weighted between-system variance
+\begin{equation}
+\Delta_{\mathrm{between}}=
+\sum_s P(S=s)\left(\E[Y\mid S=s]-\sum_{u}P(S=u)\E[Y\mid S=u]\right)^2.
+\end{equation}
+
+\subsection{Metric 26: Intersectional Shapley Fairness Value}
+
+Let $\mathcal{A}=\{A_1,\ldots,A_m\}$ be protected attributes. The attribution
+formula follows Shapley's cooperative-game value \cite{shapley1953}. For a
+subset $S\subseteq\mathcal{A}$, the implemented characteristic function is
+\begin{equation}
+v(S)=
+\max_{a\in\mathrm{dom}(S)}\E[Y\mid A_S=a]
+-
+\min_{a\in\mathrm{dom}(S)}\E[Y\mid A_S=a],
+\end{equation}
+with $v(\varnothing)=0$. Cells below the configured minimum cell size are
+ignored. The Shapley attribution for attribute $A_j$ is
+\begin{equation}
+\phi_j=
+\sum_{S\subseteq\mathcal{A}\setminus\{A_j\}}
+\frac{|S|!(m-|S|-1)!}{m!}
+\left[v(S\cup\{A_j\})-v(S)\right].
+\end{equation}
+The total disparity is $v(\mathcal{A})$. Pairwise interactions are
+\begin{equation}
+I(A_j,A_k)=v(\{A_j,A_k\})-v(\{A_j\})-v(\{A_k\}).
+\end{equation}
+
+\section{Geographic Module}
+
+\subsection{Metric 27: Burden-evidence Mismatch Index}
+
+Let $e(r)$ be the normalized evidence share and $b(r)$ the normalized burden
+share over the union of supplied regions. EquiMed-DSS defines BEMI as total
+variation distance \cite{gibbs2002}:
+\begin{equation}
+BEMI=\frac{1}{2}\sum_{r\in\mathcal{R}}|e(r)-b(r)|.
+\end{equation}
+The per-region mismatch and ratio returned by the implementation are
+\begin{align}
+M(r)&=e(r)-b(r),\\
+\rho(r)&=\frac{e(r)}{b(r)}.
+\end{align}
+The ratio $\rho(r)$ is finite only when $b(r)>0$; the implementation records a
+missing value when the burden share is zero.
+The most underserved region is the region with the minimum $M(r)$.
+
+\subsection{Metric 28: Geographic Concentration of Coverage}
+
+Let $x_r\ge 0$ be regional evidence counts for $R$ regions and
+$p_r=x_r/\sum_u x_u$. The raw categorical Gini is
+\begin{equation}
+G_{\mathrm{raw}}=
+\frac{\sum_{r=1}^{R}\sum_{u=1}^{R}|x_r-x_u|}
+{2R\sum_{r=1}^{R}x_r}.
+\end{equation}
+Because the maximum raw Gini for $R$ categories is $(R-1)/R$, the implementation
+uses the corrected value
+\begin{equation}
+G^\star=\frac{R}{R-1}G_{\mathrm{raw}}.
+\end{equation}
+The normalized Shannon entropy follows Shannon's entropy definition
+\cite{shannon1948}:
+\begin{equation}
+H_{\mathrm{norm}}=
+-\frac{\sum_{r:p_r>0}p_r\log p_r}{\log R},
+\end{equation}
+and the concentration score is
+\begin{equation}
+C_{\mathrm{geo}}=1-H_{\mathrm{norm}}.
+\end{equation}
+
+\section{Appendix Metrics}
+
+\subsection{Metric 29: Bootstrap Confidence Interval}
+
+Given data $x_1,\ldots,x_n$ and a statistic $T(\cdot)$, EquiMed-DSS draws
+$B$ bootstrap resamples $x^{\ast b}$ of size $n$ with replacement and computes
+\begin{equation}
+\theta_b^\ast=T(x^{\ast b}),\qquad b=1,\ldots,B.
+\end{equation}
+For significance level $\alpha$, the implemented percentile interval is
+\begin{equation}
+CI_{1-\alpha}=
+\left[
+Q_{\alpha/2}(\theta_1^\ast,\ldots,\theta_B^\ast),
+Q_{1-\alpha/2}(\theta_1^\ast,\ldots,\theta_B^\ast)
+\right].
+\end{equation}
+The observed statistic is $T(x_1,\ldots,x_n)$. The percentile construction
+follows the nonparametric bootstrap framework of Efron and Tibshirani
+\cite{efron1979,efron1993}.
+
+\subsection{Metric 30: Statistical Power Analysis}
+
+The canonical implementation delegates two-sample $t$-test power and sample-size
+calculations to \texttt{statsmodels.stats.power.tt\_ind\_solve\_power}. The
+underlying planning target is Cohen's standardized effect
+\begin{equation}
+d=\frac{\mu_1-\mu_2}{\sigma}.
+\end{equation}
+The solver returns the per-group sample size $n$ satisfying
+\begin{equation}
+\mathrm{Power}=
+P\left(\mathrm{reject}\ H_0:\mu_1=\mu_2\mid d,\alpha,n\right)
+\end{equation}
+for the requested alternative. The returned per-group sample size is
+$\lceil n\rceil$, while the returned total sample size follows the implementation
+as $\lceil 2n\rceil$. The standardized effect-size scale follows Cohen's
+two-sample convention \cite{cohen1988}.
+
+\subsection{Metric 31: Bias Concentration Index}
+
+For nonnegative group bias proportions $p_1,\ldots,p_K$, the implementation
+defines
+\begin{equation}
+BCI_{\mathrm{bias}}=
+1-\frac{\sum_{g=1}^{K}p_g^2}{\left(\sum_{g=1}^{K}p_g\right)^2}.
+\end{equation}
+If the vector is empty or sums to zero, the value is zero. For a normalized
+nonnegative vector, the finite-group upper bound is $1-1/K$, attained by an even
+distribution. Larger values indicate more distributed bias; smaller values
+indicate concentration in fewer groups.
+
+\subsection{Metric 32: Mutual Information Content}
+
+Let $D$ be a demographic categorical variable and $O$ an outcome categorical
+variable. In the implementation, $D$ is expected to be encoded as nonnegative
+integer categories for the entropy normalization. The raw mutual information
+implemented via \texttt{mutual\_info\_score}
+uses Shannon mutual information \cite{shannon1948}:
+\begin{equation}
+MIC=I(D;O)=\sum_{d,o}p(d,o)\log\frac{p(d,o)}{p(d)p(o)}.
+\end{equation}
+The implementation also reports a normalized value using demographic entropy:
+\begin{equation}
+MIC_{\mathrm{norm}}=\frac{I(D;O)}{H(D)},\qquad
+H(D)=-\sum_d p(d)\log p(d).
+\end{equation}
+If $H(D)=0$, the normalized value is zero.
+
+\subsection{Metric 33: Jensen-Shannon Divergence}
+
+For two nonnegative vectors normalized to probability distributions $p$ and $q$,
+let
+\begin{equation}
+m=\frac{p+q}{2}.
+\end{equation}
+The implementation returns the base-2 Jensen-Shannon divergence
+\cite{lin1991}:
+\begin{equation}
+JSD(p,q)=
+\frac{1}{2}\KL_2(p\Vert m)+\frac{1}{2}\KL_2(q\Vert m),
+\end{equation}
+where $\KL_2$ uses $\log_2$. The SciPy function returns the distance
+$\sqrt{JSD}$, so the implementation squares that value. Both \texttt{jsd} and
+\texttt{jsd\_distance} are reported.
+
+\subsection{Metric 34: Wasserstein Distance}
+
+For one-dimensional empirical samples $P_n=\{x_1,\ldots,x_n\}$ and
+$Q_m=\{y_1,\ldots,y_m\}$, the implemented metric delegates to SciPy's first
+Wasserstein distance without explicit sample weights
+\cite{villani2009}:
+\begin{equation}
+WD(P_n,Q_m)=\inf_{\gamma\in\Gamma(P_n,Q_m)}
+\int_{\R\times\R}|x-y|\,d\gamma(x,y),
+\end{equation}
+where $P_n$ and $Q_m$ are empirical distributions and $\Gamma(P_n,Q_m)$ is the
+set of couplings with these marginals.
+Equivalently, in one dimension,
+\begin{equation}
+WD(P_n,Q_m)=\int_{-\infty}^{\infty}|F_{P_n}(t)-F_{Q_m}(t)|\,dt.
+\end{equation}
+
+\subsection{Metric 35: Network Modularity}
+
+Given an adjacency or correlation matrix $A$, the implementation constructs an
+undirected graph using $|A|$ and detects communities with greedy modularity.
+For total edge weight $2m=\sum_{ij}A_{ij}$, degree $k_i=\sum_j A_{ij}$, and
+community assignment $c_i$, Newman modularity is \cite{newman2006,clauset2004}
+\begin{equation}
+Q=\frac{1}{2m}\sum_{i,j}
+\left(A_{ij}-\frac{k_i k_j}{2m}\right)\ind(c_i=c_j).
+\end{equation}
+
+\subsection{Metric 36: Transparency Score}
+
+For each explained decision $i$, the canonical appendix implementation expects
+three scores in $[0,1]$: explanation quality $e_i$, feature importance $f_i$,
+and interpretability $u_i$. This score is an implementation-level aggregate for
+post-hoc explanation adequacy, aligned with the clinical need to expose reasons
+for model outputs rather than predictions alone \cite{ribeiro2016}. The
+per-decision transparency contribution is
+\begin{equation}
+t_i=\frac{e_i+f_i+u_i}{3}.
+\end{equation}
+The transparency score is the empirical mean
+\begin{equation}
+TS=\frac{1}{n}\sum_{i=1}^{n}t_i.
+\end{equation}
+If no explanations are provided, the implementation returns zero.
+
+\subsection{Metric 37: Robustness Certification Score}
+
+Let $a_{ib}$ be the agreement indicator between the original prediction for
+case $i$ and the prediction under perturbation batch $b$:
+\begin{equation}
+a_{ib}=\ind(\hat Y_i=\hat Y_{ib}^{\mathrm{pert}}).
+\end{equation}
+For each perturbation batch,
+\begin{equation}
+r_b=\frac{1}{n}\sum_{i=1}^{n}a_{ib}.
+\end{equation}
+The implemented robustness certification score is
+\begin{equation}
+RCS=\frac{1}{B}\sum_{b=1}^{B}r_b.
+\end{equation}
+The implementation also reports
+\begin{align}
+SD(RCS) &= \sqrt{\frac{1}{B}\sum_{b=1}^{B}(r_b-RCS)^2},\\
+r_{\min} &= \min_b r_b,\qquad r_{\max}=\max_b r_b.
+\end{align}
+The input argument $\epsilon$ is recorded in the output but is not used in the
+calculation itself.
+
+\section{Implemented Statistical Estimands Included to Reach 39 Derivations}
+
+\subsection{Metric 38: Hierarchical Variance Partitioning and MAIHDA-style VPC}
+
+For a Gaussian mixed model with outcome $Y_{ij}$ for individual $i$ in group $j$,
+EquiMed-DSS fits a random-intercept model using the standard multilevel
+variance-partitioning framework \cite{raudenbush2002}:
+\begin{equation}
+Y_{ij}=\beta_0+X_{ij}^{\top}\beta+u_j+\varepsilon_{ij},
+\qquad
+u_j\sim N(0,\sigma_u^2),\quad
+\varepsilon_{ij}\sim N(0,\sigma_e^2).
+\end{equation}
+The implemented intraclass correlation from the null model is
+\begin{equation}
+ICC_{\mathrm{HLM}}=
+\frac{\sigma_u^2}{\sigma_u^2+\sigma_e^2}.
+\end{equation}
+The reported pseudo-$R^2$ is the proportional reduction in total variance from
+the null model to the full model:
+\begin{equation}
+R^2_{\mathrm{pseudo}}=
+1-\frac{\sigma_{u,\mathrm{full}}^2+\sigma_{e,\mathrm{full}}^2}
+{\sigma_{u,\mathrm{null}}^2+\sigma_{e,\mathrm{null}}^2}.
+\end{equation}
+For a binary outcome analysed on the logistic latent scale, the package
+documentation notes the MAIHDA-style variance partition coefficient
+\begin{equation}
+VPC_{\mathrm{logit}}=
+\frac{\sigma_u^2}{\sigma_u^2+\pi^2/3}.
+\end{equation}
+If the mixed-model fit fails, the implementation falls back to an ANOVA-style
+decomposition with $J$ groups:
+\begin{align}
+SS_B &= \sum_j n_j(\bar Y_j-\bar Y)^2,\\
+SS_W &= \sum_i (Y_i-\bar Y_{g(i)})^2,\\
+MS_B &= \frac{SS_B}{J-1},\qquad
+MS_W = \frac{SS_W}{n-J}.
+\end{align}
+With $\bar n$ denoting the mean group size, the fallback ICC is bounded to
+$[0,1]$:
+\begin{equation}
+ICC_{\mathrm{fallback}}=
+\max\left\{0,\min\left[1,
+\frac{MS_B-MS_W}{MS_B+(\bar n-1)MS_W}
+\right]\right\}.
+\end{equation}
+
+\subsection{Metric 39: Causal Mediation and Proportion Mediated}
+
+Let $X$ be the treatment or exposure, $M$ the mediator, $Y$ the outcome, and
+$C$ optional covariates. The implemented product-of-coefficients mediation uses
+linear regression models \cite{sobel1982,imai2010}:
+\begin{align}
+M &= \alpha_0+\alpha_1X+C^\top\alpha_C+\varepsilon_M,\\
+Y &= \beta_0+\beta_1X+\beta_2M+C^\top\beta_C+\varepsilon_Y.
+\end{align}
+A separate total-effect model is
+\begin{equation}
+Y=\tau_0+\tau_1X+C^\top\tau_C+\varepsilon_T.
+\end{equation}
+The indirect, direct, and total effects are
+\begin{align}
+IE &= \alpha_1\beta_2,\\
+DE &= \beta_1,\\
+TE &= \tau_1.
+\end{align}
+The implemented proportion mediated is
+\begin{equation}
+PM=\frac{IE}{TE},
+\end{equation}
+with $PM=0$ if $|TE|\le 10^{-10}$. The indirect-effect confidence interval is a
+percentile bootstrap over the product $\alpha_1^\ast\beta_2^\ast$.
+The Sobel test implemented in the same class is
+\begin{align}
+SE_{\mathrm{Sobel}} &=
+\sqrt{\alpha_1^2SE(\beta_2)^2+\beta_2^2SE(\alpha_1)^2},\\
+z_{\mathrm{Sobel}} &= \frac{\alpha_1\beta_2}{SE_{\mathrm{Sobel}}},\\
+p &= 2\left[1-\Phi(|z_{\mathrm{Sobel}}|)\right].
+\end{align}
+
+\begin{thebibliography}{99}
+
+\bibitem{shrout1979}
+Shrout PE, Fleiss JL. Intraclass correlations: uses in assessing rater
+reliability. \textit{Psychological Bulletin}. 1979;86(2):420-428.
+doi:10.1037/0033-2909.86.2.420.
+
+\bibitem{blandaltman1986}
+Bland JM, Altman DG. Statistical methods for assessing agreement between two
+methods of clinical measurement. \textit{Lancet}. 1986;327(8476):307-310.
+doi:10.1016/S0140-6736(86)90837-8.
+
+\bibitem{wilson1927}
+Wilson EB. Probable inference, the law of succession, and statistical
+inference. \textit{Journal of the American Statistical Association}.
+1927;22(158):209-212. doi:10.1080/01621459.1927.10502953.
+
+\bibitem{uniformguidelines1978}
+Equal Employment Opportunity Commission, Civil Service Commission, Department
+of Labor, Department of Justice. Uniform Guidelines on Employee Selection
+Procedures. \textit{Federal Register}. 1978;43(166):38290-38315.
+
+\bibitem{gini1912}
+Gini C. \textit{Variabilita e Mutabilita}. Bologna: Tipografia di Paolo
+Cuppini; 1912.
+
+\bibitem{shewhart1931}
+Shewhart WA. \textit{Economic Control of Quality of Manufactured Product}.
+New York: D. Van Nostrand Company; 1931.
+
+\bibitem{guo2017}
+Guo C, Pleiss G, Sun Y, Weinberger KQ. On calibration of modern neural
+networks. In: \textit{Proceedings of the 34th International Conference on
+Machine Learning}. PMLR. 2017;70:1321-1330.
+
+\bibitem{kusner2017}
+Kusner MJ, Loftus J, Russell C, Silva R. Counterfactual fairness. In:
+\textit{Advances in Neural Information Processing Systems}. 2017;30.
+
+\bibitem{shannon1948}
+Shannon CE. A mathematical theory of communication. \textit{The Bell System
+Technical Journal}. 1948;27(3):379-423, 27(4):623-656.
+
+\bibitem{kullback1951}
+Kullback S, Leibler RA. On information and sufficiency. \textit{Annals of
+Mathematical Statistics}. 1951;22(1):79-86.
+doi:10.1214/aoms/1177729694.
+
+\bibitem{lin1991}
+Lin J. Divergence measures based on the Shannon entropy. \textit{IEEE
+Transactions on Information Theory}. 1991;37(1):145-151.
+doi:10.1109/18.61115.
+
+\bibitem{gibbs2002}
+Gibbs AL, Su FE. On choosing and bounding probability metrics.
+\textit{International Statistical Review}. 2002;70(3):419-435.
+doi:10.1111/j.1751-5823.2002.tb00178.x.
+
+\bibitem{efron1979}
+Efron B. Bootstrap methods: another look at the jackknife. \textit{Annals of
+Statistics}. 1979;7(1):1-26. doi:10.1214/aos/1176344552.
+
+\bibitem{efron1993}
+Efron B, Tibshirani RJ. \textit{An Introduction to the Bootstrap}. New York:
+Chapman and Hall/CRC; 1993.
+
+\bibitem{cohen1988}
+Cohen J. \textit{Statistical Power Analysis for the Behavioral Sciences}. 2nd
+ed. Hillsdale: Lawrence Erlbaum Associates; 1988.
+
+\bibitem{villani2009}
+Villani C. \textit{Optimal Transport: Old and New}. Berlin: Springer; 2009.
+
+\bibitem{newman2006}
+Newman MEJ. Modularity and community structure in networks. \textit{Proceedings
+of the National Academy of Sciences of the United States of America}.
+2006;103(23):8577-8582. doi:10.1073/pnas.0601602103.
+
+\bibitem{clauset2004}
+Clauset A, Newman MEJ, Moore C. Finding community structure in very large
+networks. \textit{Physical Review E}. 2004;70:066111.
+doi:10.1103/PhysRevE.70.066111.
+
+\bibitem{shapley1953}
+Shapley LS. A value for n-person games. In: Kuhn HW, Tucker AW, eds.
+\textit{Contributions to the Theory of Games II}. Princeton: Princeton
+University Press; 1953:307-317.
+
+\bibitem{ribeiro2016}
+Ribeiro MT, Singh S, Guestrin C. ``Why should I trust you?'': explaining the
+predictions of any classifier. In: \textit{Proceedings of the 22nd ACM SIGKDD
+International Conference on Knowledge Discovery and Data Mining}. 2016:1135-1144.
+doi:10.1145/2939672.2939778.
+
+\bibitem{raudenbush2002}
+Raudenbush SW, Bryk AS. \textit{Hierarchical Linear Models: Applications and
+Data Analysis Methods}. 2nd ed. Thousand Oaks: Sage Publications; 2002.
+
+\bibitem{sobel1982}
+Sobel ME. Asymptotic confidence intervals for indirect effects in structural
+equation models. \textit{Sociological Methodology}. 1982;13:290-312.
+doi:10.2307/270723.
+
+\bibitem{imai2010}
+Imai K, Keele L, Tingley D. A general approach to causal mediation analysis.
+\textit{Psychological Methods}. 2010;15(4):309-334. doi:10.1037/a0020761.
+
+\end{thebibliography}
+
+\section*{Implementation Notes}
+
+\begin{itemize}[leftmargin=*]
+\item BEMI is total variation distance, not one minus a correlation.
+\item GRBI is directed KL divergence in nats, not a symmetric distance.
+\item JSD is reported as divergence in base 2. The corresponding distance is
+also exposed as the square root.
+\item ECS is implemented as cosine distance, so lower values mean greater
+consistency.
+\item HAFG in \texttt{domain2} is a two-group count-based metric normalized by
+the larger harm. wHAFG in \texttt{domain5} is a per-sample,
+severity-weighted multi-group generalization.
+\item Bootstrap confidence intervals in the canonical appendix implementation
+use percentile intervals only.
+\item The prior PDF derivations for SPG, CHR, IVI, GRI, ICE, wHAFG, LDDI, and
+related metrics are broadly consistent with the implementation, but this file
+uses the exact implemented details where the older derivations were more
+general.
+\end{itemize}
+
+\end{document}
