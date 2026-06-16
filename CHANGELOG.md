@@ -5,6 +5,13 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2026-06-15
+
+### Changed (documentation)
+- README: added a **Visualizations** section with runnable `plot_equity_radar`
+  and `plot_geographic_dumbbell` examples and a note that all plot helpers return
+  a Matplotlib figure (so the PyPI landing page documents the v1.5.2 plots).
+
 ## [1.5.2] - 2026-06-15
 
 ### Added

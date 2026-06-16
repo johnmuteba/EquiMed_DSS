@@ -554,6 +554,46 @@ Output:
 
 ---
 
+## Visualizations
+
+All plot helpers in `equimed_dss.utils` **return a Matplotlib figure** (they do
+not call `plt.show()`), and write to `save_path` when given, so they compose
+cleanly in scripts, notebooks, and report pipelines.
+
+**Equity radar** — one normalized score per domain for an at-a-glance audit:
+
+```python
+from equimed_dss.utils import plot_equity_radar
+
+fig = plot_equity_radar(
+    {"Reliability": 0.16, "Fairness": 0.95, "Governance": 0.80,
+     "Representation": 0.33, "Robustness": 0.73},
+    reference=0.8,                      # optional acceptability-target ring
+    save_path="equity_radar.png",
+)
+```
+
+**Geographic dumbbell** — disease burden vs evidence share per region (reads the
+burden-evidence mismatch, BEMI, far more clearly than a bubble plot):
+
+```python
+from equimed_dss.utils import plot_geographic_dumbbell
+
+fig = plot_geographic_dumbbell(
+    burden_shares={"AMRO": 0.114, "SEARO": 0.211, "AFRO": 0.150,
+                   "EMRO": 0.230, "EURO": 0.195, "WPRO": 0.100},
+    evidence_shares={"AMRO": 0.780, "SEARO": 0.0, "AFRO": 0.002,
+                     "EMRO": 0.037, "EURO": 0.105, "WPRO": 0.077},
+    save_path="geographic_dumbbell.png",
+)
+```
+
+Other helpers: `plot_bland_altman`, `plot_control_chart`,
+`plot_correlation_matrix`, `plot_her_heatmap`, `plot_metric_distribution`,
+`plot_network_graph`, and the six manuscript figures `plot_figure2…7`.
+
+---
+
 ## Statistical Analyses
 
 EquiMed_DSS includes advanced statistical methods:
