@@ -1034,3 +1034,132 @@ def plot_figure7_intersectional_heatmap(
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
     return fig
+
+
+def plot_equity_radar(
+    domain_scores: Dict[str, float],
+    title: str = "EquiMed-DSS equity radar",
+    reference: Optional[float] = 0.8,
+    color: str = "#2C6FB0",
+    save_path: Optional[str] = None,
+):
+    """Radar (spider) chart of one normalized score per domain.
+
+    A compact at-a-glance audit summary: each axis is a domain (or metric) with a
+    score in [0, 1] where higher = better. An optional dashed reference ring marks
+    an acceptability target.
+
+    Args:
+        domain_scores: mapping ``{domain_name: score}`` with scores in [0, 1]
+            (at least three axes).
+        title: figure title.
+        reference: optional target level drawn as a dashed ring (None to omit).
+        color: line/fill colour.
+        save_path: if given, the figure is written there (PNG/PDF by extension).
+
+    Returns:
+        The Matplotlib ``Figure`` (also written to ``save_path`` if provided).
+    """
+    if len(domain_scores) < 3:
+        raise ValueError("Need at least 3 axes for a radar chart.")
+    labels = list(domain_scores)
+    values = [float(domain_scores[k]) for k in labels]
+    if any(v < 0 or v > 1 for v in values):
+        raise ValueError("All scores must be in [0, 1].")
+    n = len(labels)
+    angles = np.linspace(0, 2 * np.pi, n, endpoint=False).tolist()
+    vals = values + values[:1]
+    angs = angles + angles[:1]
+
+    fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
+    ax.set_theta_offset(np.pi / 2)
+    ax.set_theta_direction(-1)
+    ax.plot(angs, vals, color=color, lw=2, zorder=3)
+    ax.fill(angs, vals, color=color, alpha=0.25, zorder=2)
+    for ang, val in zip(angles, values):
+        ax.text(ang, min(val + 0.07, 1.02), f"{val:.2f}", ha="center",
+                va="center", fontsize=8.5, color=color, fontweight="bold")
+    if reference is not None:
+        ref = [reference] * n + [reference]
+        ax.plot(angs, ref, color="#C0392B", lw=1.3, ls="--",
+                label=f"target {reference:g}", zorder=1)
+        ax.legend(loc="upper right", bbox_to_anchor=(1.18, 1.10), fontsize=9)
+    ax.set_xticks(angles)
+    ax.set_xticklabels(labels, fontsize=9.5)
+    ax.set_ylim(0, 1)
+    ax.set_yticks([0.2, 0.4, 0.6, 0.8, 1.0])
+    ax.set_yticklabels(["0.2", "0.4", "0.6", "0.8", "1.0"], fontsize=8, color="#666")
+    ax.set_title(title, fontsize=13, fontweight="bold", pad=24)
+
+    if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    return fig
+
+
+def plot_geographic_dumbbell(
+    burden_shares: Dict[str, float],
+    evidence_shares: Dict[str, float],
+    title: str = "Burden vs evidence by region",
+    burden_label: str = "Disease burden",
+    evidence_label: str = "Evidence",
+    save_path: Optional[str] = None,
+):
+    """Dumbbell (Cleveland) chart of disease burden vs evidence share per region.
+
+    One row per region with two dots (burden, evidence) joined by a line; the line
+    length is the mismatch. Reads more clearly than a bubble plot for the
+    burden-evidence gap. Inputs are normalized internally to shares and shown as
+    percentages; rows are sorted by descending burden.
+
+    Args:
+        burden_shares: ``{region: burden}`` (counts or shares; normalized to sum 1).
+        evidence_shares: ``{region: evidence}`` (counts or shares).
+        title: figure title.
+        burden_label, evidence_label: legend labels.
+        save_path: if given, the figure is written there.
+
+    Returns:
+        The Matplotlib ``Figure`` (also written to ``save_path`` if provided).
+    """
+    if not burden_shares or not evidence_shares:
+        raise ValueError("burden_shares and evidence_shares must be non-empty.")
+
+    def _norm(d):
+        tot = float(sum(max(0.0, float(v)) for v in d.values()))
+        if tot <= 0:
+            raise ValueError("Shares must have a positive total.")
+        return {k: max(0.0, float(v)) / tot for k, v in d.items()}
+
+    b = _norm(burden_shares)
+    e = _norm(evidence_shares)
+    regions = sorted(set(b) | set(e), key=lambda r: b.get(r, 0.0))  # ascending -> burden grows upward
+    bv = [b.get(r, 0.0) * 100 for r in regions]
+    ev = [e.get(r, 0.0) * 100 for r in regions]
+    y = np.arange(len(regions))
+
+    fig, ax = plt.subplots(figsize=(9, 0.55 * len(regions) + 1.8))
+    for i in range(len(regions)):
+        over = ev[i] >= bv[i]
+        ax.plot([bv[i], ev[i]], [y[i], y[i]],
+                color=("#C0392B" if not over else "#2E7D32"), lw=2.2, alpha=0.6, zorder=1)
+    ax.scatter(bv, y, color="#C0392B", s=90, label=burden_label, zorder=3, edgecolor="white")
+    ax.scatter(ev, y, color="#2C6FB0", s=90, label=evidence_label, zorder=3, edgecolor="white")
+    for i in range(len(regions)):
+        ax.text(bv[i], y[i] + 0.18, f"{bv[i]:.0f}", ha="center", va="bottom",
+                fontsize=8, color="#C0392B")
+        ax.text(ev[i], y[i] - 0.18, f"{ev[i]:.0f}", ha="center", va="top",
+                fontsize=8, color="#2C6FB0")
+    ax.set_yticks(y)
+    ax.set_yticklabels(regions, fontsize=10)
+    ax.set_xlabel("Share (%)", fontsize=11)
+    ax.set_xlim(left=-2)
+    ax.grid(axis="x", alpha=0.25)
+    ax.legend(loc="lower right", fontsize=9, frameon=True)
+    ax.set_title(title, fontsize=13, fontweight="bold")
+    ax.spines[["top", "right"]].set_visible(False)
+
+    if save_path:
+        os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    return fig

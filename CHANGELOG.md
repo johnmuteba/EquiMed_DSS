@@ -5,6 +5,18 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-06-15
+
+### Added
+- `utils.plot_equity_radar(domain_scores, reference=0.8, ...)`: radar/spider
+  chart of one normalized score per domain for an at-a-glance audit summary,
+  with an optional acceptability-target ring.
+- `utils.plot_geographic_dumbbell(burden_shares, evidence_shares, ...)`: dumbbell
+  (Cleveland) chart of disease burden vs corpus-evidence share per region, far
+  clearer than a bubble plot for reading the burden-evidence mismatch (BEMI).
+- Both return the Matplotlib figure (no `plt.show()`), honour `save_path`,
+  validate inputs, and normalize raw counts internally. 4 new tests (140 total).
+
 ## [1.5.1] - 2026-06-13
 
 ### Fixed (documentation / packaging)

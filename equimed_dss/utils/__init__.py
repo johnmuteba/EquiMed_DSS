@@ -18,6 +18,8 @@ from .visualization import (
     plot_bland_altman,
     plot_control_chart,
     plot_correlation_matrix,
+    plot_equity_radar,
+    plot_geographic_dumbbell,
     plot_her_heatmap,
     plot_metric_distribution,
     plot_network_graph,
