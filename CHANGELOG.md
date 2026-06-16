@@ -5,6 +5,17 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.4] - 2026-06-16
+
+### Added (documentation / examples)
+- `examples/example_geographic.py`: now includes runnable `plot_geographic_dumbbell`
+  and `plot_equity_radar` demos (using the manuscript's verified WHO-region evidence
+  shares), so the v1.5.2 figures have a worked example. Headless-safe (`Agg` backend);
+  writes `example_geographic_dumbbell.png` and `example_equity_radar.png`.
+
+### Changed
+- Synced `docs/Metric_Math_Derivations.tex` version stamp to the package version.
+
 ## [1.5.3] - 2026-06-15
 
 ### Changed (documentation)
