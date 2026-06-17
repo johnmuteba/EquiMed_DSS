@@ -68,6 +68,13 @@ from .domain5 import (
     IntersectionalShapleyFairnessValue,
     SemanticRobustnessParityIndex,
 )
+from .inference import (
+    InferenceResult,
+    wilson_ci,
+    proportion_ci,
+    bootstrap_ci,
+    permutation_test,
+)
 
 __all__ = [
     "__version__",
@@ -101,4 +108,9 @@ __all__ = [
     "HealthcareSystemStratifiedFairness",
     "IntersectionalShapleyFairnessValue",
     "SemanticRobustnessParityIndex",
+    "InferenceResult",
+    "wilson_ci",
+    "proportion_ci",
+    "bootstrap_ci",
+    "permutation_test",
 ]

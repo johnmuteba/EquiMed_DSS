@@ -5,6 +5,28 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-06-17
+
+### Added (statistical inference)
+- New `equimed_dss.inference` module providing uncertainty quantification for any
+  metric: `wilson_ci` (binomial proportions), `proportion_ci` (Wilson CI plus a
+  score test against a pre-specified acceptability threshold), `bootstrap_ci`
+  (percentile bootstrap with optional **cluster/visit resampling** so repeated,
+  non-independent evaluations of the same patient do not inflate precision), and
+  `permutation_test` (group-difference p-values for fairness gaps). All return a
+  single `InferenceResult` schema (estimate, CI, SE, method, n, n_clusters,
+  p_value, null_value) with `.to_dict()` and `__str__`.
+- 15 unit tests (`tests/test_inference.py`): known Wilson values, boundary
+  proportions (k=0, k=n), cluster-vs-iid interval width, seeded reproducibility,
+  and the add-one permutation p-value floor.
+
+### Why
+- Reviewer feedback: metrics were reported as single point estimates
+  ("value-at-risk"-style numbers). Pairing each metric with a confidence interval
+  and, where a null/threshold exists, a p-value, makes the library inferential
+  rather than purely descriptive, and lets findings be reported with explicit
+  uncertainty.
+
 ## [1.5.4] - 2026-06-16
 
 ### Added (documentation / examples)

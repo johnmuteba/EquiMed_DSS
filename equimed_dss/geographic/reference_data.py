@@ -6,9 +6,13 @@ Compare for IHD), values rounded to the nearest 100. Aggregate published
 statistics (not patient-level), DUA-safe to bundle. This is the same reference
 used by the tri-corpora pipeline's geography_distinctive_layer step.
 
-WHO_REGION_IHD_BURDEN: the above normalized to shares summing to 1. AFRO and
-SEARO together carry ~36% of global IHD burden, matching the manuscript's
-geographic-gap finding.
+WHO_REGION_IHD_BURDEN: the above DALY *rates* normalized to shares summing to 1,
+i.e. each region's age-standardized IHD DALY rate as a fraction of the summed
+regional rates. This is a rate-based, population-independent representation
+target (it weights regions by disease intensity, not by absolute DALY counts);
+a count-based target would shift even more burden onto the most populous regions
+(SEARO, WPRO). AFRO and SEARO together carry ~36% of this rate-based burden,
+matching the manuscript's geographic-gap finding.
 """
 
 GBD_IHD_DALY_PER_100K_BY_REGION = {
