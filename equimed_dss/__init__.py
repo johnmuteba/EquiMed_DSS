@@ -73,6 +73,7 @@ from .inference import (
     wilson_ci,
     proportion_ci,
     bootstrap_ci,
+    bootstrap_metric,
     permutation_test,
 )
 
@@ -112,5 +113,6 @@ __all__ = [
     "wilson_ci",
     "proportion_ci",
     "bootstrap_ci",
+    "bootstrap_metric",
     "permutation_test",
 ]

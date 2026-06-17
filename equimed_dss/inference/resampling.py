@@ -36,6 +36,7 @@ __all__ = [
     "wilson_ci",
     "proportion_ci",
     "bootstrap_ci",
+    "bootstrap_metric",
     "permutation_test",
 ]
 
@@ -203,6 +204,38 @@ def bootstrap_ci(
         n_boot=n_boot,
         n_clusters=n_clusters,
     )
+
+
+def bootstrap_metric(
+    metric_fn: Callable[[Sequence], "float | dict"],
+    data: Sequence,
+    value_key: Optional[str] = None,
+    conf: float = 0.95,
+    n_boot: int = 2000,
+    clusters: Optional[Sequence] = None,
+    random_state: Optional[int] = None,
+) -> InferenceResult:
+    """Bootstrap CI for *any* EquiMed-DSS metric over its observation sample.
+
+    Wraps :func:`bootstrap_ci` so a metric that maps a subset of observations to
+    a value (or to a result dict, with ``value_key`` selecting the scalar) gains
+    a confidence interval without changing the metric itself.
+
+    Examples
+    --------
+    >>> from equimed_dss.domain4 import ClinicalHallucinationRate
+    >>> chr_fn = lambda s: ClinicalHallucinationRate().calculate_chr(s)
+    >>> r = bootstrap_metric(chr_fn, support_scores, value_key="chr",
+    ...                      random_state=0)
+    """
+    def stat(subset):
+        out = metric_fn(subset)
+        if value_key is not None:
+            out = out[value_key]
+        return float(out)
+
+    return bootstrap_ci(data, stat, conf=conf, n_boot=n_boot,
+                        clusters=clusters, random_state=random_state)
 
 
 def permutation_test(

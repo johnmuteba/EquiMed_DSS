@@ -7,6 +7,7 @@ import pytest
 from equimed_dss.inference import (
     InferenceResult,
     bootstrap_ci,
+    bootstrap_metric,
     permutation_test,
     proportion_ci,
     wilson_ci,
@@ -113,6 +114,50 @@ class TestPermutation:
         b = [0.0] * 50
         r = permutation_test(a, b, n_perm=200, random_state=5)
         assert r.p_value >= 1.0 / (200 + 1)
+
+
+class TestMetricUncertaintyIntegration:
+    """Proportion metrics now return value + CI + threshold p-value directly."""
+
+    def test_chr_returns_ci_and_p(self):
+        from equimed_dss.domain4 import ClinicalHallucinationRate
+        s = np.full(285, 0.9); s[:274] = 0.1   # 274/285 unsupported
+        r = ClinicalHallucinationRate().calculate_chr(s, threshold=0.05)
+        assert abs(r["chr"] - 274 / 285) < 1e-9
+        assert r["ci_lower"] < r["chr"] < r["ci_upper"]
+        assert r["p_value_above_threshold"] < 0.001   # 96% >> 5%
+        assert r["ci_method"] == "Wilson score"
+
+    def test_ivi_returns_ci_and_p(self):
+        from equimed_dss.domain4 import InstructionalVulnerabilityIndex
+        neutral = list(range(132)); biased = list(range(132))
+        for i in range(36):
+            biased[i] = -1
+        r = InstructionalVulnerabilityIndex().calculate_ivi(neutral, biased)
+        assert abs(r["ivi_flip_rate"] - 36 / 132) < 1e-9
+        assert r["ci_lower"] < r["ivi_flip_rate"] < r["ci_upper"]
+        assert r["p_value_above_threshold"] < 0.05
+
+    def test_dfr_returns_ci_and_p(self):
+        from equimed_dss.domain1 import DecisionFlipRate
+        orig = [1, 0, 1, 1, 0, 1, 0, 0, 1, 1]
+        cf   = [1, 0, 0, 1, 0, 1, 1, 0, 1, 0]
+        r = DecisionFlipRate().calculate_dfr(orig, cf)
+        assert r["ci_lower"] < r["flip_rate"] < r["ci_upper"]
+        assert "p_value_above_threshold" in r
+
+    def test_bootstrap_metric_wraps_dict_metric(self):
+        from equimed_dss.domain4 import ClinicalHallucinationRate
+        s = np.full(285, 0.9); s[:274] = 0.1
+        fn = lambda x: ClinicalHallucinationRate().calculate_chr(x)
+        r = bootstrap_metric(fn, list(s), value_key="chr", n_boot=500, random_state=0)
+        assert r.ci_lower < r.estimate < r.ci_upper
+        assert r.method == "bootstrap"
+        # cluster variant resamples groups
+        clusters = np.arange(len(s)) % 40
+        rc = bootstrap_metric(fn, list(s), value_key="chr", clusters=clusters,
+                              n_boot=500, random_state=0)
+        assert rc.n_clusters == 40
 
 
 def test_result_to_dict_drops_none():

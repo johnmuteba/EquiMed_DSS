@@ -5,6 +5,27 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-06-17
+
+### Added (metrics now report uncertainty, not just a point value)
+- Proportion metrics return value **and** uncertainty on every call:
+  `ClinicalHallucinationRate`, `InstructionalVulnerabilityIndex`, and
+  `DecisionFlipRate` now include `ci_lower`, `ci_upper`, `ci_method`, and a
+  one-sided `p_value_above_threshold` (score test that the true rate exceeds a
+  configurable acceptability `threshold`, default 5%); the interpretation string
+  carries the CI and p-value too.
+- `inference.bootstrap_metric(metric_fn, data, value_key=..., clusters=...)`:
+  wrap *any* metric to obtain a percentile bootstrap CI over its observation
+  sample (cluster-aware for repeated within-patient evaluations).
+- `examples/example_uncertainty.py`: prints value + 95% CI + p-value for the
+  native proportion metrics, a bootstrap CI (ordinary and cluster) for any
+  metric, and a permutation-test p-value for a between-group fairness gap.
+- 4 new tests (159 total pass).
+
+### Why
+- Reviewer requirement (non-negotiable): a metric should not be a single number;
+  every metric call should also report uncertainty (CI and/or p-value).
+
 ## [1.6.0] - 2026-06-17
 
 ### Added (statistical inference)
