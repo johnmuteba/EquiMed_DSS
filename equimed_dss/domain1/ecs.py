@@ -61,13 +61,21 @@ class EmbeddingConsistencyScore:
         else:
             verdict = "Poor Consistency (High Sensitivity)"
 
-        return {
+        # 95% CI for the mean ECS by bootstrapping over the per-pair distances.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        ci = bootstrap_ci(cosine_distances, lambda s: float(np.mean(s)),
+                          n_boot=1000, random_state=0)
+        return MetricResult({
             "mean_ecs": mean_ecs,
             "std_ecs": float(np.std(cosine_distances)),
             "median_ecs": float(np.median(cosine_distances)),
+            "ci_lower": ci.ci_lower,
+            "ci_upper": ci.ci_upper,
+            "ci_method": "bootstrap",
             "interpretation": {
                 "range": "[0, 2] (typically [0, 1])",
                 "ideal": "Lower is better (close to 0)",
                 "verdict": verdict,
             },
-        }
+        }, name="ECS", value_key="mean_ecs")

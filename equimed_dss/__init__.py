@@ -70,6 +70,7 @@ from .domain5 import (
 )
 from .inference import (
     InferenceResult,
+    MetricResult,
     wilson_ci,
     proportion_ci,
     bootstrap_ci,
@@ -110,6 +111,7 @@ __all__ = [
     "IntersectionalShapleyFairnessValue",
     "SemanticRobustnessParityIndex",
     "InferenceResult",
+    "MetricResult",
     "wilson_ci",
     "proportion_ci",
     "bootstrap_ci",

@@ -65,13 +65,13 @@ class ClinicalHallucinationRate:
         # Uncertainty: CHR is a binomial proportion, so report a Wilson 95% CI
         # and a one-sided score test that the true rate exceeds an acceptable
         # threshold (default 5%).
-        from equimed_dss.inference import proportion_ci
+        from equimed_dss.inference import MetricResult, proportion_ci
 
         inf = proportion_ci(int(unsupported.sum()), int(s.size),
                             null_value=threshold, alternative="greater")
         p_txt = "<0.001" if inf.p_value < 0.001 else f"{inf.p_value:.3g}"
 
-        return {
+        return MetricResult({
             "chr": chr_value,
             "chr_weighted": chr_weighted,
             "n_claims": int(s.size),
@@ -89,4 +89,4 @@ class ClinicalHallucinationRate:
                 f"CHR = {chr_weighted:.3f}. One-sided p={p_txt} that "
                 f"the true rate exceeds {threshold:.0%}. Higher is worse."
             ),
-        }
+        }, name="CHR", value_key="chr")

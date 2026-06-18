@@ -60,7 +60,7 @@ class DecisionFlipRate:
 
         # One-sided score test that the true flip rate exceeds an acceptable
         # tolerance (default 5%), so the metric reports value + CI + p-value.
-        from equimed_dss.inference import proportion_ci
+        from equimed_dss.inference import MetricResult, proportion_ci
 
         p_value = proportion_ci(n_flipped, n_samples, null_value=threshold,
                                 alternative="greater").p_value
@@ -73,7 +73,7 @@ class DecisionFlipRate:
         else:
             verdict = "High Instability"
 
-        return {
+        return MetricResult({
             "flip_rate": flip_rate,
             "n_flipped": n_flipped,
             "n_samples": n_samples,
@@ -93,4 +93,4 @@ class DecisionFlipRate:
                     f" that the true rate exceeds {threshold:.0%}."
                 ),
             },
-        }
+        }, name="DFR", value_key="flip_rate")

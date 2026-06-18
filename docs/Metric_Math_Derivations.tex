@@ -21,7 +21,7 @@
 \small School of Health Policy and Management, York University, Toronto, Canada\\
 \small Developer and Modeler of EquiMed-DSS\\
 \small \href{mailto:jwmm@yorku.ca}{jwmm@yorku.ca}}
-\date{EquiMed-DSS version 1.7.0}
+\date{EquiMed-DSS version 1.8.0}
 
 \newcommand{\ind}{\mathbb{I}}
 \newcommand{\E}{\mathbb{E}}
@@ -37,7 +37,7 @@
 \section*{Purpose and Verification Scope}
 
 This technical document derives the mathematical definitions used by the
-EquiMed-DSS library, version 1.7.0. The formulae below are aligned with the
+EquiMed-DSS library, version 1.8.0. The formulae below are aligned with the
 local implementation in the package source code, especially the modules
 \texttt{domain1}, \texttt{domain2}, \texttt{domain3}, \texttt{domain4},
 \texttt{domain5}, \texttt{geographic}, \texttt{appendix}, and
@@ -1028,9 +1028,9 @@ uses the exact implemented details where the older derivations were more
 general.
 \end{itemize}
 
-\section{Uncertainty Quantification for Every Metric (v1.7.0)}
+\section{Uncertainty Quantification for Every Metric (v1.8.0)}
 
-From v1.7.0 a metric is never reported as a bare point estimate. Each estimate
+From v1.8.0 a metric is never reported as a bare point estimate. Each estimate
 $\hat\theta$ carries a 95\% confidence interval and, where a pre-specified null
 or acceptability threshold exists, a $p$-value. Three master estimators cover
 every metric; the table tags each metric with the one it uses, and the

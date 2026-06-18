@@ -6,6 +6,7 @@ evaluations of the same patient/visit do not inflate precision.
 """
 from equimed_dss.inference.resampling import (
     InferenceResult,
+    MetricResult,
     bootstrap_ci,
     bootstrap_metric,
     permutation_test,
@@ -15,6 +16,7 @@ from equimed_dss.inference.resampling import (
 
 __all__ = [
     "InferenceResult",
+    "MetricResult",
     "wilson_ci",
     "proportion_ci",
     "bootstrap_ci",

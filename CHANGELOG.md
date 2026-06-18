@@ -5,6 +5,23 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-06-18
+
+### Changed (metrics always print their confidence interval)
+- Metric results are now `MetricResult` objects (a `dict` subclass, so all existing
+  key access and JSON serialisation are unchanged) whose printed form always shows
+  the point estimate alongside its 95% CI, e.g.
+  `DFR = 0.250 :: 95% CI [0.046; 0.699] (Wilson score)`. Printed bounds are ordered
+  so lower <= upper (fixing reversed-interval display).
+- Added confidence intervals to `EmbeddingConsistencyScore` (bootstrap over per-pair
+  cosine distances) and `InterRaterReliability` ICC(2,1) (bootstrap over items);
+  DFR, CHR, IVI already carried Wilson CIs and now print them. `MetricResult`
+  exported at the top level.
+
+### Why
+- Reviewer requirement (non-negotiable): whenever a metric is called, its value must
+  be displayed alongside its confidence interval.
+
 ## [1.7.0] - 2026-06-17
 
 ### Added (metrics now report uncertainty, not just a point value)

@@ -56,13 +56,13 @@ class InstructionalVulnerabilityIndex:
 
         # Uncertainty: the flip rate is a binomial proportion -> Wilson 95% CI
         # and a one-sided test that it exceeds an acceptable tolerance.
-        from equimed_dss.inference import proportion_ci
+        from equimed_dss.inference import MetricResult, proportion_ci
 
         inf = proportion_ci(int(sum(flips)), len(a),
                             null_value=threshold, alternative="greater")
         p_txt = "<0.001" if inf.p_value < 0.001 else f"{inf.p_value:.3g}"
 
-        return {
+        return MetricResult({
             "ivi_flip_rate": ivi_flip_rate,
             "ivi_effect": ivi_effect,
             "n_pairs": len(a),
@@ -84,4 +84,4 @@ class InstructionalVulnerabilityIndex:
                 + f". One-sided p={p_txt} that the true rate exceeds "
                 f"{threshold:.0%}. Higher means more susceptible to bias-priming."
             ),
-        }
+        }, name="IVI", value_key="ivi_flip_rate")

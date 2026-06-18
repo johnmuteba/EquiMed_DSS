@@ -249,29 +249,33 @@ print(validation)
 | Embedding Consistency Score | ECS | [0, 1] | higher | Embedding stability under perturbation |
 | Inter-Rater Reliability (ICC 2,1) | ICC | [0, 1] | > 0.75 | Agreement across judges |
 
+Every metric result carries a 95% confidence interval and prints it. Just
+`print(result)` and the value is shown alongside its CI (the result is still a
+plain dict, so `result['flip_rate']` etc. keep working):
+
 ```python
 import numpy as np
 from equimed_dss.domain1 import DecisionFlipRate, EmbeddingConsistencyScore, InterRaterReliability
 
 # Decision Flip Rate (DFR): how often decisions flip under counterfactual inputs
 dfr = DecisionFlipRate()
-result = dfr.calculate_dfr(
+print(dfr.calculate_dfr(
     original_decisions=['ACS', 'ACS', 'non-cardiac', 'ACS'],
     counterfactual_decisions=['ACS', 'non-cardiac', 'non-cardiac', 'ACS'],
-)
-print(f"DFR flip_rate: {result['flip_rate']:.3f} - {result['interpretation']['verdict']}")
+))
+# DFR = 0.250 :: 95% CI [0.046; 0.699] (Wilson score)
 
 # Embedding Consistency Score (ECS): stability of embeddings under perturbation
 ecs = EmbeddingConsistencyScore()
 original = np.random.RandomState(0).rand(10, 8)
 perturbed = original + np.random.RandomState(1).normal(0, 0.05, (10, 8))
-result = ecs.calculate_ecs(original, perturbed)
-print(f"ECS mean: {result['mean_ecs']:.3f}")
+print(ecs.calculate_ecs(original, perturbed))
+# ECS = 0.003 :: 95% CI [0.002; 0.005] (bootstrap)
 
 # Inter-Rater Reliability (ICC 2,1): agreement across judges (subjects x raters)
 icc = InterRaterReliability()
-result = icc.calculate_icc_2_1(np.array([[3, 4, 3], [5, 5, 4], [2, 3, 2], [4, 4, 5]]))
-print(f"ICC score: {result['score']:.3f}")
+print(icc.calculate_icc_2_1(np.array([[3, 4, 3], [5, 5, 4], [2, 3, 2], [4, 4, 5]])))
+# ICC(2,1) = 0.750 :: 95% CI [-0.500; 0.816] (bootstrap (over items))
 ```
 
 ### Domain 2: Fairness, Equity & Ethics

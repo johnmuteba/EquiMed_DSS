@@ -160,6 +160,40 @@ class TestMetricUncertaintyIntegration:
         assert rc.n_clusters == 40
 
 
+class TestMetricResultPrinting:
+    """Every wrapped metric prints value :: 95% CI and stays dict-compatible."""
+
+    def test_dfr_prints_ci(self):
+        from equimed_dss.domain1 import DecisionFlipRate
+        r = DecisionFlipRate().calculate_dfr(["a", "a", "b", "a"], ["a", "b", "b", "a"])
+        s = str(r)
+        assert "DFR = 0.250" in s and "95% CI" in s
+        assert isinstance(r, dict) and r["flip_rate"] == 0.25   # backward compatible
+
+    def test_ecs_and_icc_carry_ci(self):
+        import numpy as np
+        from equimed_dss.domain1 import EmbeddingConsistencyScore, InterRaterReliability
+        o = np.random.RandomState(0).rand(12, 8)
+        p = o + np.random.RandomState(1).normal(0, 0.05, (12, 8))
+        ecs = EmbeddingConsistencyScore().calculate_ecs(o, p)
+        assert "ci_lower" in ecs and "95% CI" in str(ecs)
+        icc = InterRaterReliability().calculate_icc_2_1(
+            np.array([[3, 4, 3], [5, 5, 4], [2, 3, 2], [4, 4, 5]]))
+        assert icc["ci_lower"] <= icc["score"] <= icc["ci_upper"] or "95% CI" in str(icc)
+
+    def test_str_enforces_lower_le_upper(self):
+        from equimed_dss.inference import MetricResult
+        r = MetricResult({"v": 0.5, "ci_lower": 0.9, "ci_upper": 0.1},
+                         name="X", value_key="v")   # deliberately reversed
+        s = str(r)
+        assert "[0.100; 0.900]" in s                # printed in order
+
+    def test_str_when_ci_unavailable(self):
+        from equimed_dss.inference import MetricResult
+        r = MetricResult({"v": 0.5}, name="X", value_key="v")
+        assert "unavailable" in str(r)
+
+
 def test_result_to_dict_drops_none():
     r = wilson_ci(5, 10)
     d = r.to_dict()

@@ -33,12 +33,53 @@ import numpy as np
 
 __all__ = [
     "InferenceResult",
+    "MetricResult",
     "wilson_ci",
     "proportion_ci",
     "bootstrap_ci",
     "bootstrap_metric",
     "permutation_test",
 ]
+
+
+class MetricResult(dict):
+    """A metric result that always prints its value with a 95% CI.
+
+    Behaves exactly like the ``dict`` it wraps (so ``result['flip_rate']`` and
+    every other key keep working, and it is JSON-serialisable), but its string
+    form always shows the point estimate and, when available, the
+    $\\alpha=0.05$ confidence interval read from the ``ci_lower`` / ``ci_upper``
+    keys. Printed bounds are ordered so the interval always has lower
+    $\\le$ upper.
+
+    Parameters
+    ----------
+    data : the metric's result mapping.
+    name : short label shown when printing (e.g. ``"DFR"``).
+    value_key : key holding the point estimate (e.g. ``"flip_rate"``).
+    """
+
+    def __init__(self, data=None, *, name="metric", value_key=None):
+        super().__init__(data or {})
+        self._name = name
+        self._value_key = value_key
+
+    def _point(self):
+        return self.get(self._value_key) if self._value_key else None
+
+    def __str__(self):
+        v = self._point()
+        head = f"{self._name} = {v:.3f}" if isinstance(v, (int, float)) else f"{self._name} = {v}"
+        lo, hi = self.get("ci_lower"), self.get("ci_upper")
+        if lo is not None and hi is not None:
+            lo, hi = sorted((float(lo), float(hi)))   # guarantee lower <= upper
+            tail = f"95% CI [{lo:.3f}; {hi:.3f}]"
+            if self.get("ci_method"):
+                tail += f" ({self['ci_method']})"
+            return f"{head} :: {tail}"
+        return f"{head} :: 95% CI unavailable (needs observation-level input)"
+
+    __repr__ = __str__
 
 
 def _z(conf: float) -> float:
