@@ -5,6 +5,25 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.4] - 2026-06-19
+
+### Documentation
+- Fixed the remaining confidence-interval expressions that did not render in
+  `docs/VIGNETTE.md` and `docs/Metric_Math_Derivations.md`. Inline `$...$` math
+  containing a literal `*` (the bootstrap-replicate star, `\hat\theta^{*}`) had
+  the asterisks consumed by markdown emphasis; all such stars are now written as
+  `\ast` (identical glyph, no markdown-special character). Also fixed
+  hyphen-adjacent inline math that was not recognised (`length-$n$`, `Fisher-$z$`,
+  `pseudo-$R^2$`, `$1-$CPS`) by adding a space or using plain text in table cells.
+- Replaced the stray `99` (a leaked `\begin{thebibliography}{99}` argument) before
+  the derivations reference list with a proper `# References` heading. All
+  references were verified as real, foundational sources.
+
+### Changed
+- Cite the Zenodo **concept DOI** 10.5281/zenodo.20766188 ("all versions",
+  resolves to the latest) instead of the per-version DOI, in `CITATION.cff` and
+  the manuscript.
+
 ## [1.9.3] - 2026-06-19
 
 ### Documentation
