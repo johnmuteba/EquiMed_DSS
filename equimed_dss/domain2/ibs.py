@@ -32,6 +32,13 @@ class IntersectionalBiasScore:
         subgroups = list(subgroup_vectors.keys())
         vectors = np.array([subgroup_vectors[g] for g in subgroups])
 
+        def _mean_offdiag_similarity(mat: np.ndarray) -> float:
+            """Mean off-diagonal subgroup similarity from a metric matrix."""
+            dist = squareform(pdist(mat, metric="euclidean"))
+            sim = 1 / (1 + dist)
+            off = sim[~np.eye(sim.shape[0], dtype=bool)]
+            return float(off.mean()) if off.size else 1.0
+
         # Pairwise Euclidean distances
         distances = squareform(pdist(vectors, metric="euclidean"))
 
@@ -42,18 +49,40 @@ class IntersectionalBiasScore:
         avg_distances = distances.mean(axis=1)
         outlier_idx = np.argmax(avg_distances)
 
-        return {
+        mean_similarity = _mean_offdiag_similarity(vectors)
+
+        out = {
             "similarity_matrix": similarity_matrix.tolist(),
             "subgroups": subgroups,
             "outlier_subgroup": subgroups[outlier_idx],
             "outlier_distance": float(avg_distances[outlier_idx]),
-            "mean_similarity": float(similarity_matrix[similarity_matrix < 1].mean()),
+            "mean_similarity": mean_similarity,
             "interpretation": {
                 "range": "Similarity [0, 1], Distance [0, inf)",
                 "ideal": "High similarity, Low outlier distance",
                 "verdict": f"Outlier detected: {subgroups[outlier_idx]}",
             },
         }
+
+        # Bootstrap the mean subgroup similarity by resampling the metric
+        # dimensions (columns of the stacked subgroup vectors), the natural
+        # observation unit here, to get a 95% CI on intersectional similarity.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        n_dims = vectors.shape[1] if vectors.ndim == 2 else 0
+        if n_dims >= 2:
+            dim_indices = list(range(n_dims))
+
+            def _sim(cols):
+                sub = vectors[:, list(cols)]
+                return _mean_offdiag_similarity(sub)
+
+            ci = bootstrap_ci(dim_indices, _sim, n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+
+        return MetricResult(out, name="IBS", value_key="mean_similarity")
 
     def interaction_analysis(
         self, df: pd.DataFrame, formula: str = "score ~ C(race) * C(gender) * C(ses)"

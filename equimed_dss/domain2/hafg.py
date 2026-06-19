@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
 
@@ -22,8 +22,20 @@ class HarmAdjustedFairnessGap:
         self.cost_fn = cost_fn
         self.cost_fp = cost_fp
 
+    def _harm_per_case(self, label: str) -> float:
+        """Per-case harm contribution for an error label ('fn'/'fp', else 0)."""
+        if label == "fn":
+            return self.cost_fn
+        if label == "fp":
+            return self.cost_fp
+        return 0.0
+
     def calculate_hafg(
-        self, group1_errors: Dict[str, int], group2_errors: Dict[str, int]
+        self,
+        group1_errors: Dict[str, int],
+        group2_errors: Dict[str, int],
+        group1_cases: Optional[Sequence[str]] = None,
+        group2_cases: Optional[Sequence[str]] = None,
     ) -> Dict[str, float]:
         """
         Calculate HAFG between two groups (e.g., Marginalized vs Privileged).
@@ -31,9 +43,16 @@ class HarmAdjustedFairnessGap:
         Args:
             group1_errors: Dict with 'fn' (count) and 'fp' (count) for group 1.
             group2_errors: Dict with 'fn' (count) and 'fp' (count) for group 2.
+            group1_cases / group2_cases: optional per-case error labels for each
+                group (each element one of 'fn', 'fp', 'tp', 'tn'). When BOTH are
+                supplied, HAFG gains a 95% percentile-bootstrap CI by resampling
+                cases within each group. Without them a CI cannot be computed
+                honestly from aggregate counts, and the result prints
+                "95% CI unavailable (needs observation-level input)".
 
         Returns:
-            Dictionary containing harm for each group and the gap.
+            MetricResult with harm for each group, the normalized gap (``hafg``),
+            and -- when per-case labels are provided -- its 95% CI.
         """
         harm1 = (
             group1_errors.get("fn", 0) * self.cost_fn
@@ -57,7 +76,7 @@ class HarmAdjustedFairnessGap:
         else:
             verdict = "Significant harm disparity"
 
-        return {
+        out = {
             "harm_group1": float(harm1),
             "harm_group2": float(harm2),
             "hafg": hafg,
@@ -69,3 +88,28 @@ class HarmAdjustedFairnessGap:
                 "verdict": verdict,
             },
         }
+
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        if group1_cases is not None and group2_cases is not None:
+            # Tag each case with its group so a single resample preserves group
+            # sizes only in expectation (standard two-sample bootstrap of HAFG).
+            records = (
+                [{"group": 1, "label": str(c)} for c in group1_cases]
+                + [{"group": 2, "label": str(c)} for c in group2_cases]
+            )
+            if not records:
+                raise ValueError("group1_cases/group2_cases contain no cases.")
+
+            def _hafg(sample):
+                h1 = sum(self._harm_per_case(r["label"]) for r in sample if r["group"] == 1)
+                h2 = sum(self._harm_per_case(r["label"]) for r in sample if r["group"] == 2)
+                d = max(h1, h2)
+                return abs(h1 - h2) / d if d > 0 else 0.0
+
+            ci = bootstrap_ci(records, _hafg, n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+
+        return MetricResult(out, name="HAFG", value_key="hafg")

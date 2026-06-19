@@ -57,7 +57,9 @@ class SemanticParityGap:
         denom = float(np.linalg.norm(cp) * np.linalg.norm(cm))
         spg_cosine = float(1.0 - (cp @ cm) / denom) if denom > 0 else 0.0
 
-        return {
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        out = {
             "spg_euclidean": spg_euclidean,
             "spg_cosine": spg_cosine,
             "embedding_dim": int(p.shape[1]),
@@ -70,3 +72,22 @@ class SemanticParityGap:
                 "patient identity (latent demographic bias)."
             ),
         }
+
+        # Bootstrap the centroid-distance SPG by resampling embedding rows within
+        # each group (each group resampled independently to its own size), which
+        # propagates the sampling variability of both centroids into the CI.
+        if p.shape[0] >= 2 and m.shape[0] >= 2:
+            rng = np.random.default_rng(0)
+            n_boot = 1000
+            boots = []
+            np_, nm_ = p.shape[0], m.shape[0]
+            for _ in range(n_boot):
+                ip = rng.integers(0, np_, size=np_)
+                im = rng.integers(0, nm_, size=nm_)
+                boots.append(float(np.linalg.norm(p[ip].mean(axis=0) - m[im].mean(axis=0))))
+            lo, hi = np.percentile(boots, [2.5, 97.5])
+            out["ci_lower"] = float(lo)
+            out["ci_upper"] = float(hi)
+            out["ci_method"] = "bootstrap"
+
+        return MetricResult(out, name="SPG", value_key="spg_euclidean")

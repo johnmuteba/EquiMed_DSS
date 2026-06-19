@@ -90,7 +90,7 @@ class IntersectionalShapleyFairnessValue:
             interactions[f"{ai} x {aj}"] = float(inter)
 
         top = max(shapley, key=shapley.get) if shapley else None
-        return {
+        out = {
             "shapley_by_attribute": shapley,
             "total_disparity": float(total),
             "interactions": interactions,
@@ -101,3 +101,22 @@ class IntersectionalShapleyFairnessValue:
                 + " Positive interaction indicates a superadditive (intersectional) penalty."
             ),
         }
+
+        # Percentile bootstrap over samples for the total intersectional
+        # disparity v(A). Resample row indices and recompute the full-coalition
+        # value, which is the quantity Shapley values sum to.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        if n >= 2:
+            idx = list(range(n))
+
+            def _total(i):
+                rows = list(i)
+                av_s = {a: av[a][rows] for a in names}
+                return self._v(av_s, y[rows], tuple(names))
+
+            ci = bootstrap_ci(idx, _total, n_boot=500, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="ISFV", value_key="total_disparity")

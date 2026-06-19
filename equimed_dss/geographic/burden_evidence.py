@@ -9,7 +9,7 @@ distribution and a disease-*burden* distribution over the same regions:
 completely disjoint. It equals the fraction of evidence that would need
 geographic reallocation to match burden. Bounds proven and verified.
 """
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -25,6 +25,7 @@ class BurdenEvidenceMismatch:
         self,
         evidence_counts: Dict[str, float],
         burden_shares: Dict[str, float],
+        evidence_records: "Optional[Sequence[str]]" = None,
     ) -> Dict[str, Any]:
         """Calculate the Burden-Evidence Mismatch Index (BEMI).
 
@@ -62,8 +63,9 @@ class BurdenEvidenceMismatch:
                 "evidence_counts and burden_shares must each have a positive total."
             )
 
+        b_norm = b / b.sum()
         a = a / a.sum()
-        b = b / b.sum()
+        b = b_norm
         mismatch = a - b
         ratio = np.divide(a, b, out=np.full_like(a, np.nan), where=b > 0)
         bemi = float(0.5 * np.abs(mismatch).sum())
@@ -79,7 +81,7 @@ class BurdenEvidenceMismatch:
         )
         underserved = str(per_region.loc[per_region["mismatch"].idxmin(), "region"])
 
-        return {
+        out = {
             "bemi": bemi,
             "evidence_shares": dict(zip(regions, a.tolist())),
             "burden_shares": dict(zip(regions, b.tolist())),
@@ -92,3 +94,27 @@ class BurdenEvidenceMismatch:
                 f"under-served region is {underserved}."
             ),
         }
+
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        # A CI cannot be computed honestly from aggregate shares. When the caller
+        # supplies per-evidence region labels, resample those records and recompute
+        # BEMI against the fixed burden distribution.
+        if evidence_records is not None:
+            recs = [str(r) for r in evidence_records]
+            if len(recs) >= 2:
+                def _bemi(sample):
+                    counts: Dict[str, float] = {}
+                    for r in sample:
+                        counts[r] = counts.get(r, 0.0) + 1.0
+                    av = np.array([counts.get(r, 0.0) for r in regions])
+                    if av.sum() <= 0:
+                        return 0.0
+                    av = av / av.sum()
+                    return float(0.5 * np.abs(av - b_norm).sum())
+
+                ci = bootstrap_ci(recs, _bemi, n_boot=1000, random_state=0)
+                out["ci_lower"] = ci.ci_lower
+                out["ci_upper"] = ci.ci_upper
+                out["ci_method"] = ci.method
+        return MetricResult(out, name="BEMI", value_key="bemi")

@@ -1,9 +1,9 @@
-> **Rendering note.** This Markdown version renders every equation directly on GitHub (via MathJax). The LaTeX source (`Metric_Math_Derivations.tex`) and a compiled PDF (`Metric_Math_Derivations.pdf`) are in this folder. The final section, *Uncertainty Quantification for Every Metric*, gives the confidence-interval and p-value formulas added in v1.8.0.
+> **Rendering note.** This Markdown version renders every equation directly on GitHub (via MathJax). The LaTeX source (`Metric_Math_Derivations.tex`) and a compiled PDF (`Metric_Math_Derivations.pdf`) are in this folder. The final section, *Uncertainty Quantification for Every Metric*, gives the confidence-interval and p-value formulas added in v1.9.0.
 
 # Purpose and Verification Scope
 
 This technical document derives the mathematical definitions used by the
-EquiMed-DSS library, version 1.8.0. The formulae below are aligned with
+EquiMed-DSS library, version 1.9.0. The formulae below are aligned with
 the local implementation in the package source code, especially the
 modules `domain1`, `domain2`, `domain3`, `domain4`, `domain5`,
 `geographic`, `appendix`, and `statistics`. Where an earlier derivation
@@ -123,6 +123,12 @@ LOA_{\mathrm{lower}}, LOA_{\mathrm{upper}} &= \bar{d}\pm 1.96s_d.
 \end{aligned}
 ```
 
+
+**95% CI (this section).** $ICC(2,1)$ is reported with a percentile bootstrap over targets $\times$ judges (items): resample with replacement $B=1000$ times, recompute $ICC(2,1)$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 2: Embedding Consistency Score
 
 For paired original and perturbed embedding vectors $e_i$ and
@@ -141,6 +147,12 @@ SD(ECS) &= \sqrt{\frac{1}{n}\sum_{i=1}^{n}(ECS_i-\overline{ECS})^2},\\
 \end{aligned}
 ```
 Lower values indicate greater embedding stability.
+
+
+**95% CI (this section).** $ECS$ is reported with a percentile bootstrap over embedding pairs: resample with replacement $B=1000$ times, recompute $ECS$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
 
 ## Metric 3: Decision Flip Rate
 
@@ -165,6 +177,9 @@ proportions .
 
 # Domain 2: Fairness, Equity, and Ethics
 
+
+**95% CI (this section).** As a binomial proportion, $DFR$ is reported with a Wilson 95% score interval over decisions (Metric 9 form), with a one-sided score test against a tolerated flip rate.
+
 ## Metric 4: Hierarchical Equity Ratio
 
 Let $q_g$ be a group-specific performance score and $q_0$ the
@@ -174,6 +189,12 @@ HER_g = \frac{q_g}{q_0},
 ```
 with $HER_g=0$ if $q_0=0$. Values in $[0.8,1.25]$ are labelled
 equitable by the implemented four-fifths-rule convention .
+
+
+**95% CI (this section).** $HER$ is reported with a percentile bootstrap of the gap over per-group observations: resample with replacement $B=1000$ times, recompute $HER$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+``` (needs observation-level group scores; otherwise reported unavailable).
 
 ## Metric 4a: Bias-Gini Dispersion
 
@@ -185,6 +206,12 @@ G_{\mathrm{bias}}=
 {2K^2\bar q}.
 ```
 If the score list is empty or $\bar q=0$, the function returns zero.
+
+
+**95% CI (this section).** $Bias-Gini$ is reported with a percentile bootstrap over group scores: resample with replacement $B=1000$ times, recompute $Bias-Gini$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
 
 ## Metric 5: Harm-adjusted Fairness Gap
 
@@ -205,6 +232,12 @@ HAFG=\frac{|H_1-H_2|}{\max(H_1,H_2)}.
 If both group harms are zero, the denominator is zero and the
 implemented value is $0$.
 
+
+**95% CI (this section).** $HAFG$ is reported with a percentile bootstrap of the gap over per-case error labels: resample with replacement $B=1000$ times, recompute $HAFG$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+``` (needs observation-level cases; otherwise reported unavailable).
+
 ## Metric 6: Ethical Risk Index
 
 Let $v=1,\ldots,V$ index detected ethical or safety violations and let
@@ -214,6 +247,12 @@ ERI = \frac{\sum_{v=1}^{V}s_v}{N}.
 ```
 If $N=0$, the function returns zero.
 
+
+**95% CI (this section).** $ERI$ is reported with a percentile bootstrap over the per-output severity vector (severity for violations, 0 otherwise): resample with replacement $B=1000$ times, recompute $ERI$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 6a: Safety Violation Rate
 
 In the same implementation as ERI, the safety violation rate is
@@ -221,6 +260,9 @@ In the same implementation as ERI, the safety violation rate is
 SVR = 1000\frac{V}{N},
 ```
 that is, violations per 1000 model outputs.
+
+
+**95% CI (this section).** As a binomial proportion, $SVR$ is reported with a Wilson 95% score interval over outputs (Metric 9 form).
 
 ## Metric 7: Intersectional Bias Score
 
@@ -252,6 +294,12 @@ race and gender main-effect proxies from the combined race-gender proxy.
 
 # Domain 3: Governance and Transparency
 
+
+**95% CI (this section).** $IBS$ is reported with a percentile bootstrap over metric dimensions of the subgroup vectors: resample with replacement $B=1000$ times, recompute $IBS$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 8: Temporal Fairness Drift
 
 For a time series of fairness metric values $m_1,\ldots,m_T$,
@@ -271,6 +319,12 @@ LCL &= \bar m-3s_m.
 ```
 A drift point is flagged when $m_t>UCL$ or $m_t<LCL$, following the
 Shewhart-style control-chart logic used in statistical process control .
+
+
+**95% CI (this section).** $TFD$ is reported with a percentile bootstrap over the observed time series: resample with replacement $B=1000$ times, recompute $TFD$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
 
 ## Metric 9: Audit Traceability Score
 
@@ -302,6 +356,9 @@ When no policies are provided, the returned value is zero.
 
 # Domain 4: Representation and Robustness
 
+
+**95% CI (this section).** As a binomial proportion, $GCI$ is reported with a Wilson 95% score interval over checklist items (Metric 9 form).
+
 ## Metric 11: Semantic Parity Gap
 
 Let $P$ be the embeddings for the $n_p$ privileged-group prompts and $M$ the
@@ -321,6 +378,12 @@ SPG_{\mathrm{cos}}=1-\frac{\bar p^\top \bar m}{\left\lVert \bar p \right\rVert_2
 ```
 with value zero if the denominator is zero.
 
+
+**95% CI (this section).** $SPG$ is reported with a percentile bootstrap over embedding rows within each group (two-sample bootstrap): resample with replacement $B=1000$ times, recompute $SPG$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 12: Clinical Hallucination Rate
 
 Let $c=1,\ldots,C$ index extracted clinical claims and
@@ -338,6 +401,9 @@ CHR_w=
 ```
 If no weights are supplied, the implementation sets $CHR_w=CHR$.
 
+
+**95% CI (this section).** As a binomial proportion, $CHR$ is reported with a Wilson 95% score interval over claims (Metric 9 form), with a one-sided score test against a tolerated rate.
+
 ## Metric 13: Instructional Vulnerability Index
 
 Let $A_i$ be the neutral-output decision and $B_i$ the paired
@@ -354,6 +420,9 @@ The paired-counterfactual framing is conceptually related to
 counterfactual fairness, although IVI targets prompt framing rather than
 protected-attribute interventions .
 
+
+**95% CI (this section).** As a binomial proportion, $IVI$ is reported with a Wilson 95% score interval over case pairs (Metric 9 form), with a one-sided score test against a tolerated rate.
+
 ## Metric 14: Geographic Representation Index
 
 Let $L$ be the set of unique locations represented in a corpus and let
@@ -363,6 +432,12 @@ implemented index is set-based:
 GRI=\frac{|L|-|W|}{|L|}.
 ```
 Duplicates do not change the score.
+
+
+**95% CI (this section).** $GRI$ is reported with a percentile bootstrap over location mentions: resample with replacement $B=1000$ times, recompute $GRI$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
 
 ## Metric 14a: Geographic Bias Correlation
 
@@ -376,6 +451,12 @@ GB =
 ```
 
 # Domain 5: Technical-supplement Fairness
+
+
+**95% CI (this section).** $GB$ is reported with a percentile bootstrap over paired (GRI, error) points; Fisher-$z$ or bootstrap: resample with replacement $B=1000$ times, recompute $GB$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
 
 ## Metric 15: Intersectional Calibration Error
 
@@ -403,6 +484,12 @@ The maximum calibration gap returned as `delta_ice` is
 \Delta ICE = \max_g ECE_g-\min_g ECE_g.
 ```
 
+
+**95% CI (this section).** $ICE$ is reported with a percentile bootstrap over samples (group, confidence, correctness): resample with replacement $B=1000$ times, recompute $ICE$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 16: Weighted Clinical Harm-adjusted Fairness Gap
 
 Let $w_i$ be a clinical severity weight and $\ell_i=L(\hat Y_i,Y_i)$
@@ -413,6 +500,12 @@ H(g)=\frac{1}{n_g}\sum_{i:G_i=g}w_i\ell_i.
 The implemented maximum gap is
 ```math
 wHAFG_{\max}=\max_g H(g)-\min_g H(g).
+```
+
+
+**95% CI (this section).** $wHAFG$ is reported with a percentile bootstrap of the gap over samples: resample with replacement $B=1000$ times, recompute $wHAFG$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
 ```
 
 ## Metric 17: Counterfactual Parity Score
@@ -432,6 +525,12 @@ CPS_p=\frac{1}{n_p}\sum_{i\in p}s_i,\qquad
 CPS=\frac{1}{\sum_p n_p}\sum_p\sum_{i\in p}s_i.
 ```
 
+
+**95% CI (this section).** $CPS$ is reported with a percentile bootstrap over counterfactual pairs: resample with replacement $B=1000$ times, recompute $CPS$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 17a: Counterfactual Unfairness
 
 The implementation returns a complement to CPS. For a single pair,
@@ -442,6 +541,9 @@ For multiple pairs,
 ```math
 CFU=1-\min_p CPS_p.
 ```
+
+
+**95% CI (this section).** As a binomial proportion, $CFU$ is reported with a Wilson 95% score interval over pairs / $1-\mathrm{CPS}$ (Metric 9 form).
 
 ## Metric 18: Semantic Robustness Parity Index
 
@@ -455,6 +557,12 @@ The implemented parity ratio is
 SRPI=\frac{\min_g R(g)}{\max_g R(g)}.
 ```
 If the maximum group robustness is zero, the function returns zero.
+
+
+**95% CI (this section).** $SRPI$ is reported with a percentile bootstrap over pooled per-query robustness scores (tagged by group): resample with replacement $B=1000$ times, recompute $SRPI$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
 
 ## Metric 19: Lexical Diversity Disparity Index
 
@@ -471,6 +579,12 @@ LDDI=\max_g RTTR(g)-\min_g RTTR(g).
 With $RTTR_{\mathrm{all}}$ computed after pooling all groups,
 ```math
 LDDI_{\mathrm{norm}}=\frac{LDDI}{RTTR_{\mathrm{all}}}.
+```
+
+
+**95% CI (this section).** $LDDI$ is reported with a percentile bootstrap over pooled group responses: resample with replacement $B=1000$ times, recompute $LDDI$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
 ```
 
 ## Metric 20: Recommendation Entropy Gap
@@ -490,6 +604,12 @@ The implementation also returns
 REG_{KL}=\max_g \sum_t P_g(t)\log_2\frac{P_g(t)}{P(t)},
 ```
 where $P(t)$ is the marginal recommendation distribution.
+
+
+**95% CI (this section).** $REG$ is reported with a percentile bootstrap over pooled group recommendations: resample with replacement $B=1000$ times, recompute $REG$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
 
 ## Metric 21: Clinical Information Density Ratio
 
@@ -514,6 +634,12 @@ CIDR_{\min}=\min_g CIDR(g).
 If the maximum group density is zero, all implemented ratios are set to
 zero.
 
+
+**95% CI (this section).** $CIDR$ is reported with a percentile bootstrap over pooled (concepts, tokens) pairs (tagged by group): resample with replacement $B=1000$ times, recompute $CIDR$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 22: Diagnostic Completeness Index
 
 Let $D^\star$ be the reference differential diagnosis set. For
@@ -536,6 +662,12 @@ wDCI_i=
 \frac{\sum_{d\in D(R_i)\cap D^\star}w_d}{\sum_{d\in D^\star}w_d}.
 ```
 
+
+**95% CI (this section).** $DCI$ is reported with a percentile bootstrap over pooled group responses: resample with replacement $B=1000$ times, recompute $DCI$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 23: Uncertainty Quantification Gap
 
 Let $h_i$ be the number of hedging terms in response $R_i$ and
@@ -550,6 +682,12 @@ UD(g)=\frac{1}{n_g}\sum_{i:G_i=g}UD_i.
 The implemented uncertainty quantification gap is
 ```math
 UQG=\max_g UD(g)-\min_g UD(g).
+```
+
+
+**95% CI (this section).** $UQG$ is reported with a percentile bootstrap over pooled group responses: resample with replacement $B=1000$ times, recompute $UQG$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
 ```
 
 ## Metric 24: Geographic Representation Bias Index
@@ -569,6 +707,12 @@ HIC_{\mathrm{ratio}}=
 {\sum_{r\in\mathcal{H}}p_b(r)}.
 ```
 
+
+**95% CI (this section).** $GRBI$ is reported with a percentile bootstrap over evidence records: resample with replacement $B=1000$ times, recompute $GRBI$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+``` (needs record-level input; otherwise reported unavailable).
+
 ## Metric 25: Healthcare System Stratified Fairness
 
 For system stratum $s$, let
@@ -584,6 +728,12 @@ returns the population-weighted between-system variance
 ```math
 \Delta_{\mathrm{between}}=
 \sum_s P(S=s)\left(\mathbb{E}[Y\mid S=s]-\sum_{u}P(S=u)\mathbb{E}[Y\mid S=u]\right)^2.
+```
+
+
+**95% CI (this section).** $HSSF$ is reported with a percentile bootstrap of the gap over samples: resample with replacement $B=1000$ times, recompute $HSSF$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
 ```
 
 ## Metric 26: Intersectional Shapley Fairness Value
@@ -613,6 +763,12 @@ I(A_j,A_k)=v(\{A_j,A_k\})-v(\{A_j\})-v(\{A_k\}).
 
 # Geographic Module
 
+
+**95% CI (this section).** $ISFV$ is reported with a percentile bootstrap over samples (CI on the total disparity $v(A)$): resample with replacement $B=1000$ times, recompute $ISFV$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 27: Burden-evidence Mismatch Index
 
 Let $e(r)$ be the normalized evidence share and $b(r)$ the
@@ -631,6 +787,12 @@ M(r)&=e(r)-b(r),\\
 The ratio $\rho(r)$ is finite only when $b(r)>0$; the implementation
 records a missing value when the burden share is zero. The most
 underserved region is the region with the minimum $M(r)$.
+
+
+**95% CI (this section).** $BEMI$ is reported with a percentile bootstrap over geolocated evidence records: resample with replacement $B=1000$ times, recompute $BEMI$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+``` (needs record-level input; otherwise reported unavailable).
 
 ## Metric 28: Geographic Concentration of Coverage
 
@@ -658,6 +820,12 @@ C_{\mathrm{geo}}=1-H_{\mathrm{norm}}.
 
 # Appendix Metrics
 
+
+**95% CI (this section).** $GCC$ is reported with a percentile bootstrap over geolocated evidence records: resample with replacement $B=1000$ times, recompute $GCC$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+``` (needs record-level input; otherwise reported unavailable).
+
 ## Metric 29: Bootstrap Confidence Interval
 
 Given data $x_1,\ldots,x_n$ and a statistic $T(\cdot)$, EquiMed-DSS
@@ -679,6 +847,9 @@ The observed statistic is $T(x_1,\ldots,x_n)$. The percentile
 construction follows the nonparametric bootstrap framework of Efron and
 Tibshirani .
 
+
+**95% CI (this section).** this metric IS the percentile bootstrap interval.
+
 ## Metric 30: Statistical Power Analysis
 
 The canonical implementation delegates two-sample $t$-test power and
@@ -698,6 +869,9 @@ $\lceil n\rceil$, while the returned total sample size follows the
 implementation as $\lceil 2n\rceil$. The standardized effect-size
 scale follows Cohen’s two-sample convention .
 
+
+**95% CI (this section).** an analytic design quantity; no sampling CI of its own.
+
 ## Metric 31: Bias Concentration Index
 
 For nonnegative group bias proportions $p_1,\ldots,p_K$, the
@@ -710,6 +884,12 @@ If the vector is empty or sums to zero, the value is zero. For a
 normalized nonnegative vector, the finite-group upper bound is
 $1-1/K$, attained by an even distribution. Larger values indicate more
 distributed bias; smaller values indicate concentration in fewer groups.
+
+
+**95% CI (this section).** $BCI(concentration)$ is reported with a percentile bootstrap over the per-group bias proportions: resample with replacement $B=1000$ times, recompute $BCI(concentration)$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
 
 ## Metric 32: Mutual Information Content
 
@@ -729,6 +909,12 @@ H(D)=-\sum_d p(d)\log p(d).
 ```
 If $H(D)=0$, the normalized value is zero.
 
+
+**95% CI (this section).** $MIC$ is reported with a percentile bootstrap over paired (demographic, outcome) observations: resample with replacement $B=1000$ times, recompute $MIC$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 33: Jensen-Shannon Divergence
 
 For two nonnegative vectors normalized to probability distributions
@@ -744,6 +930,12 @@ JSD(p,q)=
 where $D_{\mathrm{KL}}^{(2)}$ uses $\log_2$. The SciPy function returns
 the distance $\sqrt{JSD}$, so the implementation squares that value.
 Both `jsd` and `jsd_distance` are reported.
+
+
+**95% CI (this section).** $JSD$ is reported with a percentile bootstrap over the underlying samples: resample with replacement $B=1000$ times, recompute $JSD$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+``` (between aggregate distributions the interval is reported unavailable).
 
 ## Metric 34: Wasserstein Distance
 
@@ -761,6 +953,12 @@ Equivalently, in one dimension,
 WD(P_n,Q_m)=\int_{-\infty}^{\infty}|F_{P_n}(t)-F_{Q_m}(t)|\,dt.
 ```
 
+
+**95% CI (this section).** $WD$ is reported with a percentile bootstrap over each sample independently (two-sample bootstrap): resample with replacement $B=1000$ times, recompute $WD$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
+
 ## Metric 35: Network Modularity
 
 Given an adjacency or correlation matrix $A$, the implementation
@@ -771,6 +969,12 @@ modularity is
 ```math
 Q=\frac{1}{2m}\sum_{i,j}
 \left(A_{ij}-\frac{k_i k_j}{2m}\right)\mathbb{I}(c_i=c_j).
+```
+
+
+**95% CI (this section).** $NM$ is reported with a percentile bootstrap over nodes (node-resampling stability bootstrap): resample with replacement $B=1000$ times, recompute $NM$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
 ```
 
 ## Metric 36: Transparency Score
@@ -790,6 +994,12 @@ The transparency score is the empirical mean
 TS=\frac{1}{n}\sum_{i=1}^{n}t_i.
 ```
 If no explanations are provided, the implementation returns zero.
+
+
+**95% CI (this section).** $TS$ is reported with a percentile bootstrap over per-decision transparency scores: resample with replacement $B=1000$ times, recompute $TS$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
 
 ## Metric 37: Robustness Certification Score
 
@@ -818,6 +1028,12 @@ The input argument $\epsilon$ is recorded in the output but is not
 used in the calculation itself.
 
 # Implemented Statistical Estimands Included to Reach 39 Derivations
+
+
+**95% CI (this section).** $RCS$ is reported with a percentile bootstrap over per-perturbation agreement scores: resample with replacement $B=1000$ times, recompute $RCS$, and take the empirical percentiles
+```math
+CI_{95\%}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
+```
 
 ## Metric 38: Hierarchical Variance Partitioning and MAIHDA-style VPC
 
@@ -1020,9 +1236,9 @@ doi:10.1037/a0020761.
   but this file uses the exact implemented details where the older
   derivations were more general.
 
-# Uncertainty Quantification for Every Metric (v1.8.0)
+# Uncertainty Quantification for Every Metric (v1.9.0)
 
-From v1.8.0 a metric is never reported as a bare point estimate. Each estimate
+From v1.9.0 a metric is never reported as a bare point estimate. Each estimate
 $\hat\theta$ is accompanied by a 95% confidence interval and, where a
 pre-specified null or acceptability threshold exists, a $p$-value. Three master
 estimators cover every metric in this library; the table at the end tags each

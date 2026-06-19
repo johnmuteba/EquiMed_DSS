@@ -58,7 +58,9 @@ class CounterfactualParityScore:
             cps_by_pair = {"overall": cps}
             cfu = float(1.0 - cps)
             n = int(s.size)
-        return {
+            allsim = s.tolist()
+
+        out = {
             "cps": cps,
             "cps_by_pair": cps_by_pair,
             "cfu": cfu,
@@ -69,6 +71,18 @@ class CounterfactualParityScore:
                 f"CFU = {cfu:.3f}."
             ),
         }
+
+        # CPS is a mean over per-case similarities: a percentile bootstrap over the
+        # pooled similarities gives its 95% CI.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        if len(allsim) >= 2:
+            ci = bootstrap_ci(list(allsim), lambda x: float(np.mean(x)),
+                              n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="CPS", value_key="cps")
 
 
 class SemanticRobustnessParityIndex:
@@ -98,15 +112,26 @@ class SemanticRobustnessParityIndex:
         if len(robustness_by_group) < 2:
             raise ValueError("Need at least 2 groups.")
         rg = {}
+        records = []
         for grp, scores in robustness_by_group.items():
             s = np.asarray(scores, dtype=float)
             if s.size == 0:
                 raise ValueError(f"Group {grp!r} has no robustness scores.")
             rg[str(grp)] = float(s.mean())
+            records.extend({"group": str(grp), "value": float(v)} for v in s)
         mx = max(rg.values())
         srpi = float(min(rg.values()) / mx) if mx > 0 else 0.0
         least = min(rg, key=rg.get)
-        return {
+
+        def _srpi(sample) -> float:
+            means: Dict[str, list] = {}
+            for r in sample:
+                means.setdefault(r["group"], []).append(r["value"])
+            mvals = [float(np.mean(v)) for v in means.values()]
+            m = max(mvals)
+            return (min(mvals) / m) if m > 0 else 0.0
+
+        out = {
             "robustness_by_group": rg,
             "srpi": srpi,
             "least_robust_group": least,
@@ -115,3 +140,14 @@ class SemanticRobustnessParityIndex:
                 f"lowest robustness in group '{least}'."
             ),
         }
+
+        # Percentile bootstrap over pooled per-query robustness scores (tagged by
+        # group) for the min/max robustness ratio.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        if len(records) >= 2:
+            ci = bootstrap_ci(records, _srpi, n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="SRPI", value_key="srpi")

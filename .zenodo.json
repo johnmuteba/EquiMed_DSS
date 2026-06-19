@@ -1,0 +1,28 @@
+{
+  "title": "EquiMed-DSS: a Python library for clinical-AI fairness assessment",
+  "description": "EquiMed-DSS is a Python library for clinical artificial-intelligence fairness assessment. It implements 37 metrics across five domains plus a geographic equity module, each reported as a point estimate with a 95% confidence interval.",
+  "upload_type": "software",
+  "version": "1.9.0",
+  "license": "MIT",
+  "access_right": "open",
+  "creators": [
+    {
+      "name": "Muteba Mwamba, John"
+    }
+  ],
+  "keywords": [
+    "clinical AI",
+    "fairness",
+    "health equity",
+    "large language models",
+    "decision support",
+    "uncertainty quantification"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/johnmuteba/EquiMed_DSS",
+      "relation": "isSupplementTo",
+      "scheme": "url"
+    }
+  ]
+}

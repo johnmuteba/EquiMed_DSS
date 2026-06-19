@@ -178,15 +178,16 @@ from equimed_dss.appendix import JensenShannonDivergence, WassersteinDistance
 group_a_predictions = np.array([0.9, 0.85, 0.78, 0.92, 0.88])
 group_b_predictions = np.array([0.75, 0.70, 0.68, 0.72, 0.65])
 
-# Jensen-Shannon Divergence
+# Jensen-Shannon Divergence (between two aggregate distributions: no underlying
+# per-observation sample, so it prints "CI unavailable")
 jsd = JensenShannonDivergence()
 jsd_result = jsd.calculate_jsd(group_a_predictions, group_b_predictions)
-print(f"JSD: {jsd_result['jsd']:.4f} - {jsd_result['interpretation']['verdict']}")
+print(jsd_result)                   # JSD = ... :: 95% CI unavailable
 
-# Wasserstein Distance
+# Wasserstein Distance (the two inputs are treated as samples -> bootstrap CI)
 wd = WassersteinDistance()
 wd_result = wd.calculate_wd(group_a_predictions, group_b_predictions)
-print(f"WD: {wd_result['wasserstein_distance']:.4f} - {wd_result['interpretation']['verdict']}")
+print(wd_result)                    # WD = ... :: 95% CI [...] (bootstrap)
 ```
 
 ---
@@ -291,21 +292,26 @@ print(icc.calculate_icc_2_1(np.array([[3, 4, 3], [5, 5, 4], [2, 3, 2], [4, 4, 5]
 ```python
 from equimed_dss.domain2 import HierarchicalEquityRatio, HarmAdjustedFairnessGap, EthicalRiskIndex
 
-# Harm-Adjusted Fairness Gap
+# Harm-Adjusted Fairness Gap. Pass per-case error labels (group*_cases) to get a
+# bootstrap CI; with only aggregate counts the result prints "CI unavailable".
 hafg = HarmAdjustedFairnessGap()
 result = hafg.calculate_hafg(
     group1_errors={'fn': 5, 'fp': 10},
-    group2_errors={'fn': 2, 'fp': 5}
+    group2_errors={'fn': 2, 'fp': 5},
+    group1_cases=['fn'] * 5 + ['fp'] * 10 + ['tn'] * 85,
+    group2_cases=['fn'] * 2 + ['fp'] * 5 + ['tn'] * 93,
 )
-print(f"HAFG: {result['hafg']:.3f}")
+print(result)
+# HAFG = 0.562 :: 95% CI [...] (bootstrap)
 
-# Ethical Risk Index
+# Ethical Risk Index (CHR-style: value + Wilson SVR + bootstrap ERI CI)
 eri = EthicalRiskIndex()
 result = eri.calculate_eri(
     violations=[{'severity': 2.5}, {'severity': 1.0}, {'severity': 5.0}],
     n_total_outputs=100
 )
-print(f"ERI: {result['eri']:.3f}")
+print(result)
+# ERI = 0.085 :: 95% CI [...] (bootstrap)
 ```
 
 ### Domain 3: Governance & Transparency
@@ -322,12 +328,13 @@ from equimed_dss.domain3 import TemporalFairnessDrift, AuditTraceabilityScore, G
 # Temporal Fairness Drift
 tfd = TemporalFairnessDrift()
 result = tfd.calculate_drift([0.85, 0.84, 0.86, 0.83, 0.75, 0.84])
-print(f"Drift Detected: {result['drift_detected']}")
+print(result)                       # TFD = mean PDI :: 95% CI [...] (bootstrap)
+print("Drift detected:", result['drift_detected'])
 
 # Audit Traceability Score: fraction of audit records that are fully traceable
 ats = AuditTraceabilityScore()
 result = ats.calculate_ats(n_traceable=8, n_total=10)
-print(f"ATS: {result['ats_score']:.3f} - {result['interpretation']['verdict']}")
+print(result)                       # ATS = 0.800 :: 95% CI [...] (Wilson score)
 ```
 
 ### Domain 4: Representation & Robustness
@@ -349,20 +356,20 @@ from equimed_dss.domain4 import (
 # Clinical Hallucination Rate (CHR): unsupported claims at entailment threshold tau
 chr_ = ClinicalHallucinationRate()
 result = chr_.calculate_chr(support_scores=[0.9, 0.2, 0.4, 0.8, 0.1], tau=0.5)
-print(f"CHR: {result['chr']:.3f} ({result['n_unsupported']}/{result['n_claims']} unsupported)")
+print(result)                       # CHR = 0.600 :: 95% CI [...] (Wilson score)
 
 # Instructional Vulnerability Index (IVI): decision flips under a biased prompt
 ivi = InstructionalVulnerabilityIndex()
 result = ivi.calculate_ivi(neutral_outputs=['acs', 'non_cardiac', 'acs', 'other'],
                            biased_outputs=['acs', 'acs', 'acs', 'other'])
-print(f"IVI: {result['ivi_flip_rate']:.3f} ({result['n_flipped']}/{result['n_pairs']})")
+print(result)                       # IVI = 0.250 :: 95% CI [...] (Wilson score)
 
 # Semantic Parity Gap (SPG): centroid distance between two demographic embedding clusters
 spg = SemanticParityGap()
 rng = np.random.RandomState(0)
 result = spg.calculate_spg(privileged_embeddings=rng.rand(20, 16),
                            marginalized_embeddings=rng.rand(20, 16) + 0.1)
-print(f"SPG euclidean: {result['spg_euclidean']:.3f}; cosine: {result['spg_cosine']:.3f}")
+print(result)                       # SPG = ... :: 95% CI [...] (bootstrap)
 ```
 
 ### Domain 5: Technical-supplement Fairness
@@ -391,15 +398,18 @@ from equimed_dss.domain5 import (
 # Counterfactual Parity Score (CPS) and counterfactual unfairness (CFU)
 cps = CounterfactualParityScore()
 result = cps.calculate_cps([0.95, 0.88, 0.91, 0.86])
-print(f"CPS: {result['cps']:.3f}; CFU: {result['cfu']:.3f}")
+print(result)                       # CPS = 0.900 :: 95% CI [...] (bootstrap)
 
-# Geographic Representation Bias Index (GRBI): KL of corpus geography from burden
+# Geographic Representation Bias Index (GRBI): KL of corpus geography from burden.
+# Pass corpus_records (one region label per evidence record) for a bootstrap CI;
+# with only aggregate counts the result prints "CI unavailable".
 grbi = GeographicRepresentationBiasIndex()
 result = grbi.calculate_grbi(
     corpus_counts={'AMRO': 78, 'EURO': 11, 'WPRO': 8, 'EMRO': 3, 'AFRO': 0, 'SEARO': 0},
     burden_shares={'AMRO': 0.11, 'EURO': 0.19, 'WPRO': 0.10, 'EMRO': 0.23, 'AFRO': 0.15, 'SEARO': 0.21},
+    corpus_records=(['AMRO'] * 78 + ['EURO'] * 11 + ['WPRO'] * 8 + ['EMRO'] * 3),
 )
-print(f"GRBI: {result['grbi']:.3f} nats")
+print(result)                       # GRBI = ... :: 95% CI [...] (bootstrap)
 
 # Intersectional Shapley Fairness Value (ISFV): attribute attribution of disparity
 isfv = IntersectionalShapleyFairnessValue()
@@ -407,7 +417,8 @@ result = isfv.calculate_isfv(
     attributes={'race': ['A', 'A', 'B', 'B'], 'sex': ['M', 'F', 'M', 'F']},
     outcomes=[0.8, 0.7, 0.5, 0.6],
 )
-print(f"ISFV by attribute: {result['shapley_by_attribute']}")
+print(result)                       # ISFV = total disparity :: 95% CI [...] (bootstrap)
+print("By attribute:", result['shapley_by_attribute'])
 ```
 
 ### Appendix: Advanced Metrics
@@ -444,31 +455,30 @@ import numpy as np
 bci = BootstrapConfidenceIntervals(n_bootstrap=1000, random_state=42)
 data = np.random.normal(0.85, 0.05, 100)
 result = bci.calculate_bci(data)
-print(f"95% CI: [{result['ci_lower']:.4f}, {result['ci_upper']:.4f}]")
-print(f"Stability: {result['interpretation']['stability']}")
+print(result)                       # BCI = observed stat :: 95% CI [...] (bootstrap)
 
-# Statistical Power Analysis
+# Statistical Power Analysis (an analytic design quantity: prints "CI unavailable")
 spa = StatisticalPowerAnalysis()
 result = spa.calculate_sample_size(effect_size=0.5, power=0.8)
-print(f"Required N per group: {result['n_per_group']}")
+print(result)                       # SampleSize = N per group :: 95% CI unavailable
 
 # Bias Concentration Index
 bci_metric = BiasConcentrationIndex()
 result = bci_metric.calculate_bci([0.3, 0.25, 0.25, 0.2])  # Bias proportions
-print(f"BCI: {result['bci']:.4f} - {result['interpretation']['distribution']}")
+print(result)                       # BiasConcentration = ... :: 95% CI [...] (bootstrap)
 
 # Mutual Information Content
 mic = MutualInformationContent()
 demographics = np.array([0, 0, 1, 1, 2, 2, 0, 1])  # Encoded demographics
 outcomes = np.array([1, 1, 0, 0, 1, 0, 1, 0])      # Model outcomes
 result = mic.calculate_mic(demographics, outcomes)
-print(f"MIC: {result['mic']:.4f} - {result['interpretation']['leakage_level']}")
+print(result)                       # MIC = ... :: 95% CI [...] (bootstrap)
 
 # Network Modularity
 nm = NetworkModularity()
 adjacency = np.array([[0, 0.8, 0.3], [0.8, 0, 0.4], [0.3, 0.4, 0]])
 result = nm.calculate_modularity(adjacency)
-print(f"Modularity: {result['modularity']:.4f}")
+print(result)                       # NM = ... :: 95% CI [...] (bootstrap)
 
 # Transparency Score
 ts = TransparencyScore()
@@ -477,14 +487,14 @@ explanations = [
     {'explanation_quality': 0.7, 'feature_importance': 0.8, 'interpretability': 0.85}
 ]
 result = ts.calculate_ts(explanations)
-print(f"TS: {result['ts']:.4f} - {result['interpretation']['verdict']}")
+print(result)                       # TS = ... :: 95% CI [...] (bootstrap)
 
 # Robustness Certification Score
 rcs = RobustnessCertificationScore()
 original = np.array([1, 1, 0, 1, 0])
 perturbed = [np.array([1, 1, 0, 1, 0]), np.array([1, 0, 0, 1, 0])]
 result = rcs.calculate_rcs(original, perturbed)
-print(f"RCS: {result['rcs']:.4f} - {result['interpretation']['robustness_level']}")
+print(result)                       # RCS = ... :: 95% CI [...] (bootstrap)
 ```
 
 ### Geographic Equity (v1.1.0)
@@ -506,17 +516,22 @@ from equimed_dss.geographic import BurdenEvidenceMismatch, GeographicConcentrati
 
 evidence = {"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2}
 
+# Pass per-study region labels (evidence_records / region_records) for a bootstrap
+# CI; with only aggregate counts the result prints "CI unavailable".
+records = [r for r, n in evidence.items() for _ in range(n)]
+
 bemi = BurdenEvidenceMismatch()
 bemi_result = bemi.calculate_bemi(
     evidence_counts=evidence,
     burden_shares=WHO_REGION_IHD_BURDEN,
+    evidence_records=records,
 )
-print(f"BEMI: {bemi_result['bemi']:.3f}")  # 0 = aligned, 1 = disjoint
+print(bemi_result)                  # BEMI = ... :: 95% CI [...] (bootstrap)
 
 gcc = GeographicConcentration()
-gcc_result = gcc.calculate_gcc(evidence)
-print(f"Gini* (G*): {gcc_result['gini_corrected']:.3f}")
-print(f"H_norm: {gcc_result['entropy_normalized']:.3f}")
+gcc_result = gcc.calculate_gcc(evidence, region_records=records)
+print(gcc_result)                   # GCC = G* :: 95% CI [...] (bootstrap)
+print("H_norm:", gcc_result['entropy_normalized'])
 ```
 
 ### Reporting Tables (v1.1.0)

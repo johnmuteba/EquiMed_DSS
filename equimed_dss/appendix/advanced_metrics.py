@@ -82,10 +82,13 @@ class BootstrapConfidenceIntervals:
         observed_statistic = statistic(data)
         ci_width = ci_upper - ci_lower
 
-        return {
+        from equimed_dss.inference import MetricResult
+
+        return MetricResult({
             "ci_lower": float(ci_lower),
             "ci_upper": float(ci_upper),
             "ci_width": float(ci_width),
+            "ci_method": "bootstrap",
             "observed_statistic": float(observed_statistic),
             "bootstrap_mean": float(np.mean(bootstrap_estimates)),
             "bootstrap_std": float(np.std(bootstrap_estimates)),
@@ -103,7 +106,7 @@ class BootstrapConfidenceIntervals:
                     )
                 ),
             },
-        }
+        }, name="BCI", value_key="observed_statistic")
 
 
 class StatisticalPowerAnalysis:
@@ -149,7 +152,11 @@ class StatisticalPowerAnalysis:
                 alternative=alternative,
             )
 
-            return {
+            from equimed_dss.inference import MetricResult
+
+            # Required sample size is an analytic design quantity, not an estimate
+            # from sampled data, so it carries no sampling CI (prints "unavailable").
+            return MetricResult({
                 "n_per_group": int(np.ceil(n_per_group)),
                 "total_n": int(np.ceil(n_per_group * 2)),
                 "effect_size": float(effect_size),
@@ -164,7 +171,7 @@ class StatisticalPowerAnalysis:
                         else "Insufficient power (< 0.8)"
                     ),
                 },
-            }
+            }, name="SampleSize", value_key="n_per_group")
         except Exception as e:
             return {
                 "error": str(e),
@@ -192,14 +199,18 @@ class StatisticalPowerAnalysis:
             effect_size=effect_size, nobs1=n, alpha=alpha, alternative="two-sided"
         )
 
-        return {
+        from equimed_dss.inference import MetricResult
+
+        # Achieved power is an analytic function of (n, effect size, alpha); it is
+        # not estimated from sampled data, so it carries no sampling CI.
+        return MetricResult({
             "power": float(power),
             "n_per_group": n,
             "effect_size": effect_size,
             "interpretation": {
                 "verdict": ("Adequate power" if power >= 0.8 else "Insufficient power")
             },
-        }
+        }, name="Power", value_key="power")
 
 
 class BiasConcentrationIndex:
@@ -229,19 +240,26 @@ class BiasConcentrationIndex:
             - BCI near 0: Bias concentrated in specific groups (requires targeted intervention)
             - BCI < 0.3: Concentrated bias (HIGH CONCERN)
         """
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
         p = np.array(group_bias_proportions)
         n = len(p)
 
         if n == 0 or np.sum(p) == 0:
-            return {"bci": 0.0, "interpretation": {"verdict": "No bias detected"}}
+            return MetricResult(
+                {"bci": 0.0, "interpretation": {"verdict": "No bias detected"}},
+                name="BiasConcentration", value_key="bci",
+            )
+
+        def _bci(vals):
+            v = np.array(vals)
+            den = (np.sum(v)) ** 2
+            return float(1 - (np.sum(v**2) / den)) if den != 0 else 0.0
 
         # BCI = 1 - (sum of squared proportions / squared sum of proportions)
-        numerator = np.sum(p**2)
-        denominator = (np.sum(p)) ** 2
+        bci = _bci(p)
 
-        bci = 1 - (numerator / denominator) if denominator != 0 else 0
-
-        return {
+        out = {
             "bci": float(bci),
             "n_groups": n,
             "max_bias_proportion": float(np.max(p)),
@@ -264,6 +282,14 @@ class BiasConcentrationIndex:
                 ),
             },
         }
+
+        # Percentile bootstrap over the per-group bias proportions.
+        if n >= 2:
+            ci = bootstrap_ci(list(p), _bci, n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="BiasConcentration", value_key="bci")
 
 
 class MutualInformationContent:
@@ -297,6 +323,8 @@ class MutualInformationContent:
         """
         from sklearn.metrics import mutual_info_score
 
+        demographics = np.asarray(demographics)
+        outcomes = np.asarray(outcomes)
         mi = mutual_info_score(demographics, outcomes)
 
         # Normalize by entropy
@@ -305,7 +333,9 @@ class MutualInformationContent:
         demo_entropy = scipy_entropy(np.bincount(demographics) / len(demographics))
         normalized_mi = mi / demo_entropy if demo_entropy > 0 else 0
 
-        return {
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        out = {
             "mic": float(mi),
             "normalized_mic": float(normalized_mi),
             "interpretation": {
@@ -324,6 +354,20 @@ class MutualInformationContent:
                 ),
             },
         }
+
+        # Percentile bootstrap over paired (demographic, outcome) observations.
+        n_obs = len(demographics)
+        if n_obs >= 2:
+            idx = list(range(n_obs))
+            ci = bootstrap_ci(
+                idx,
+                lambda i: float(mutual_info_score(demographics[list(i)], outcomes[list(i)])),
+                n_boot=1000, random_state=0,
+            )
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="MIC", value_key="mic")
 
 
 class JensenShannonDivergence:
@@ -364,7 +408,12 @@ class JensenShannonDivergence:
         jsd_distance = float(jensenshannon(p, q, base=2))
         jsd = jsd_distance**2
 
-        return {
+        from equimed_dss.inference import MetricResult
+
+        # JSD is computed between two already-aggregated probability distributions;
+        # without the underlying per-observation samples there is no sampling
+        # distribution to bootstrap, so it prints "CI unavailable".
+        return MetricResult({
             "jsd": float(jsd),
             "jsd_distance": jsd_distance,
             "interpretation": {
@@ -386,7 +435,7 @@ class JensenShannonDivergence:
                     )
                 ),
             },
-        }
+        }, name="JSD", value_key="jsd")
 
 
 class WassersteinDistance:
@@ -417,9 +466,13 @@ class WassersteinDistance:
             - 0.1 <= WD < 0.25: Moderate difference (monitor)
             - WD >= 0.25: Substantial difference (calibration needed)
         """
-        wd = wasserstein_distance(distribution_p, distribution_q)
+        p_arr = np.asarray(distribution_p, dtype=float)
+        q_arr = np.asarray(distribution_q, dtype=float)
+        wd = wasserstein_distance(p_arr, q_arr)
 
-        return {
+        from equimed_dss.inference import MetricResult
+
+        out = {
             "wasserstein_distance": float(wd),
             "interpretation": {
                 "range": "[0, inf)",
@@ -439,6 +492,22 @@ class WassersteinDistance:
                 ),
             },
         }
+
+        # The two inputs are treated as samples by scipy's Wasserstein distance,
+        # so a percentile bootstrap that resamples each sample independently gives
+        # an honest CI for the distance.
+        if p_arr.size >= 2 and q_arr.size >= 2:
+            rng = np.random.default_rng(0)
+            boots = []
+            for _ in range(1000):
+                bp = p_arr[rng.integers(0, p_arr.size, size=p_arr.size)]
+                bq = q_arr[rng.integers(0, q_arr.size, size=q_arr.size)]
+                boots.append(float(wasserstein_distance(bp, bq)))
+            lo, hi = np.percentile(boots, [2.5, 97.5])
+            out["ci_lower"] = float(lo)
+            out["ci_upper"] = float(hi)
+            out["ci_method"] = "bootstrap"
+        return MetricResult(out, name="WD", value_key="wasserstein_distance")
 
 
 class NetworkModularity:
@@ -465,7 +534,10 @@ class NetworkModularity:
             - 0.1 < Modularity <= 0.3: Moderate clustering
             - Modularity <= 0.1: Weak clustering
         """
-        G = nx.from_numpy_array(np.abs(adjacency_matrix))
+        from equimed_dss.inference import MetricResult
+
+        A = np.abs(np.asarray(adjacency_matrix, dtype=float))
+        G = nx.from_numpy_array(A)
 
         # Detect communities with greedy modularity (Clauset-Newman-Moore)
         try:
@@ -477,7 +549,30 @@ class NetworkModularity:
             communities = list(greedy_modularity_communities(G))
             Q = modularity(G, communities)
 
-            return {
+            def _modularity_of(sub_A):
+                gg = nx.from_numpy_array(sub_A)
+                comms = list(greedy_modularity_communities(gg))
+                return float(modularity(gg, comms))
+
+            # Node-resampling bootstrap: resample node indices with replacement and
+            # recompute modularity on the induced subgraph, giving a stability CI.
+            n_nodes = A.shape[0]
+            ci_lower = ci_upper = None
+            ci_method = None
+            if n_nodes >= 3:
+                rng = np.random.default_rng(0)
+                boots = []
+                for _ in range(200):
+                    idx = rng.integers(0, n_nodes, size=n_nodes)
+                    try:
+                        boots.append(_modularity_of(A[np.ix_(idx, idx)]))
+                    except Exception:
+                        continue
+                if boots:
+                    lo, hi = np.percentile(boots, [2.5, 97.5])
+                    ci_lower, ci_upper, ci_method = float(lo), float(hi), "bootstrap"
+
+            res = {
                 "modularity": float(Q),
                 "n_communities": len(communities),
                 "community_sizes": [len(c) for c in communities],
@@ -493,12 +588,17 @@ class NetworkModularity:
                     ),
                 },
             }
+            if ci_lower is not None:
+                res["ci_lower"] = ci_lower
+                res["ci_upper"] = ci_upper
+                res["ci_method"] = ci_method
+            return MetricResult(res, name="NM", value_key="modularity")
         except Exception as e:
-            return {
+            return MetricResult({
                 "modularity": 0.0,
                 "error": str(e),
                 "interpretation": {"verdict": "Unable to compute modularity"},
-            }
+            }, name="NM", value_key="modularity")
 
 
 class TransparencyScore:
@@ -529,11 +629,13 @@ class TransparencyScore:
             - 0.5 < TS <= 0.7: Moderate transparency (improvement needed)
             - TS <= 0.5: Poor transparency (not ready for deployment)
         """
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
         if not explanations:
-            return {
+            return MetricResult({
                 "ts": 0.0,
                 "interpretation": {"verdict": "No explanations provided"},
-            }
+            }, name="TS", value_key="ts")
 
         scores = []
         for exp in explanations:
@@ -545,7 +647,7 @@ class TransparencyScore:
 
         ts = np.mean(scores)
 
-        return {
+        out = {
             "ts": float(ts),
             "n_decisions": len(explanations),
             "mean_explanation_quality": float(
@@ -573,6 +675,16 @@ class TransparencyScore:
                 ),
             },
         }
+
+        # TS is a mean of per-decision [0, 1] transparency scores; a percentile
+        # bootstrap over decisions gives its 95% CI.
+        if len(scores) >= 2:
+            ci = bootstrap_ci(list(scores), lambda s: float(np.mean(s)),
+                              n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="TS", value_key="ts")
 
 
 class RobustnessCertificationScore:
@@ -607,11 +719,13 @@ class RobustnessCertificationScore:
             - 0.6 < RCS <= 0.8: Moderate robustness (monitor closely)
             - RCS <= 0.6: Poor robustness (requires improvement)
         """
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
         if not perturbed_predictions:
-            return {
+            return MetricResult({
                 "rcs": 0.0,
                 "interpretation": {"verdict": "No perturbations provided"},
-            }
+            }, name="RCS", value_key="rcs")
 
         consistency_scores = []
         for perturbed in perturbed_predictions:
@@ -622,7 +736,7 @@ class RobustnessCertificationScore:
         rcs = np.mean(consistency_scores)
         rcs_std = np.std(consistency_scores)
 
-        return {
+        out = {
             "rcs": float(rcs),
             "rcs_std": float(rcs_std),
             "n_perturbations": len(perturbed_predictions),
@@ -645,3 +759,13 @@ class RobustnessCertificationScore:
                 ),
             },
         }
+
+        # RCS is the mean per-perturbation agreement; a percentile bootstrap over
+        # perturbations gives its 95% CI.
+        if len(consistency_scores) >= 2:
+            ci = bootstrap_ci(list(consistency_scores), lambda s: float(np.mean(s)),
+                              n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="RCS", value_key="rcs")

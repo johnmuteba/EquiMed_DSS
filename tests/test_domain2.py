@@ -40,17 +40,19 @@ class TestHierarchicalEquityRatio:
         her = HierarchicalEquityRatio()
         scores = [0.85, 0.75, 0.80, 0.82]
 
-        gini = her.calculate_bias_gini(scores)
+        result = her.calculate_bias_gini(scores)
 
-        assert 0 <= gini <= 1
-        assert isinstance(gini, float)
+        assert 0 <= result["bias_gini"] <= 1
+        assert isinstance(result["bias_gini"], float)
+        # Printing shows the value alongside a 95% CI (v1.9.0 contract).
+        assert "95% CI" in str(result)
 
     def test_calculate_bias_gini_empty(self):
         """Test Bias-Gini with empty scores."""
         her = HierarchicalEquityRatio()
-        gini = her.calculate_bias_gini([])
+        result = her.calculate_bias_gini([])
 
-        assert gini == 0.0
+        assert result["bias_gini"] == 0.0
 
 
 class TestHarmAdjustedFairnessGap:

@@ -47,6 +47,20 @@ class HealthcareSystemStratifiedFairness:
             raise ValueError("Inputs must be non-empty.")
 
         n = len(s)
+
+        def _hssf(sv, gv, yv) -> float:
+            """Population-weighted within-system max demographic gap."""
+            nn = len(sv)
+            total = 0.0
+            for sys in np.unique(sv):
+                mask = sv == sys
+                p_s = mask.sum() / nn
+                ys = yv[mask]
+                gs = gv[mask]
+                gm = [ys[gs == grp].mean() for grp in np.unique(gs) if (gs == grp).any()]
+                total += p_s * (float(max(gm) - min(gm)) if len(gm) > 1 else 0.0)
+            return float(total)
+
         disparity_by_system: Dict[str, float] = {}
         hssf = 0.0
         system_means = []
@@ -70,7 +84,7 @@ class HealthcareSystemStratifiedFairness:
         grand = float((sm * sw).sum())
         delta_between = float((sw * (sm - grand) ** 2).sum())
 
-        return {
+        out = {
             "hssf": hssf,
             "delta_within": hssf,
             "delta_between": delta_between,
@@ -83,3 +97,18 @@ class HealthcareSystemStratifiedFairness:
                 "or driven by system differences."
             ),
         }
+
+        # Percentile bootstrap over samples for the population-weighted HSSF.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        if n >= 2:
+            idx = list(range(n))
+            ci = bootstrap_ci(
+                idx,
+                lambda i: _hssf(s[list(i)], g[list(i)], y[list(i)]),
+                n_boot=1000, random_state=0,
+            )
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="HSSF", value_key="hssf")

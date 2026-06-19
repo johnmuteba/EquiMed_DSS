@@ -5,6 +5,34 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-06-18
+
+### Changed (all 37 metrics now return a MetricResult with a 95% CI)
+- Every metric, when called, now displays its value alongside a 95% confidence
+  interval (or the explicit "95% CI unavailable (needs observation-level input)"
+  string for the few estimands whose inputs are aggregate-only). Previously only
+  5 of 37 metrics printed a CI. Proportions use the Wilson score interval; sample
+  statistics, gaps, ratios, divergences, and distances use a seeded percentile
+  bootstrap (`random_state` fixed, so reproducible-table numbers do not drift).
+- Aggregate-input metrics gained an optional observation-level argument that, when
+  supplied, yields a real bootstrap CI: `HarmAdjustedFairnessGap` (`group1_cases`,
+  `group2_cases`), `HierarchicalEquityRatio` (`group_observations`),
+  `GeographicRepresentationBiasIndex` (`corpus_records`),
+  `BurdenEvidenceMismatch` (`evidence_records`),
+  `GeographicConcentration` (`region_records`).
+
+### Breaking
+- `HierarchicalEquityRatio.calculate_bias_gini` now returns a `MetricResult`
+  (carrying `bias_gini` plus its CI) instead of a bare `float`. Access the value
+  via `result["bias_gini"]`.
+- `HierarchicalEquityRatio.calculate_her` now returns a `MetricResult` that adds a
+  scalar `her_gap` (and CI when `group_observations` is given) alongside the
+  per-group entries; printing shows the HER gap with its CI.
+
+### Why
+- Reviewer requirement (non-negotiable): whenever a metric is called, its value
+  must be displayed alongside a 95% confidence interval (alpha = 0.05).
+
 ## [1.8.0] - 2026-06-18
 
 ### Changed (metrics always print their confidence interval)

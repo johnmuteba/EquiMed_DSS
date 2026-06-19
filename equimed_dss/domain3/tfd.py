@@ -24,8 +24,10 @@ class TemporalFairnessDrift:
         Returns:
             Dictionary containing PDI stats and out-of-control points.
         """
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
         if not time_series_metrics:
-            return {}
+            return MetricResult({"mean_pdi": 0.0}, name="TFD", value_key="mean_pdi")
 
         metrics = np.array(time_series_metrics)
         mean_val = np.mean(metrics)
@@ -42,7 +44,7 @@ class TemporalFairnessDrift:
             if val > ucl or val < lcl:
                 out_of_control.append(i)
 
-        return {
+        out = {
             "mean_pdi": float(mean_val),
             "std_pdi": float(std_val),
             "ucl": float(ucl),
@@ -57,3 +59,14 @@ class TemporalFairnessDrift:
                 ),
             },
         }
+
+        # Percentile bootstrap CI for the process mean (mean PDI) over the
+        # observed time series of fairness-metric values.
+        if len(metrics) >= 2:
+            ci = bootstrap_ci(metrics.tolist(), lambda s: float(np.mean(s)),
+                              n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+
+        return MetricResult(out, name="TFD", value_key="mean_pdi")

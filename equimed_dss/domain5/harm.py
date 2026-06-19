@@ -49,6 +49,10 @@ class WeightedClinicalHarmAdjustedFairnessGap:
         if len(g) == 0:
             raise ValueError("Inputs must be non-empty.")
 
+        def _whafg(gv, wv, lv) -> float:
+            hbg = [float((wv[gv == grp] * lv[gv == grp]).mean()) for grp in np.unique(gv)]
+            return float(max(hbg) - min(hbg)) if len(hbg) > 1 else 0.0
+
         harm_by_group = {
             str(grp): float((w[g == grp] * loss[g == grp]).mean())
             for grp in np.unique(g)
@@ -57,7 +61,7 @@ class WeightedClinicalHarmAdjustedFairnessGap:
         whafg_max = float(items[-1][1] - items[0][1]) if len(items) > 1 else 0.0
         most_harmed = items[-1][0]
 
-        return {
+        out = {
             "harm_by_group": harm_by_group,
             "whafg_max": whafg_max,
             "most_harmed_group": most_harmed,
@@ -67,3 +71,18 @@ class WeightedClinicalHarmAdjustedFairnessGap:
                 f"highest weighted harm in group '{most_harmed}'."
             ),
         }
+
+        # Percentile bootstrap over samples for the maximum weighted-harm gap.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        if len(g) >= 2:
+            idx = list(range(len(g)))
+            ci = bootstrap_ci(
+                idx,
+                lambda s: _whafg(g[list(s)], w[list(s)], loss[list(s)]),
+                n_boot=1000, random_state=0,
+            )
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="wHAFG", value_key="whafg_max")

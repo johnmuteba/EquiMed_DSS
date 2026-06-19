@@ -50,27 +50,30 @@ class IntersectionalCalibrationError:
             raise ValueError("confidences must lie in [0, 1].")
 
         edges = np.linspace(0.0, 1.0, n_bins + 1)
-        ece_by_group: Dict[str, float] = {}
-        sizes: Dict[str, int] = {}
-        for grp in np.unique(g):
-            mask = g == grp
-            c = conf[mask]
-            y = corr[mask]
-            n = len(c)
-            sizes[str(grp)] = n
-            ece = 0.0
-            for b in range(n_bins):
-                lo, hi = edges[b], edges[b + 1]
-                inbin = (c > lo) & (c <= hi) if b > 0 else (c >= lo) & (c <= hi)
-                if inbin.sum() == 0:
-                    continue
-                acc = float(y[inbin].mean())
-                avg_conf = float(c[inbin].mean())
-                ece += (inbin.sum() / n) * abs(acc - avg_conf)
-            ece_by_group[str(grp)] = float(ece)
 
-        total = sum(sizes.values())
-        ice = float(sum(sizes[k] / total * ece_by_group[k] for k in ece_by_group))
+        def _ice_from(gv, cv, yv) -> float:
+            """Population-weighted ICE over intersectional groups."""
+            ebg = {}
+            szs = {}
+            for grp in np.unique(gv):
+                mask = gv == grp
+                c = cv[mask]
+                y = yv[mask]
+                n = len(c)
+                szs[str(grp)] = n
+                ece = 0.0
+                for b in range(n_bins):
+                    lo, hi = edges[b], edges[b + 1]
+                    inbin = (c > lo) & (c <= hi) if b > 0 else (c >= lo) & (c <= hi)
+                    if inbin.sum() == 0:
+                        continue
+                    ece += (inbin.sum() / n) * abs(float(y[inbin].mean()) - float(c[inbin].mean()))
+                ebg[str(grp)] = float(ece)
+            tot = sum(szs.values())
+            return float(sum(szs[k] / tot * ebg[k] for k in ebg)), ebg
+
+        ice, ece_by_group = _ice_from(g, conf, corr)
+        sizes = {str(grp): int((g == grp).sum()) for grp in np.unique(g)}
         vals = list(ece_by_group.values())
         delta_ice = float(max(vals) - min(vals)) if len(vals) > 1 else 0.0
 
@@ -83,7 +86,7 @@ class IntersectionalCalibrationError:
         else:
             verdict = "severe disparity"
 
-        return {
+        out = {
             "ice": ice,
             "delta_ice": delta_ice,
             "ece_by_group": ece_by_group,
@@ -93,3 +96,19 @@ class IntersectionalCalibrationError:
                 f"dICE = {delta_ice:.3f} ({verdict})."
             ),
         }
+
+        # Percentile bootstrap over samples (resample (group, conf, correct)
+        # triples and recompute the population-weighted ICE).
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        if len(g) >= 2:
+            idx = list(range(len(g)))
+            ci = bootstrap_ci(
+                idx,
+                lambda s: _ice_from(g[list(s)], conf[list(s)], corr[list(s)])[0],
+                n_boot=1000, random_state=0,
+            )
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="ICE", value_key="ice")

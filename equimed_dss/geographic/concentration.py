@@ -13,7 +13,7 @@ studies) is spread across regions:
 G* and H_norm run in opposite directions; ``concentration = 1 - H_norm`` is
 exposed so a single "higher = more concentrated" reading is available.
 """
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -25,7 +25,11 @@ class GeographicConcentration:
     def __init__(self):
         pass
 
-    def calculate_gcc(self, region_counts: Dict[str, float]) -> Dict[str, Any]:
+    def calculate_gcc(
+        self,
+        region_counts: Dict[str, float],
+        region_records: Optional[Sequence[str]] = None,
+    ) -> Dict[str, Any]:
         """Calculate the Geographic Concentration of Coverage (GCC).
 
         Args:
@@ -56,8 +60,14 @@ class GeographicConcentration:
         if R < 2:
             raise ValueError("Need at least 2 regions to measure concentration.")
 
-        gini_raw = np.abs(x[:, None] - x[None, :]).sum() / (2 * R * x.sum())
-        gini_corrected = float(gini_raw * R / (R - 1))
+        def _gini_corrected(vec: np.ndarray) -> float:
+            """Sample-corrected Gini G* over a fixed region ordering."""
+            if vec.sum() <= 0:
+                return 0.0
+            graw = np.abs(vec[:, None] - vec[None, :]).sum() / (2 * R * vec.sum())
+            return float(graw * R / (R - 1))
+
+        gini_corrected = _gini_corrected(x)
 
         p = x / x.sum()
         nz = p[p > 0]
@@ -70,7 +80,7 @@ class GeographicConcentration:
             .reset_index(drop=True)
         )
 
-        return {
+        out = {
             "gini_corrected": gini_corrected,
             "entropy_normalized": entropy_normalized,
             "concentration": concentration,
@@ -82,3 +92,23 @@ class GeographicConcentration:
                 f"concentration = {concentration:.3f} (higher = more concentrated)."
             ),
         }
+
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        # A CI cannot be computed honestly from aggregate region counts. When the
+        # caller supplies per-evidence region labels, resample records and recompute
+        # the sample-corrected Gini over the fixed region ordering.
+        if region_records is not None:
+            recs = [str(r) for r in region_records]
+            if len(recs) >= 2:
+                def _gstar(sample):
+                    vec = np.array(
+                        [float(sum(1 for s in sample if s == r)) for r in regions]
+                    )
+                    return _gini_corrected(vec)
+
+                ci = bootstrap_ci(recs, _gstar, n_boot=1000, random_state=0)
+                out["ci_lower"] = ci.ci_lower
+                out["ci_upper"] = ci.ci_upper
+                out["ci_method"] = ci.method
+        return MetricResult(out, name="GCC", value_key="gini_corrected")

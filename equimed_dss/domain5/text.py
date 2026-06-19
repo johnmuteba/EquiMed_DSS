@@ -42,7 +42,7 @@ class LexicalDiversityDisparityIndex:
         rttr_overall = float(len(set(all_tokens)) / np.sqrt(len(all_tokens)))
         vals = list(rttr.values())
         lddi = float(max(vals) - min(vals))
-        return {
+        out = {
             "rttr_by_group": rttr,
             "lddi": lddi,
             "lddi_norm": float(lddi / rttr_overall) if rttr_overall else 0.0,
@@ -51,6 +51,29 @@ class LexicalDiversityDisparityIndex:
                 "larger values mean response vocabulary richness varies more by group."
             ),
         }
+
+        # Bootstrap the max-min RTTR gap over pooled, group-tagged responses.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        records = [
+            {"group": str(grp), "text": r}
+            for grp, texts in responses_by_group.items()
+            for r in texts
+        ]
+
+        def _lddi(sample):
+            by: Dict[str, list] = {}
+            for rec in sample:
+                by.setdefault(rec["group"], []).extend(_tokens(rec["text"]))
+            rv = [len(set(t)) / np.sqrt(len(t)) for t in by.values() if t]
+            return float(max(rv) - min(rv)) if len(rv) > 1 else 0.0
+
+        if len(records) >= 2:
+            ci = bootstrap_ci(records, _lddi, n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="LDDI", value_key="lddi")
 
 
 class RecommendationEntropyGap:
@@ -95,7 +118,7 @@ class RecommendationEntropyGap:
             kl = float(sum(pi * np.log2(pi / pti) for pi, pti in zip(p, pt) if pi > 0 and pti > 0))
             reg_kl = max(reg_kl, kl)
 
-        return {
+        out = {
             "entropy_by_group": entropy_by_group,
             "reg": reg,
             "reg_kl": float(reg_kl),
@@ -105,6 +128,34 @@ class RecommendationEntropyGap:
                 "recommendation distributions by group."
             ),
         }
+
+        # Bootstrap the max-min entropy gap over pooled, group-tagged recommendations.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        records = [
+            {"group": str(grp), "rec": t}
+            for grp, recs in recommendations_by_group.items()
+            for t in recs
+        ]
+
+        def _reg(sample):
+            by: Dict[str, list] = {}
+            for rec in sample:
+                by.setdefault(rec["group"], []).append(rec["rec"])
+            ents = []
+            for recs in by.values():
+                n = len(recs)
+                p = np.array([recs.count(t) / n for t in set(recs)])
+                nz = p[p > 0]
+                ents.append(float(-(nz * np.log2(nz)).sum()))
+            return float(max(ents) - min(ents)) if len(ents) > 1 else 0.0
+
+        if len(records) >= 2:
+            ci = bootstrap_ci(records, _reg, n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="REG", value_key="reg")
 
 
 class ClinicalInformationDensityRatio:
@@ -131,7 +182,7 @@ class ClinicalInformationDensityRatio:
         cidr = {k: float(v / mx) for k, v in cid.items()} if mx > 0 else {k: 0.0 for k in cid}
         cidr_min = float(min(cidr.values()))
         worst = min(cidr, key=cidr.get)
-        return {
+        out = {
             "cid_by_group": cid,
             "cidr_by_group": cidr,
             "cidr_min": cidr_min,
@@ -140,6 +191,35 @@ class ClinicalInformationDensityRatio:
                 "concept density relative to the richest group; 1.0 = parity)."
             ),
         }
+
+        # Bootstrap the minimum CIDR ratio over pooled, group-tagged (concepts,
+        # tokens) pairs.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        records = [
+            {"group": str(grp), "pair": (nc, nt)}
+            for grp, pairs in concept_counts_by_group.items()
+            for nc, nt in pairs
+        ]
+
+        def _cidr_min(sample):
+            by: Dict[str, list] = {}
+            for rec in sample:
+                nc, nt = rec["pair"]
+                if nt > 0:
+                    by.setdefault(rec["group"], []).append((nc / nt) * 100)
+            cids = [float(np.mean(v)) for v in by.values() if v]
+            if len(cids) < 2:
+                return 0.0
+            m = max(cids)
+            return float(min(cids) / m) if m > 0 else 0.0
+
+        if len(records) >= 2:
+            ci = bootstrap_ci(records, _cidr_min, n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="CIDR", value_key="cidr_min")
 
 
 class DiagnosticCompletenessIndex:
@@ -185,7 +265,31 @@ class DiagnosticCompletenessIndex:
         }
         if weights:
             out["wdci_by_group"] = wdci
-        return out
+
+        # Bootstrap the max-min coverage gap over pooled, group-tagged responses.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        records = [
+            {"group": str(grp), "mentions": m}
+            for grp, responses in mentioned_by_group.items()
+            for m in responses
+        ]
+
+        def _ddci(sample):
+            by: Dict[str, list] = {}
+            for rec in sample:
+                by.setdefault(rec["group"], []).append(
+                    len(set(rec["mentions"]) & Dstar) / len(Dstar)
+                )
+            ms = [float(np.mean(v)) for v in by.values() if v]
+            return float(max(ms) - min(ms)) if len(ms) > 1 else 0.0
+
+        if len(records) >= 2:
+            ci = bootstrap_ci(records, _ddci, n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="DCI", value_key="delta_dci")
 
 
 class UncertaintyQuantificationGap:
@@ -220,7 +324,7 @@ class UncertaintyQuantificationGap:
             ud[str(grp)] = float(np.mean(vals)) if vals else 0.0
         vals = list(ud.values())
         uqg = float(max(vals) - min(vals))
-        return {
+        out = {
             "ud_by_group": ud,
             "uqg": uqg,
             "interpretation": (
@@ -229,3 +333,26 @@ class UncertaintyQuantificationGap:
                 "overconfidence-by-group risk."
             ),
         }
+
+        # Bootstrap the max-min hedging-density gap over pooled, group-tagged responses.
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        records = [
+            {"group": str(grp), "text": r}
+            for grp, texts in responses_by_group.items()
+            for r in texts
+        ]
+
+        def _uqg(sample):
+            by: Dict[str, list] = {}
+            for rec in sample:
+                by.setdefault(rec["group"], []).append(self._ud(rec["text"]))
+            ms = [float(np.mean(v)) for v in by.values() if v]
+            return float(max(ms) - min(ms)) if len(ms) > 1 else 0.0
+
+        if len(records) >= 2:
+            ci = bootstrap_ci(records, _uqg, n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="UQG", value_key="uqg")

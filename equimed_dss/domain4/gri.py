@@ -42,10 +42,24 @@ class GeographicRepresentationIndex:
         L = set(locations)
         if not L:
             raise ValueError("locations must be non-empty.")
-        W = set(western_locations) & L
+        W_full = set(western_locations)
+        W = W_full & L
         non_western = sorted(L - W)
         gri = float((len(L) - len(W)) / len(L))
-        return {
+
+        from equimed_dss.inference import MetricResult, bootstrap_ci
+
+        # GRI is set-based: a bootstrap over the (possibly duplicated) location
+        # mentions resamples which locations appear, giving a CI on the
+        # variety-based ratio. Uses the raw mention list so frequency matters.
+        def _gri(sample):
+            Ls = set(sample)
+            if not Ls:
+                return 0.0
+            Ws = W_full & Ls
+            return (len(Ls) - len(Ws)) / len(Ls)
+
+        out = {
             "gri": gri,
             "n_locations": len(L),
             "n_western": len(W),
@@ -57,6 +71,13 @@ class GeographicRepresentationIndex:
                 "Western-centric knowledge base (by variety of locations)."
             ),
         }
+        mentions = list(locations)
+        if len(mentions) >= 2:
+            ci = bootstrap_ci(mentions, _gri, n_boot=1000, random_state=0)
+            out["ci_lower"] = ci.ci_lower
+            out["ci_upper"] = ci.ci_upper
+            out["ci_method"] = ci.method
+        return MetricResult(out, name="GRI", value_key="gri")
 
     def calculate_geographic_bias(
         self,
