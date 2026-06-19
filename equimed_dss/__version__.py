@@ -1,6 +1,6 @@
 """Version information for EquiMed-DSS."""
 
-__version__ = "1.9.2"
+__version__ = "1.9.3"
 __version_info__ = tuple(int(x) for x in __version__.split("."))
 
 # Package metadata

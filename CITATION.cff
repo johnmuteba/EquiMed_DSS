@@ -13,9 +13,10 @@ authors:
   - given-names: "John Weirstrass"
     family-names: "Muteba M"
     email: 2moi175@gmail.com
-version: 1.9.2
+version: 1.9.3
 date-released: "2026-06-19"
 license: MIT
+doi: 10.5281/zenodo.20766189
 repository-code: "https://github.com/johnmuteba/EquiMed_DSS"
 url: "https://github.com/johnmuteba/EquiMed_DSS"
 keywords:
@@ -25,5 +26,3 @@ keywords:
   - large language models
   - decision support
   - uncertainty quantification
-# After archiving a GitHub release on Zenodo, add the minted DOI here, e.g.:
-# doi: 10.5281/zenodo.XXXXXXX

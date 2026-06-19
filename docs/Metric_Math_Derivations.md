@@ -1,9 +1,9 @@
-> **Rendering note.** This Markdown version renders every equation directly on GitHub (via MathJax). The LaTeX source (`Metric_Math_Derivations.tex`) and a compiled PDF (`Metric_Math_Derivations.pdf`) are in this folder. The final section, *Uncertainty Quantification for Every Metric*, gives the confidence-interval and p-value formulas added in v1.9.2.
+> **Rendering note.** This Markdown version renders every equation directly on GitHub (via MathJax). The LaTeX source (`Metric_Math_Derivations.tex`) and a compiled PDF (`Metric_Math_Derivations.pdf`) are in this folder. The final section, *Uncertainty Quantification for Every Metric*, gives the confidence-interval and p-value formulas added in v1.9.3.
 
 # Purpose and Verification Scope
 
 This technical document derives the mathematical definitions used by the
-EquiMed-DSS library, version 1.9.2. The formulae below are aligned with
+EquiMed-DSS library, version 1.9.3. The formulae below are aligned with
 the local implementation in the package source code, especially the
 modules `domain1`, `domain2`, `domain3`, `domain4`, `domain5`,
 `geographic`, `appendix`, and `statistics`. Where an earlier derivation
@@ -194,7 +194,9 @@ equitable by the implemented four-fifths-rule convention .
 **95% CI (this section).** $HER$ is reported with a percentile bootstrap of the gap over per-group observations: resample with replacement $B=1000$ times, recompute $HER$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
-``` (needs observation-level group scores; otherwise reported unavailable).
+```
+
+(needs observation-level group scores; otherwise reported unavailable).
 
 ## Metric 4a: Bias-Gini Dispersion
 
@@ -208,7 +210,7 @@ G_{\mathrm{bias}}=
 If the score list is empty or $\bar q=0$, the function returns zero.
 
 
-**95% CI (this section).** $Bias-Gini$ is reported with a percentile bootstrap over group scores: resample with replacement $B=1000$ times, recompute $Bias-Gini$, and take the empirical percentiles
+**95% CI (this section).** Bias-Gini is reported with a percentile bootstrap over group scores: resample with replacement $B=1000$ times, recompute Bias-Gini, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
 ```
@@ -236,7 +238,9 @@ implemented value is $0$.
 **95% CI (this section).** $HAFG$ is reported with a percentile bootstrap of the gap over per-case error labels: resample with replacement $B=1000$ times, recompute $HAFG$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
-``` (needs observation-level cases; otherwise reported unavailable).
+```
+
+(needs observation-level cases; otherwise reported unavailable).
 
 ## Metric 6: Ethical Risk Index
 
@@ -711,7 +715,9 @@ HIC_{\mathrm{ratio}}=
 **95% CI (this section).** $GRBI$ is reported with a percentile bootstrap over evidence records: resample with replacement $B=1000$ times, recompute $GRBI$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
-``` (needs record-level input; otherwise reported unavailable).
+```
+
+(needs record-level input; otherwise reported unavailable).
 
 ## Metric 25: Healthcare System Stratified Fairness
 
@@ -792,7 +798,9 @@ underserved region is the region with the minimum $M(r)$.
 **95% CI (this section).** $BEMI$ is reported with a percentile bootstrap over geolocated evidence records: resample with replacement $B=1000$ times, recompute $BEMI$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
-``` (needs record-level input; otherwise reported unavailable).
+```
+
+(needs record-level input; otherwise reported unavailable).
 
 ## Metric 28: Geographic Concentration of Coverage
 
@@ -824,7 +832,9 @@ C_{\mathrm{geo}}=1-H_{\mathrm{norm}}.
 **95% CI (this section).** $GCC$ is reported with a percentile bootstrap over geolocated evidence records: resample with replacement $B=1000$ times, recompute $GCC$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
-``` (needs record-level input; otherwise reported unavailable).
+```
+
+(needs record-level input; otherwise reported unavailable).
 
 ## Metric 29: Bootstrap Confidence Interval
 
@@ -935,7 +945,9 @@ Both `jsd` and `jsd_distance` are reported.
 **95% CI (this section).** $JSD$ is reported with a percentile bootstrap over the underlying samples: resample with replacement $B=1000$ times, recompute $JSD$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
-``` (between aggregate distributions the interval is reported unavailable).
+```
+
+(between aggregate distributions the interval is reported unavailable).
 
 ## Metric 34: Wasserstein Distance
 
@@ -1236,9 +1248,9 @@ doi:10.1037/a0020761.
   but this file uses the exact implemented details where the older
   derivations were more general.
 
-# Uncertainty Quantification for Every Metric (v1.9.2)
+# Uncertainty Quantification for Every Metric (v1.9.3)
 
-From v1.9.2 a metric is never reported as a bare point estimate. Each estimate
+From v1.9.3 a metric is never reported as a bare point estimate. Each estimate
 $\hat\theta$ is accompanied by a 95% confidence interval and, where a
 pre-specified null or acceptability threshold exists, a $p$-value. Three master
 estimators cover every metric in this library; the table at the end tags each

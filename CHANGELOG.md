@@ -5,6 +5,22 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.3] - 2026-06-19
+
+### Documentation
+- Confidence-interval equations now render correctly in `docs/VIGNETTE.md` and
+  `docs/Metric_Math_Derivations.md`. Two markdown-structure bugs were fixed:
+  (1) display `$$...$$` equations wedged between prose lines without blank-line
+  separation, which let markdown emphasis consume the subscript underscores
+  (`\mathrm{HER}_g` rendered as `\mathrm{HER}g`); every display equation is now
+  blank-line isolated. (2) a `math` code fence whose closing ``` had trailing
+  note text on the same line, so the block never closed; notes now sit on their
+  own line after the fence.
+
+### Added
+- Citable archived release: Zenodo DOI 10.5281/zenodo.20766189 recorded in
+  `CITATION.cff` and the manuscript (references and Data-sharing statement).
+
 ## [1.9.2] - 2026-06-19
 
 ### Documentation

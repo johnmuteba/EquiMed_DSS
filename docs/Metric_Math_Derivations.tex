@@ -21,7 +21,7 @@
 \small School of Health Policy and Management, York University, Toronto, Canada\\
 \small Developer and Modeler of EquiMed-DSS\\
 \small \href{mailto:jwmm@yorku.ca}{jwmm@yorku.ca}}
-\date{EquiMed-DSS version 1.9.2}
+\date{EquiMed-DSS version 1.9.3}
 
 \newcommand{\ind}{\mathbb{I}}
 \newcommand{\E}{\mathbb{E}}
@@ -37,7 +37,7 @@
 \section*{Purpose and Verification Scope}
 
 This technical document derives the mathematical definitions used by the
-EquiMed-DSS library, version 1.9.2. The formulae below are aligned with the
+EquiMed-DSS library, version 1.9.3. The formulae below are aligned with the
 local implementation in the package source code, especially the modules
 \texttt{domain1}, \texttt{domain2}, \texttt{domain3}, \texttt{domain4},
 \texttt{domain5}, \texttt{geographic}, \texttt{appendix}, and
@@ -233,7 +233,7 @@ G_{\mathrm{bias}}=
 If the score list is empty or $\bar q=0$, the function returns zero.
 
 
-\paragraph{95\% CI (this section).} $Bias-Gini$ is reported with a percentile bootstrap over group scores: resample with replacement $B=1000$ times, recompute $Bias-Gini$, and take the empirical percentiles
+\paragraph{95\% CI (this section).} \text{Bias-Gini} is reported with a percentile bootstrap over group scores: resample with replacement $B=1000$ times, recompute \text{Bias-Gini}, and take the empirical percentiles
 \begin{equation}
 CI_{95}=\left[\hat\theta^{*}_{(0.025)},\ \hat\theta^{*}_{(0.975)}\right].
 \end{equation}
@@ -1244,9 +1244,9 @@ uses the exact implemented details where the older derivations were more
 general.
 \end{itemize}
 
-\section{Uncertainty Quantification for Every Metric (v1.9.2)}
+\section{Uncertainty Quantification for Every Metric (v1.9.3)}
 
-From v1.9.2 a metric is never reported as a bare point estimate. Each estimate
+From v1.9.3 a metric is never reported as a bare point estimate. Each estimate
 $\hat\theta$ carries a 95\% confidence interval and, where a pre-specified null
 or acceptability threshold exists, a $p$-value. Three master estimators cover
 every metric; the table tags each metric with the one it uses, and the

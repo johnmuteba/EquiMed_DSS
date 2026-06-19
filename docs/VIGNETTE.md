@@ -795,7 +795,9 @@ companion Bias-Gini summarizes dispersion across all groups (lower is better).
 $$\mathrm{HER}_g = \frac{\text{metric}_g}{\text{metric}_{\text{ref}}}, \qquad G = \frac{\sum_i\sum_j |s_i - s_j|}{2 n^2\, \bar{s}}$$
 
 **95% confidence interval (percentile bootstrap).** The printed HER scalar is the across-group gap $\max_g \mathrm{HER}_g - \min_g \mathrm{HER}_g$. A single group score per group is an aggregate, so a CI is only computed when per-observation group data is supplied via `group_observations`: resample observations, recompute each group mean and the gap, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{gap}^{*}_{(0.025)},\ \mathrm{gap}^{*}_{(0.975)} \right];$$
+
 otherwise the gap prints "95% CI unavailable". Bias-Gini ($G$) bootstraps over the group scores the same way.
 
 ```python
@@ -815,7 +817,9 @@ diagnosis (false negative) is penalized more than an over-call.
 $$\text{harm}_g = \mathrm{FN}_g\, c_{\mathrm{FN}} + \mathrm{FP}_g\, c_{\mathrm{FP}}, \qquad \mathrm{HAFG} = \frac{\left| \text{harm}_1 - \text{harm}_2 \right|}{\max(\text{harm}_1, \text{harm}_2)}$$
 
 **95% confidence interval (percentile bootstrap).** A CI cannot be computed honestly from aggregate FN/FP counts. When per-case error labels are supplied (`group1_cases`, `group2_cases`), resample cases within each group $B = 1000$ times, recompute the normalized HAFG, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{HAFG}^{*}_{(0.025)},\ \mathrm{HAFG}^{*}_{(0.975)} \right];$$
+
 with counts only, the result prints "95% CI unavailable".
 
 ```python
@@ -834,7 +838,9 @@ severe violations per 1000 outputs.
 $$\mathrm{ERI} = \frac{\text{total severity}}{n_{\text{outputs}}}, \qquad \mathrm{SVR} = \frac{n_{\text{violations}}}{n_{\text{outputs}}} \times 1000$$
 
 **95% confidence interval.** ERI is the mean of a per-output severity vector (each violation's severity, $0$ for every clean output). Resample that length-$n_{\text{outputs}}$ vector $B = 1000$ times and take the percentiles of the mean,
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{ERI}^{*}_{(0.025)},\ \mathrm{ERI}^{*}_{(0.975)} \right].$$
+
 SVR is a proportion ($\times 1000$), so it additionally carries a Wilson interval on $n_{\text{violations}}/n_{\text{outputs}}$ (keys `svr_ci_lower`, `svr_ci_upper`).
 
 ```python
@@ -851,6 +857,7 @@ specific race-and-gender subgroup) by flagging outlier subgroups.
 $$\text{sim}_{ij} = \frac{1}{1 + \lVert \mathbf{v}_i - \mathbf{v}_j \rVert_2}$$
 
 **95% confidence interval (percentile bootstrap).** The printed scalar is the mean off-diagonal subgroup similarity. Resample the metric dimensions of the subgroup vectors (the natural observation unit) $B = 1000$ times, recompute the mean similarity, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \overline{\text{sim}}^{*}_{(0.025)},\ \overline{\text{sim}}^{*}_{(0.975)} \right].$$
 
 ```python
@@ -898,7 +905,9 @@ over time, using statistical-process-control limits.
 $$\text{control limits} = \mu \pm k\,\sigma$$
 
 **95% confidence interval (percentile bootstrap).** The printed scalar is the process mean (mean PDI). Resample the observed time series $B = 1000$ times, recompute the mean, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \bar{x}^{*}_{(0.025)},\ \bar{x}^{*}_{(0.975)} \right].$$
+
 This CI on the process level is distinct from the $\mu \pm 3\sigma$ control limits, which flag individual out-of-control points.
 
 ```python
@@ -918,7 +927,9 @@ gap means more demographic sensitivity in the model's internal encoding.
 $$\mathrm{SPG} = \left\lVert \frac{1}{n}\sum_i E(x_{p,i}) - \frac{1}{m}\sum_j E(x_{m,j}) \right\rVert_2$$
 
 **95% confidence interval (two-sample percentile bootstrap).** Resample the $n$ privileged and $m$ marginalized embedding rows independently (each group to its own size) $B = 1000$ times, recompute the centroid distance on each replicate, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{SPG}^{*}_{(0.025)},\ \mathrm{SPG}^{*}_{(0.975)} \right].$$
+
 Resampling each group independently propagates the sampling variability of both centroids.
 
 ```python
@@ -966,6 +977,7 @@ values near 0 indicate a Western-centric knowledge base (by variety of locations
 $$\mathrm{GRI} = \frac{|L| - |W|}{|L|}$$
 
 **95% confidence interval (percentile bootstrap).** GRI is a set-based variety ratio. Resample the location mentions with replacement $B = 1000$ times, recompute the ratio over the resampled unique-location set, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{GRI}^{*}_{(0.025)},\ \mathrm{GRI}^{*}_{(0.975)} \right].$$
 
 ```python
@@ -983,6 +995,7 @@ a specific intersectional subgroup; dICE is the worst-case calibration gap.
 $$\mathrm{ECE}_i = \sum_{b=1}^{B} \frac{|S_{i,b}|}{|S_i|}\,\bigl|\mathrm{acc}(S_{i,b}) - \mathrm{conf}(S_{i,b})\bigr|, \quad \Delta\mathrm{ICE} = \max_{i,j} |\mathrm{ECE}_i - \mathrm{ECE}_j|$$
 
 **95% confidence interval (percentile bootstrap).** The printed scalar is the population-weighted ICE. Resample the samples (group, confidence, correctness triples) with replacement $B = 1000$ times, recompute the weighted ICE, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{ICE}^{*}_{(0.025)},\ \mathrm{ICE}^{*}_{(0.975)} \right].$$
 
 ```python
@@ -1000,6 +1013,7 @@ between groups, prioritizing disparities that cause the most clinical harm.
 $$H(g) = \frac{1}{n_g}\sum_i \omega(Y_i)\,L(\hat{Y}_i, Y_i), \qquad \mathrm{wHAFG} = \max_{g,g'} |H(g) - H(g')|$$
 
 **95% confidence interval (percentile bootstrap).** Resample the samples (group, severity weight, loss) with replacement $B = 1000$ times, recompute the maximum weighted-harm gap, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{wHAFG}^{*}_{(0.025)},\ \mathrm{wHAFG}^{*}_{(0.975)} \right].$$
 
 ```python
@@ -1016,6 +1030,7 @@ large value can indicate more templated or stereotyped responses for some groups
 $$\mathrm{RTTR}(g) = \frac{|V(\cup_i R_i^g)|}{\sqrt{\sum_i |R_i^g|}}, \qquad \mathrm{LDDI} = \max_g \mathrm{RTTR}(g) - \min_g \mathrm{RTTR}(g)$$
 
 **95% confidence interval (percentile bootstrap).** Pool the group responses (tagged by group), resample them with replacement $B = 1000$ times, recompute each group's RTTR and the max-min gap, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{LDDI}^{*}_{(0.025)},\ \mathrm{LDDI}^{*}_{(0.975)} \right].$$
 
 ```python
@@ -1032,6 +1047,7 @@ recommendations differs across groups, signalling differential treatment pattern
 $$H(T\mid g) = -\sum_t P(t\mid g)\log_2 P(t\mid g), \qquad \mathrm{REG} = \max_{g,g'} |H(T\mid g) - H(T\mid g')|$$
 
 **95% confidence interval (percentile bootstrap).** Pool the group recommendations (tagged by group), resample $B = 1000$ times, recompute each group's entropy and the max-min gap, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{REG}^{*}_{(0.025)},\ \mathrm{REG}^{*}_{(0.975)} \right].$$
 
 ```python
@@ -1049,6 +1065,7 @@ the counterfactual unfairness.
 $$\mathrm{CPS}(a,a') = \frac{1}{n}\sum_i \mathrm{sim}\!\left( f(x_i), f(x_{i, A\leftarrow a'}) \right), \qquad \mathrm{CFU} = 1 - \min_{a,a'} \mathrm{CPS}(a,a')$$
 
 **95% confidence interval (percentile bootstrap).** CPS is a mean over per-case similarities, so resample the pooled similarities with replacement $B = 1000$ times and take the percentiles of the mean
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{CPS}^{*}_{(0.025)},\ \mathrm{CPS}^{*}_{(0.975)} \right].$$
 
 ```python
@@ -1066,6 +1083,7 @@ clinical content. Takes precomputed (concepts, tokens) per response.
 $$\mathrm{CID}(r) = \frac{|C(r)|}{|\text{tokens}(r)|}\times 100, \qquad \mathrm{CIDR}_{\min} = \min_g \frac{\mathrm{CID}(g)}{\max_{g'} \mathrm{CID}(g')}$$
 
 **95% confidence interval (percentile bootstrap).** Pool the per-response (concepts, tokens) pairs (tagged by group), resample $B = 1000$ times, recompute the minimum CIDR ratio, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{CIDR}_{\min}^{*\,(0.025)},\ \mathrm{CIDR}_{\min}^{*\,(0.975)} \right].$$
 
 ```python
@@ -1082,6 +1100,7 @@ differential diagnoses equally across groups; dDCI is the worst-case coverage ga
 $$\mathrm{DCI}(r) = \frac{|D(r) \cap D^{\ast}|}{|D^{\ast}|}, \qquad \Delta\mathrm{DCI} = \max_g \mathrm{DCI}(g) - \min_g \mathrm{DCI}(g)$$
 
 **95% confidence interval (percentile bootstrap).** Pool the per-response coverage scores (tagged by group), resample $B = 1000$ times, recompute the max-min coverage gap, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \Delta\mathrm{DCI}^{*}_{(0.025)},\ \Delta\mathrm{DCI}^{*}_{(0.975)} \right].$$
 
 ```python
@@ -1100,6 +1119,7 @@ missed-diagnosis risk.
 $$\mathrm{UD}(r) = \frac{|\{t \in r : t \in U\}|}{|\text{sentences}(r)|}, \qquad \mathrm{UQG} = \max_g \mathrm{UD}(g) - \min_g \mathrm{UD}(g)$$
 
 **95% confidence interval (percentile bootstrap).** Pool the group responses (tagged by group), resample $B = 1000$ times, recompute each group's hedging density and the max-min gap, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{UQG}^{*}_{(0.025)},\ \mathrm{UQG}^{*}_{(0.975)} \right].$$
 
 ```python
@@ -1117,7 +1137,9 @@ Complements BEMI (which is the symmetric total-variation distance).
 $$\mathrm{GRBI} = D_{\mathrm{KL}}\!\left( P_C \,\|\, P_{\text{burden}} \right) = \sum_r P_C(r)\log\frac{P_C(r)}{P_{\text{burden}}(r)}$$
 
 **95% confidence interval (percentile bootstrap).** A KL divergence from aggregate corpus shares has no CI; supply per-evidence region labels via `corpus_records` to resample records with replacement $B = 1000$ times, recompute the KL divergence against the fixed burden distribution, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{GRBI}^{*}_{(0.025)},\ \mathrm{GRBI}^{*}_{(0.975)} \right];$$
+
 otherwise the divergence prints "95% CI unavailable".
 
 ```python
@@ -1136,6 +1158,7 @@ for a system (access) effect.
 $$\Delta_s(g,g') = \bigl| \mathbb{E}[Y \mid g, s] - \mathbb{E}[Y \mid g', s] \bigr|, \qquad \mathrm{HSSF} = \sum_s P(s)\,\max_{g,g'} \Delta_s(g,g')$$
 
 **95% confidence interval (percentile bootstrap).** Resample the samples (system, group, outcome) with replacement $B = 1000$ times, recompute the population-weighted within-system gap, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{HSSF}^{*}_{(0.025)},\ \mathrm{HSSF}^{*}_{(0.975)} \right].$$
 
 ```python
@@ -1153,6 +1176,7 @@ superadditive (intersectional) penalty.
 $$\phi_i = \sum_{S \subseteq A\setminus\{i\}} \frac{|S|!\,(m-|S|-1)!}{m!}\bigl( v(S\cup\{i\}) - v(S) \bigr)$$
 
 **95% confidence interval (percentile bootstrap).** The printed scalar is the total intersectional disparity $v(A)$ (the quantity the Shapley values sum to). Resample the rows with replacement $B = 500$ times, recompute $v(A)$, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ v(A)^{*}_{(0.025)},\ v(A)^{*}_{(0.975)} \right].$$
 
 ```python
@@ -1172,6 +1196,7 @@ outputs are more sensitive to wording.
 $$\mathrm{SRPI} = \frac{\min_g R(g)}{\max_g R(g)}$$
 
 **95% confidence interval (percentile bootstrap).** Pool the per-query robustness scores (tagged by group), resample $B = 1000$ times, recompute each group mean and the min/max ratio, and take the percentiles
+
 $$\mathrm{CI}_{95} = \left[ \mathrm{SRPI}^{*}_{(0.025)},\ \mathrm{SRPI}^{*}_{(0.975)} \right].$$
 
 ```python
