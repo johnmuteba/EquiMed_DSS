@@ -59,13 +59,16 @@ class HierarchicalEquityRatio:
                 },
             }
 
-        # The reported scalar is the spread of HER across groups (max - min); a
-        # value of 0 means every group matches the reference equally.
+        # The printed scalar is the spread of HER across groups (max - min); a
+        # value of 0 means every group matches the reference equally. It is kept
+        # OFF the returned mapping (carried as the MetricResult point/ci instead)
+        # so the dict holds only per-group entries and stays cleanly iterable:
+        # ``for g, r in result.items(): r["score"]`` works unchanged.
         her_gap = float(max(ratios.values()) - min(ratios.values())) if ratios else 0.0
-        her_scores["her_gap"] = her_gap
 
         from equimed_dss.inference import MetricResult, bootstrap_ci
 
+        ci_tuple = None
         if group_observations is not None:
             missing = set(group_scores) - set(group_observations)
             if missing:
@@ -96,11 +99,9 @@ class HierarchicalEquityRatio:
                 return max(rr) - min(rr)
 
             ci = bootstrap_ci(records, _gap, n_boot=1000, random_state=0)
-            her_scores["ci_lower"] = ci.ci_lower
-            her_scores["ci_upper"] = ci.ci_upper
-            her_scores["ci_method"] = ci.method
+            ci_tuple = (ci.ci_lower, ci.ci_upper, ci.method)
 
-        return MetricResult(her_scores, name="HER", value_key="her_gap")
+        return MetricResult(her_scores, name="HER (gap)", point=her_gap, ci=ci_tuple)
 
     def calculate_bias_gini(self, scores: List[float]) -> Dict[str, float]:
         """

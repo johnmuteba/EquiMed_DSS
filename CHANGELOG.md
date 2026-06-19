@@ -5,6 +5,25 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-06-19
+
+### Fixed (scalar-style usage of CI-carrying results)
+- `MetricResult` now degrades gracefully to its point value in numeric and
+  formatting contexts: `f"{result:.4f}"`, `round(result, 3)`, `float(result)`,
+  and `result < 0.2` use the headline estimate. This fixes
+  `TypeError: unsupported format string passed to MetricResult.__format__` and
+  similar errors when a metric was used as a scalar.
+- `HierarchicalEquityRatio.calculate_her` again returns a mapping containing
+  **only** per-group entries, so `for g, r in result.items(): r["score"]` works.
+  The across-group HER gap and its CI are carried as the result's printable
+  point/CI (not as extra dict keys), so `print(result)` still shows the gap with
+  its 95% CI while iteration and `result["White"]["score"]` behave as before.
+
+### Documentation
+- Vignette examples now `print(result)` so each metric shows its 95% CI, and the
+  "Metric Formulas and Clinical Meaning" section gains, for every metric, the
+  confidence-interval formula and a short explanation alongside the point formula.
+
 ## [1.9.0] - 2026-06-18
 
 ### Changed (all 37 metrics now return a MetricResult with a 95% CI)

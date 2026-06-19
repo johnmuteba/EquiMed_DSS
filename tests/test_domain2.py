@@ -54,6 +54,30 @@ class TestHierarchicalEquityRatio:
 
         assert result["bias_gini"] == 0.0
 
+    def test_bias_gini_behaves_like_a_scalar(self):
+        """Regression: a CI-carrying result still supports scalar-style usage
+        (format spec, round, float, comparison) as documented in the vignette."""
+        her = HierarchicalEquityRatio()
+        gini = her.calculate_bias_gini([0.85, 0.75, 0.80, 0.82])
+        # f"{gini:.4f}" must not raise and must format the point value.
+        assert f"{gini:.4f}" == f"{gini['bias_gini']:.4f}"
+        assert round(gini, 3) == round(gini["bias_gini"], 3)
+        assert float(gini) == gini["bias_gini"]
+        assert (gini < 0.2) == (gini["bias_gini"] < 0.2)
+
+    def test_her_returns_pure_group_mapping(self):
+        """Regression: calculate_her must yield only per-group entries so
+        ``for g, r in result.items(): r['score']`` works; the gap/CI are carried
+        as the printable point/CI, not as extra dict keys."""
+        her = HierarchicalEquityRatio()
+        scores = {"White": 0.85, "Black": 0.78, "Hispanic": 0.80, "Asian": 0.87}
+        result = her.calculate_her(scores)
+        assert set(result.keys()) == set(scores.keys())
+        for group, entry in result.items():       # must not raise
+            assert isinstance(entry["score"], float)
+            assert "verdict" in entry["interpretation"]
+        assert "95% CI" in str(result)            # printed scalar = HER gap
+
 
 class TestHarmAdjustedFairnessGap:
     """Test suite for HarmAdjustedFairnessGap."""

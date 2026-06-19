@@ -48,38 +48,99 @@ class MetricResult(dict):
     Behaves exactly like the ``dict`` it wraps (so ``result['flip_rate']`` and
     every other key keep working, and it is JSON-serialisable), but its string
     form always shows the point estimate and, when available, the
-    $\\alpha=0.05$ confidence interval read from the ``ci_lower`` / ``ci_upper``
-    keys. Printed bounds are ordered so the interval always has lower
-    $\\le$ upper.
+    $\\alpha=0.05$ confidence interval. Printed bounds are ordered so the
+    interval always has lower $\\le$ upper.
+
+    Where a metric is conceptually a single number (e.g. a flip rate or a Gini
+    index), the result also behaves like that number in numeric and formatting
+    contexts: ``f"{result:.4f}"``, ``round(result, 3)``, ``float(result)`` and
+    ``result < 0.2`` all use the point estimate, so existing scalar-style usage
+    keeps working even though the object is a dict that prints its CI.
 
     Parameters
     ----------
     data : the metric's result mapping.
     name : short label shown when printing (e.g. ``"DFR"``).
     value_key : key holding the point estimate (e.g. ``"flip_rate"``).
+    point : explicit point estimate, used when the headline value is *not* a
+        top-level key (e.g. a mapping-valued result such as HER, whose dict holds
+        per-group entries while the printed scalar is the across-group gap).
+    ci : explicit ``(lower, upper, method)`` tuple, used the same way as
+        ``point`` when the CI is not stored as ``ci_lower`` / ``ci_upper`` keys.
     """
 
-    def __init__(self, data=None, *, name="metric", value_key=None):
+    def __init__(self, data=None, *, name="metric", value_key=None,
+                 point=None, ci=None):
         super().__init__(data or {})
         self._name = name
         self._value_key = value_key
+        self._point_override = point
+        self._ci_override = ci
 
     def _point(self):
+        if self._point_override is not None:
+            return self._point_override
         return self.get(self._value_key) if self._value_key else None
+
+    def _ci(self):
+        """Return ``(lower, upper, method)`` or ``None``."""
+        if self._ci_override is not None:
+            return self._ci_override
+        lo, hi = self.get("ci_lower"), self.get("ci_upper")
+        if lo is not None and hi is not None:
+            return (lo, hi, self.get("ci_method"))
+        return None
 
     def __str__(self):
         v = self._point()
         head = f"{self._name} = {v:.3f}" if isinstance(v, (int, float)) else f"{self._name} = {v}"
-        lo, hi = self.get("ci_lower"), self.get("ci_upper")
-        if lo is not None and hi is not None:
+        ci = self._ci()
+        if ci is not None:
+            lo, hi, method = ci
             lo, hi = sorted((float(lo), float(hi)))   # guarantee lower <= upper
             tail = f"95% CI [{lo:.3f}; {hi:.3f}]"
-            if self.get("ci_method"):
-                tail += f" ({self['ci_method']})"
+            if method:
+                tail += f" ({method})"
             return f"{head} :: {tail}"
         return f"{head} :: 95% CI unavailable (needs observation-level input)"
 
     __repr__ = __str__
+
+    # --- graceful scalar behaviour ------------------------------------------
+    # A metric whose headline value is a single number should still work in
+    # numeric/formatting contexts, so documented scalar-style usage (e.g.
+    # ``f"{gini:.4f}"`` or ``round(gini, 3)``) does not break when the result is
+    # a CI-carrying dict.
+    def __float__(self):
+        v = self._point()
+        if isinstance(v, (int, float)):
+            return float(v)
+        raise TypeError(
+            f"{self._name} result has no scalar point value to convert to float"
+        )
+
+    def __format__(self, spec):
+        v = self._point()
+        if spec and isinstance(v, (int, float)):
+            return format(v, spec)            # e.g. f"{gini:.4f}" -> "0.0247"
+        if spec:
+            return format(str(self), spec)
+        return str(self)
+
+    def __round__(self, ndigits=None):
+        return round(float(self), ndigits)
+
+    def __lt__(self, other):
+        return float(self) < float(other)
+
+    def __le__(self, other):
+        return float(self) <= float(other)
+
+    def __gt__(self, other):
+        return float(self) > float(other)
+
+    def __ge__(self, other):
+        return float(self) >= float(other)
 
 
 def _z(conf: float) -> float:

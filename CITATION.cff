@@ -10,11 +10,11 @@ abstract: >-
   interval.
 type: software
 authors:
-  - given-names: John
-    family-names: "Muteba Mwamba"
+  - given-names: "John Weirstrass"
+    family-names: "Muteba M"
     email: 2moi175@gmail.com
-version: 1.9.0
-date-released: "2026-06-18"
+version: 1.9.1
+date-released: "2026-06-19"
 license: MIT
 repository-code: "https://github.com/johnmuteba/EquiMed_DSS"
 url: "https://github.com/johnmuteba/EquiMed_DSS"

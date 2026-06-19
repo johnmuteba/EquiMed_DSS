@@ -1,9 +1,9 @@
-> **Rendering note.** This Markdown version renders every equation directly on GitHub (via MathJax). The LaTeX source (`Metric_Math_Derivations.tex`) and a compiled PDF (`Metric_Math_Derivations.pdf`) are in this folder. The final section, *Uncertainty Quantification for Every Metric*, gives the confidence-interval and p-value formulas added in v1.9.0.
+> **Rendering note.** This Markdown version renders every equation directly on GitHub (via MathJax). The LaTeX source (`Metric_Math_Derivations.tex`) and a compiled PDF (`Metric_Math_Derivations.pdf`) are in this folder. The final section, *Uncertainty Quantification for Every Metric*, gives the confidence-interval and p-value formulas added in v1.9.1.
 
 # Purpose and Verification Scope
 
 This technical document derives the mathematical definitions used by the
-EquiMed-DSS library, version 1.9.0. The formulae below are aligned with
+EquiMed-DSS library, version 1.9.1. The formulae below are aligned with
 the local implementation in the package source code, especially the
 modules `domain1`, `domain2`, `domain3`, `domain4`, `domain5`,
 `geographic`, `appendix`, and `statistics`. Where an earlier derivation
@@ -1236,9 +1236,9 @@ doi:10.1037/a0020761.
   but this file uses the exact implemented details where the older
   derivations were more general.
 
-# Uncertainty Quantification for Every Metric (v1.9.0)
+# Uncertainty Quantification for Every Metric (v1.9.1)
 
-From v1.9.0 a metric is never reported as a bare point estimate. Each estimate
+From v1.9.1 a metric is never reported as a bare point estimate. Each estimate
 $\hat\theta$ is accompanied by a 95% confidence interval and, where a
 pre-specified null or acceptability threshold exists, a $p$-value. Three master
 estimators cover every metric in this library; the table at the end tags each
