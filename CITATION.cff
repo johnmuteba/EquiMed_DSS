@@ -13,7 +13,7 @@ authors:
   - given-names: "John Weirstrass"
     family-names: "Muteba M"
     email: 2moi175@gmail.com
-version: 1.9.4
+version: 1.9.5
 date-released: "2026-06-19"
 license: MIT
 doi: 10.5281/zenodo.20766188

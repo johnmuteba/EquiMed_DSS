@@ -841,7 +841,7 @@ $$\mathrm{ERI} = \frac{\text{total severity}}{n_{\text{outputs}}}, \qquad \mathr
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{ERI}^{\ast}_{(0.025)},\ \mathrm{ERI}^{\ast}_{(0.975)} \right].$$
 
-SVR is a proportion ($\times 1000$), so it additionally carries a Wilson interval on $n_{\text{violations}}/n_{\text{outputs}}$ (keys `svr_ci_lower`, `svr_ci_upper`).
+SVR is a proportion ($\times 1000$), so it additionally carries a Wilson interval on the violation proportion (keys `svr_ci_lower`, `svr_ci_upper`).
 
 ```python
 from equimed_dss.domain2 import EthicalRiskIndex
@@ -889,7 +889,7 @@ enforced.
 
 $$\mathrm{GCI} = \frac{n_{\text{enforced}}}{n_{\text{mandated}}}$$
 
-**95% confidence interval (Wilson score).** GCI is the proportion of enforced policies, so it carries a Wilson score interval on $n_{\text{enforced}}/n_{\text{mandated}}$ (same form as ATS above).
+**95% confidence interval (Wilson score).** GCI is the proportion of enforced policies, so it carries a Wilson score interval on the enforced-policy proportion (same form as ATS above).
 
 ```python
 from equimed_dss.domain3 import GovernanceComplianceIndex
@@ -1209,7 +1209,9 @@ print(SemanticRobustnessParityIndex().calculate_srpi(
 ### Statistics module
 
 **HierarchicalLinearModeling**: variance decomposition with
-$\mathrm{ICC} = \sigma^{2}_{\text{between}} / (\sigma^{2}_{\text{between}} + \sigma^{2}_{\text{within}})$,
+
+$$\mathrm{ICC} = \frac{\sigma^{2}_{\text{between}}}{\sigma^{2}_{\text{between}} + \sigma^{2}_{\text{within}}},$$
+
 fixed-effect coefficients (estimate, SE, t, p, 95% CI), and AIC/BIC from the
 maximum-likelihood fit. Use it to quantify how much variation sits at the
 institution/group level versus the individual level.
@@ -1263,7 +1265,7 @@ print(round(ReliabilityAnalysis().cronbachs_alpha(ratings)["alpha"], 3))
 
 **Bias Concentration Index (BCI)**, `BiasConcentrationIndex`. Herfindahl-style
 concentration of bias across groups: $\mathrm{BCI} = 1 - \sum_r p_r^2 / (\sum_r p_r)^2$.
-**95% CI (percentile bootstrap):** resample the per-group bias proportions $B = 1000$ times, recompute BCI, and take $[\mathrm{BCI}^{\ast}_{(0.025)}, \mathrm{BCI}^{\ast}_{(0.975)}]$.
+**95% CI (percentile bootstrap):** resample the per-group bias proportions $B = 1000$ times, recompute BCI, and take the 2.5th and 97.5th percentiles of the bootstrap replicates.
 
 ```python
 from equimed_dss.appendix import BiasConcentrationIndex
@@ -1272,8 +1274,7 @@ print(BiasConcentrationIndex().calculate_bci([0.1, 0.4, 0.3, 0.2]))
 ```
 
 **Bootstrap Confidence Intervals**, `BootstrapConfidenceIntervals`. This metric *is*
-the percentile bootstrap: it resamples the data $B$ times and returns
-$[\hat\theta^{\ast}_{(0.025)}, \hat\theta^{\ast}_{(0.975)}]$ for any statistic (seeded for reproducibility).
+the percentile bootstrap: it resamples the data $B$ times and returns the 2.5th and 97.5th percentiles of the bootstrap replicates for any statistic (seeded for reproducibility).
 
 ```python
 from equimed_dss.appendix import BootstrapConfidenceIntervals
@@ -1297,7 +1298,7 @@ print(JensenShannonDivergence().calculate_jsd(p, q))
 **Wasserstein Distance (WD)**, `WassersteinDistance`. Earth-mover distance
 $W_1(u,v)$ between two score samples.
 **95% CI (two-sample percentile bootstrap):** resample each sample independently
-$B = 1000$ times, recompute $W_1$, and take $[W_1^{\ast}_{(0.025)}, W_1^{\ast}_{(0.975)}]$.
+$B = 1000$ times, recompute $W_1$, and take the 2.5th and 97.5th percentiles of the bootstrap replicates.
 
 ```python
 from equimed_dss.appendix import WassersteinDistance

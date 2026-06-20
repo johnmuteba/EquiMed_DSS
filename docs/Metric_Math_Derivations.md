@@ -1,9 +1,9 @@
-> **Rendering note.** This Markdown version renders every equation directly on GitHub (via MathJax). The LaTeX source (`Metric_Math_Derivations.tex`) and a compiled PDF (`Metric_Math_Derivations.pdf`) are in this folder. The final section, *Uncertainty Quantification for Every Metric*, gives the confidence-interval and p-value formulas added in v1.9.4.
+> **Rendering note.** This Markdown version renders every equation directly on GitHub (via MathJax). The LaTeX source (`Metric_Math_Derivations.tex`) and a compiled PDF (`Metric_Math_Derivations.pdf`) are in this folder. The final section, *Uncertainty Quantification for Every Metric*, gives the confidence-interval and p-value formulas added in v1.9.5.
 
 # Purpose and Verification Scope
 
 This technical document derives the mathematical definitions used by the
-EquiMed-DSS library, version 1.9.4. The formulae below are aligned with
+EquiMed-DSS library, version 1.9.5. The formulae below are aligned with
 the local implementation in the package source code, especially the
 modules `domain1`, `domain2`, `domain3`, `domain4`, `domain5`,
 `geographic`, `appendix`, and `statistics`. Where an earlier derivation
@@ -975,8 +975,8 @@ CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 
 Given an adjacency or correlation matrix $A$, the implementation
 constructs an undirected graph using $|A|$ and detects communities
-with greedy modularity. For total edge weight $2m=\sum_{ij}A_{ij}$,
-degree $k_i=\sum_j A_{ij}$, and community assignment $c_i$, Newman
+with greedy modularity. For total edge weight $2m$ (summing all entries
+$A_{ij}$), degree $k_i=\sum_j A_{ij}$, and community assignment $c_i$, Newman
 modularity is
 ```math
 Q=\frac{1}{2m}\sum_{i,j}
@@ -1245,9 +1245,9 @@ doi:10.1037/a0020761.
   but this file uses the exact implemented details where the older
   derivations were more general.
 
-# Uncertainty Quantification for Every Metric (v1.9.4)
+# Uncertainty Quantification for Every Metric (v1.9.5)
 
-From v1.9.4 a metric is never reported as a bare point estimate. Each estimate
+From v1.9.5 a metric is never reported as a bare point estimate. Each estimate
 $\hat\theta$ is accompanied by a 95% confidence interval and, where a
 pre-specified null or acceptability threshold exists, a $p$-value. Three master
 estimators cover every metric in this library; the table at the end tags each

@@ -5,6 +5,20 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.5] - 2026-06-19
+
+### Documentation
+- Fixed the last non-rendering inline math in `docs/VIGNETTE.md` (Statistics
+  module and Appendix sections) and `docs/Metric_Math_Derivations.md`. The cause
+  was inline `$...$` expressions containing two or more `_{...}` subscripts, whose
+  underscores markdown pairs as emphasis and deletes (e.g.
+  `\sigma^{2}_{\text{between}}` rendered as `\sigma^{2}{\text{between}}`, and
+  `[\mathrm{BCI}^{\ast}_{(0.025)}, \mathrm{BCI}^{\ast}_{(0.975)}]` lost its
+  subscripts). The HLM ICC formula is now a display block, the appendix bootstrap
+  intervals are described in words ("2.5th and 97.5th percentiles of the bootstrap
+  replicates"), and remaining multi-subscript inline fragments were split so no
+  inline expression carries more than one `_{...}`.
+
 ## [1.9.4] - 2026-06-19
 
 ### Documentation
