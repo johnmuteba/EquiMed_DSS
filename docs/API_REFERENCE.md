@@ -112,36 +112,44 @@ Calculates equity ratios across demographic groups.
 ```python
 def calculate_her(
     group_scores: Dict[str, float],
-    reference_group: str = 'White'
-) -> Dict[str, Dict[str, Any]]
+    reference_group: str = 'White',
+    group_observations: Optional[Dict[str, Sequence[float]]] = None,
+) -> MetricResult
 ```
 
 Calculate Hierarchical Equity Ratio for each group.
 
 **Parameters:**
-- `group_scores` (Dict[str, float]): Mapping of group names to performance scores
+- `group_scores` (Dict[str, float]): Mapping of group names to non-negative scores
 - `reference_group` (str): Name of reference group (default: 'White')
+- `group_observations` (optional): group -> per-observation scores; adds a CI for the
+  max-min HER gap from a bootstrap that resamples within each group
 
 **Returns:**
-- Dictionary mapping group names to their HER scores and interpretations
+- Mapping of group names to their HER (`score`) and a descriptive label ("Within the
+  0.8-1.25 band" or "Outside the 0.8-1.25 band"); prints the HER gap with its CI
 
 **Raises:**
-- `ValueError`: If reference group not found in scores
+- `ValueError`: If the reference group is missing or its score is not positive, or a
+  score is negative or not finite
 
 ##### calculate_bias_gini
 ```python
 def calculate_bias_gini(
-    scores: List[float]
-) -> float
+    scores: Optional[List[float]] = None,
+    group_observations: Optional[Dict[str, Sequence[float]]] = None,
+) -> MetricResult
 ```
 
 Calculate Bias-Gini Index for dispersion measurement.
 
 **Parameters:**
-- `scores` (List[float]): List of performance scores
+- `scores` (List[float]): List of non-negative group scores (may be omitted when
+  `group_observations` is given; the group means are then used)
+- `group_observations` (optional): group -> per-observation scores; needed for a CI
 
 **Returns:**
-- Gini coefficient (0-1)
+- `bias_gini` in [0, 1]; a CI only with `group_observations`
 
 ---
 
@@ -161,20 +169,29 @@ Costs are constructor arguments: `HarmAdjustedFairnessGap(cost_fn=10.0, cost_fp=
 ```python
 def calculate_hafg(
     group1_errors: Dict[str, int],
-    group2_errors: Dict[str, int]
-) -> Dict[str, float]
+    group2_errors: Dict[str, int],
+    group1_cases: Optional[Sequence[str]] = None,
+    group2_cases: Optional[Sequence[str]] = None,
+    group1_n: Optional[int] = None,
+    group2_n: Optional[int] = None,
+) -> MetricResult
 ```
 
 `H_g = fn_g*cost_fn + fp_g*cost_fp`; `HAFG = |H1 - H2| / max(H1, H2)`, range
-**[0, 1]** (normalized). 
+**[0, 1]** (normalized). HAFG compares TOTAL harm, so it reflects group size as well
+as error rates.
 
 **Parameters:**
 - `group1_errors` (Dict[str, int]): error counts for group 1 with keys 'fn', 'fp'
 - `group2_errors` (Dict[str, int]): error counts for group 2 with keys 'fn', 'fp'
+- `group1_cases`, `group2_cases` (optional): per-case labels ('fn', 'fp', 'tp', 'tn');
+  must agree with the counts; add a CI that resamples cases within each group
+- `group1_n`, `group2_n` (optional): group sizes when case lists are not given
 
 **Returns:**
 - Dict with `hafg` (normalized, [0,1]), `absolute_harm_gap`, `harm_group1`,
-  `harm_group2`, `ratio`, and `interpretation`.
+  `harm_group2`, `ratio`, `interpretation`, and, when the sizes are known,
+  `harm_per_patient_group1`, `harm_per_patient_group2` and `hafg_per_patient`.
 
 ---
 
@@ -199,8 +216,10 @@ def calculate_eri(
 Calculate Ethical Risk Index.
 
 **Parameters:**
-- `violations` (List[Dict]): List of violations, each with 'severity' key (1-10 scale)
-- `n_total_outputs` (int): Total number of model outputs
+- `violations` (List[Dict]): List of violations, each with a finite, non-negative
+  'severity' (the scale is the user's)
+- `n_total_outputs` (int): Total number of model outputs (positive; at most one
+  violation per output)
 
 **Returns:**
 - Dictionary with ERI score and interpretation
@@ -249,17 +268,23 @@ Tracks fairness degradation over time.
 ##### calculate_drift
 ```python
 def calculate_drift(
-    time_series_metrics: List[float]
-) -> Dict[str, Any]
+    time_series_metrics: List[float],
+    sigma_method: str = "sd",
+    baseline_n: Optional[int] = None,
+) -> MetricResult
 ```
 
 Calculate drift metrics using statistical process control.
 
 **Parameters:**
-- `time_series_metrics` (List[float]): Fairness metrics over time
+- `time_series_metrics` (List[float]): Fairness metrics over time (non-empty, finite)
+- `sigma_method` (str): "sd" (sample SD) or "moving_range" (mean moving range / 1.128)
+- `baseline_n` (optional int): estimate the centre and limits from the first
+  `baseline_n` points and apply them prospectively to the later points
 
 **Returns:**
-- Dictionary with drift statistics and control limits
+- Dictionary with the centre (`mean_pdi`), `series_mean`, sigma, limits, the indices of
+  points outside the limits, `phase`, and a moving-block bootstrap CI for the centre
 
 ---
 
@@ -269,7 +294,7 @@ Calculate drift metrics using statistical process control.
 class AuditTraceabilityScore()
 ```
 
-Measures audit trail completeness.
+Share of audited decisions that are traceable to a source.
 
 #### Methods
 
@@ -290,6 +315,9 @@ Proportion of traceable decisions with a **Wilson 95% interval**.
 **Returns:**
 - Dict with `ats_score`, `ci_lower`, `ci_upper`, `meets_95_standard`, `interpretation`.
 
+**Raises:**
+- `ValueError` if `n_total` is not positive or `n_traceable` is outside [0, `n_total`].
+
 ---
 
 ### equimed_dss.domain3.GovernanceComplianceIndex
@@ -298,7 +326,7 @@ Proportion of traceable decisions with a **Wilson 95% interval**.
 class GovernanceComplianceIndex()
 ```
 
-Assesses governance and regulatory compliance.
+Share of the listed governance checks that are met (not regulatory compliance).
 
 #### Methods
 
@@ -312,11 +340,11 @@ def calculate_gci(
 `GCI = (# policies met) / (# policies)`, range [0, 1].
 
 **Parameters:**
-- `policy_compliance` (Dict[str, bool]): policy name -> compliant (True/False)
+- `policy_compliance` (Dict[str, bool]): check name -> met (True/False); non-empty
 
 **Returns:**
-- Dict with `gci`, `policies_enforced`, `policies_mandated`, `compliance_gaps`,
-  `interpretation`.
+- Dict with `gci`, `policies_enforced`, `policies_mandated`, `compliance_gaps`, a
+  Wilson CI (a sampling interval only if the checks are sampled), `interpretation`.
 
 ---
 
@@ -576,16 +604,16 @@ export_table(df, fmt="html",  path="results/geo.html")
 #### generate_synthetic_fairness_data
 ```python
 def generate_synthetic_fairness_data(
-    n_groups: int = 4,
-    score_range: Tuple[float, float] = (0.5, 0.9)
+    groups: Optional[List[str]] = None,
+    random_state: Optional[int] = None,
 ) -> Dict[str, float]
 ```
 
-Generate synthetic fairness data for testing.
+Generate synthetic fairness scores for examples (never study data).
 
 **Parameters:**
-- `n_groups` (int): Number of demographic groups
-- `score_range` (Tuple[float, float]): Range of performance scores
+- `groups` (List[str]): group names (default White, Black, Asian)
+- `random_state` (int): seed for reproducible output
 
 **Returns:**
 - Dictionary of group scores
@@ -616,14 +644,17 @@ Plot HER scores as a heatmap.
 
 ### Metric Result Dictionary
 
-Most metrics return a dictionary with the following structure:
+Metrics return a `MetricResult`, a dictionary that prints its value with a 95% CI
+(or "95% CI unavailable" when the inputs are aggregate values). Typical keys:
 
 ```python
 {
-    'score': float,           # The metric value
-    'interpretation': str,    # Human-readable interpretation
-    'verdict': str,          # Quick assessment (e.g., "Equitable", "Disparity")
-    'metadata': Dict         # Additional context (varies by metric)
+    '<metric key>': float,   # the value, e.g. 'flip_rate', 'bemi', 'ice'
+    'ci_lower': float,       # when an interval is computed
+    'ci_upper': float,
+    'ci_method': str,        # e.g. 'Wilson score', 'bootstrap (stratified by group)'
+    'interpretation': ...    # descriptive text or dict; labels describe where a value
+                             # falls relative to heuristic cut-offs, not acceptability
 }
 ```
 

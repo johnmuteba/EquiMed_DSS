@@ -79,7 +79,7 @@ counterfactual_decisions[rng.choice(200, size=18, replace=False)] ^= 1
 dfr = DecisionFlipRate()
 dfr_result = dfr.calculate_dfr(original_decisions, counterfactual_decisions)
 
-print(dfr_result)        # DFR = 0.090 :: 95% CI [0.057; 0.140] (Wilson score)
+print(dfr_result)        # DFR = 0.090 :: 95% CI [0.058; 0.138] (Wilson score)
 print("Interpretation:", dfr_result["interpretation"]["verdict"])
 
 # Embedding consistency compares original and perturbed representations.
@@ -252,7 +252,7 @@ from equimed_dss.appendix import (
     BiasConcentrationIndex,
     BootstrapConfidenceIntervals,
     JensenShannonDivergence,
-    RobustnessCertificationScore,
+    ObservedPerturbationAgreement,
     StatisticalPowerAnalysis,
     TransparencyScore,
     WassersteinDistance,
@@ -297,8 +297,8 @@ original, perturbed = generator.generate_perturbation_data(
     n_perturbations=5,
     robustness=0.88,
 )
-rcs_result = RobustnessCertificationScore().calculate_rcs(original, perturbed)
-print(rcs_result)        # RCS = ... :: 95% CI [...] (bootstrap)
+rcs_result = ObservedPerturbationAgreement().calculate_agreement(original, perturbed)
+print(rcs_result)        # Agreement = ... :: 95% CI [...] (bootstrap)
 ```
 
 ## Example 8: Data Loading and Demographic Processing
@@ -811,14 +811,14 @@ $$\mathrm{HER}_g = \frac{\text{metric}_g}{\text{metric}_{\text{ref}}}, \qquad G 
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{gap}^{\ast}_{(0.025)},\ \mathrm{gap}^{\ast}_{(0.975)} \right];$$
 
-otherwise the gap prints "95% CI unavailable". Bias-Gini ($G$) bootstraps over the group scores the same way.
+otherwise the gap prints "95% CI unavailable". The bootstrap resamples observations within each group, so the reference group is in every replicate. Bias-Gini ($G$) has an interval only with `group_observations` too: the group scores themselves are fixed values, not a sample. Scores must be non-negative, and a zero reference score raises an error.
 
 ```python
 from equimed_dss.domain2 import HierarchicalEquityRatio
 scores = {"White": 0.85, "Black": 0.78, "Hispanic": 0.80, "Asian": 0.87}
 her = HierarchicalEquityRatio()
 print(her.calculate_her(scores))        # HER (gap) = 0.106 :: 95% CI unavailable
-print(her.calculate_bias_gini(list(scores.values())))   # Bias-Gini = 0.024 :: 95% CI [...] (bootstrap)
+print(her.calculate_bias_gini(list(scores.values())))   # Bias-Gini = 0.024 :: 95% CI unavailable
 # Per-group ratios remain available by key:
 print({k: round(v["score"], 3) for k, v in her.calculate_her(scores).items()})
 ```
@@ -833,7 +833,7 @@ $$\text{harm}_g = \mathrm{FN}_g\, c_{\mathrm{FN}} + \mathrm{FP}_g\, c_{\mathrm{F
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{HAFG}^{\ast}_{(0.025)},\ \mathrm{HAFG}^{\ast}_{(0.975)} \right];$$
 
-with counts only, the result prints "95% CI unavailable".
+with counts only, the result prints "95% CI unavailable". Case lists must agree with the counts. HAFG compares TOTAL harm; when the group sizes are known the result also gives `hafg_per_patient`, the fair comparison for groups of different sizes.
 
 ```python
 from equimed_dss.domain2 import HarmAdjustedFairnessGap
@@ -869,7 +869,7 @@ specific race-and-gender subgroup) by flagging outlier subgroups.
 
 $$\text{sim}_{ij} = \frac{1}{1 + \lVert \mathbf{v}_i - \mathbf{v}_j \rVert_2}$$
 
-**95% confidence interval (percentile bootstrap).** The printed scalar is the mean off-diagonal subgroup similarity. Resample the metric dimensions of the subgroup vectors (the natural observation unit) $B = 1000$ times, recompute the mean similarity, and take the percentiles
+**95% confidence interval (percentile bootstrap).** The printed scalar is the mean off-diagonal subgroup similarity. Resample the metric dimensions of the subgroup vectors $B = 1000$ times, recompute the mean similarity, and take the percentiles. This shows how much the similarity depends on which metrics were chosen, not sampling uncertainty about patients; standardise metrics on different scales first
 
 $$\mathrm{CI}_{95} = \left[ \overline{\text{sim}}^{\ast}_{(0.025)},\ \overline{\text{sim}}^{\ast}_{(0.975)} \right].$$
 
@@ -900,12 +900,12 @@ print(AuditTraceabilityScore().calculate_ats(n_traceable=92, n_total=100))
 ```
 
 **Governance Compliance Index (GCI)**, `GovernanceComplianceIndex`.
-Clinical interpretation: the fraction of mandated governance policies actually
-enforced.
+Clinical interpretation: the share of the listed governance checks that are met
+(it does not establish regulatory compliance).
 
 $$\mathrm{GCI} = \frac{n_{\text{enforced}}}{n_{\text{mandated}}}$$
 
-**95% confidence interval (Wilson score).** GCI is the proportion of enforced policies, so it carries a Wilson score interval on the enforced-policy proportion (same form as ATS above).
+**95% confidence interval (Wilson score).** GCI carries a Wilson score interval on the proportion of checks met (same form as ATS above). It has a sampling meaning only if the checks are a sample from a larger defined set; for a complete, fixed list, report GCI itself.
 
 ```python
 from equimed_dss.domain3 import GovernanceComplianceIndex
@@ -920,17 +920,19 @@ over time, using statistical-process-control limits.
 
 $$\text{control limits} = \mu \pm k\,\sigma$$
 
-**95% confidence interval (percentile bootstrap).** The printed scalar is the process mean (mean PDI). Resample the observed time series $B = 1000$ times, recompute the mean, and take the percentiles
+**95% confidence interval (moving-block bootstrap).** The printed scalar is the centre of the chart (the mean of the points behind the limits). Resample blocks of consecutive points ($B = 1000$ times; block length about $T^{1/3}$), which keeps short-range serial dependence, and take the percentiles
 
 $$\mathrm{CI}_{95} = \left[ \bar{x}^{\ast}_{(0.025)},\ \bar{x}^{\ast}_{(0.975)} \right].$$
 
-This CI on the process level is distinct from the $\mu \pm 3\sigma$ control limits, which flag individual out-of-control points.
+This CI is distinct from the $\mu \pm 3\sigma$ control limits, which flag individual points. By default the limits come from the whole series, so a shift can widen them and go unnoticed; pass `baseline_n` to set them from an initial baseline and apply them prospectively, and `sigma_method="moving_range"` for the individuals-chart sigma.
 
 ```python
 from equimed_dss.domain3 import TemporalFairnessDrift
 res = TemporalFairnessDrift().calculate_drift([0.80, 0.82, 0.79, 0.85, 0.91, 0.95])
-print(res)                       # TFD = mean PDI :: 95% CI [...] (bootstrap)
+print(res)                       # TFD = centre :: 95% CI [...] (moving-block bootstrap ...)
 print(res["drift_detected"])
+print(TemporalFairnessDrift().calculate_drift(
+    [0.80, 0.82, 0.79, 0.81, 0.91, 0.95], baseline_n=4)["out_of_control_indices"])   # [4, 5]
 ```
 
 ### Domain 4: representation and robustness
@@ -946,7 +948,7 @@ $$\mathrm{SPG} = \left\lVert \frac{1}{n}\sum_i E(x_{p,i}) - \frac{1}{m}\sum_j E(
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{SPG}^{\ast}_{(0.025)},\ \mathrm{SPG}^{\ast}_{(0.975)} \right].$$
 
-Resampling each group independently propagates the sampling variability of both centroids.
+Resampling each group independently propagates the sampling variability of both centroids. A centroid distance is positive even without a true difference, so the interval never contains 0; `p_value_permutation` tests the null of no difference. When row $i$ of both arrays is the same case with only the attribute changed, pass `paired=True` so the interval and the test keep pairs together. A representation shift does not by itself show harm to patients.
 
 ```python
 from equimed_dss.domain4 import SemanticParityGap
@@ -988,11 +990,13 @@ print(InstructionalVulnerabilityIndex().calculate_ivi(neutral, biased))
 
 **Geographic Representation Index (GRI)**, `GeographicRepresentationIndex`.
 Clinical interpretation: the share of represented locations that are non-Western;
-values near 0 indicate a Western-centric knowledge base (by variety of locations).
+values near 0 indicate a Western-centric knowledge base by VARIETY of locations.
+One study from each of many locations can outweigh thousands from one location,
+so also report the VOLUME view, `non_western_mention_share`.
 
 $$\mathrm{GRI} = \frac{|L| - |W|}{|L|}$$
 
-**95% confidence interval (percentile bootstrap).** GRI is a set-based variety ratio. Resample the location mentions with replacement $B = 1000$ times, recompute the ratio over the resampled unique-location set, and take the percentiles
+**95% confidence interval (percentile bootstrap).** GRI is a set-based variety ratio. Resample the location mentions with replacement $B = 1000$ times, recompute the ratio over the resampled unique-location set, and take the percentiles. A resample can only lose locations, so this shows how stable the ratio is to which locations are mentioned
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{GRI}^{\ast}_{(0.025)},\ \mathrm{GRI}^{\ast}_{(0.975)} \right].$$
 
@@ -1010,7 +1014,9 @@ a specific intersectional subgroup; dICE is the worst-case calibration gap.
 
 $$\mathrm{ECE}_i = \sum_{b=1}^{B} \frac{|S_{i,b}|}{|S_i|}\,\bigl|\mathrm{acc}(S_{i,b}) - \mathrm{conf}(S_{i,b})\bigr|, \quad \Delta\mathrm{ICE} = \max_{i,j} |\mathrm{ECE}_i - \mathrm{ECE}_j|$$
 
-**95% confidence interval (percentile bootstrap).** The printed scalar is the population-weighted ICE. Resample the samples (group, confidence, correctness triples) with replacement $B = 1000$ times, recompute the weighted ICE, and take the percentiles
+`correct` is the binary outcome the probability predicts: for a risk model, the observed event. Binned ECE is biased upward in small groups, so read dICE alongside `n_by_group`.
+
+**95% confidence interval (percentile bootstrap).** The printed scalar is the population-weighted ICE. Resample (probability, outcome) pairs within each group (sizes fixed) $B = 1000$ times, recompute the weighted ICE, and take the percentiles
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{ICE}^{\ast}_{(0.025)},\ \mathrm{ICE}^{\ast}_{(0.975)} \right].$$
 
@@ -1028,7 +1034,7 @@ between groups, prioritizing disparities that cause the most clinical harm.
 
 $$H(g) = \frac{1}{n_g}\sum_i \omega(Y_i)\,L(\hat{Y}_i, Y_i), \qquad \mathrm{wHAFG} = \max_{g,g'} |H(g) - H(g')|$$
 
-**95% confidence interval (percentile bootstrap).** Resample the samples (group, severity weight, loss) with replacement $B = 1000$ times, recompute the maximum weighted-harm gap, and take the percentiles
+**95% confidence interval (percentile bootstrap).** Resample the samples within each group (sizes fixed) $B = 1000$ times, recompute the maximum weighted-harm gap, and take the percentiles
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{wHAFG}^{\ast}_{(0.025)},\ \mathrm{wHAFG}^{\ast}_{(0.975)} \right].$$
 
@@ -1045,7 +1051,7 @@ large value can indicate more templated or stereotyped responses for some groups
 
 $$\mathrm{RTTR}(g) = \frac{|V(\cup_i R_i^g)|}{\sqrt{\sum_i |R_i^g|}}, \qquad \mathrm{LDDI} = \max_g \mathrm{RTTR}(g) - \min_g \mathrm{RTTR}(g)$$
 
-**95% confidence interval (percentile bootstrap).** Pool the group responses (tagged by group), resample them with replacement $B = 1000$ times, recompute each group's RTTR and the max-min gap, and take the percentiles
+**95% confidence interval (percentile bootstrap).** Resample responses within each group (sizes fixed) $B = 1000$ times, recompute each group's RTTR and the max-min gap, and take the percentiles
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{LDDI}^{\ast}_{(0.025)},\ \mathrm{LDDI}^{\ast}_{(0.975)} \right].$$
 
@@ -1062,7 +1068,7 @@ recommendations differs across groups, signalling differential treatment pattern
 
 $$H(T\mid g) = -\sum_t P(t\mid g)\log_2 P(t\mid g), \qquad \mathrm{REG} = \max_{g,g'} |H(T\mid g) - H(T\mid g')|$$
 
-**95% confidence interval (percentile bootstrap).** Pool the group recommendations (tagged by group), resample $B = 1000$ times, recompute each group's entropy and the max-min gap, and take the percentiles
+**95% confidence interval (percentile bootstrap).** Resample recommendations within each group $B = 1000$ times, recompute each group's entropy and the max-min gap, and take the percentiles
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{REG}^{\ast}_{(0.025)},\ \mathrm{REG}^{\ast}_{(0.975)} \right].$$
 
@@ -1080,7 +1086,7 @@ the counterfactual unfairness.
 
 $$\mathrm{CPS}(a,a') = \frac{1}{n}\sum_i \mathrm{sim}\!\left( f(x_i), f(x_{i, A\leftarrow a'}) \right), \qquad \mathrm{CFU} = 1 - \min_{a,a'} \mathrm{CPS}(a,a')$$
 
-**95% confidence interval (percentile bootstrap).** CPS is a mean over per-case similarities, so resample the pooled similarities with replacement $B = 1000$ times and take the percentiles of the mean
+**95% confidence interval (percentile bootstrap).** Similarities must lie in $[0,1]$ (rescale a cosine $c$ as $(1+c)/2$). Resample cases within each swap pair $B = 1000$ times and take the percentiles of the mean; CFU gets an interval from the same resamples (`cfu_ci_lower`, `cfu_ci_upper`)
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{CPS}^{\ast}_{(0.025)},\ \mathrm{CPS}^{\ast}_{(0.975)} \right].$$
 
@@ -1098,7 +1104,7 @@ clinical content. Takes precomputed (concepts, tokens) per response.
 
 $$\mathrm{CID}(r) = \frac{|C(r)|}{|\text{tokens}(r)|}\times 100, \qquad \mathrm{CIDR}_{\min} = \min_g \frac{\mathrm{CID}(g)}{\max_{g'} \mathrm{CID}(g')}$$
 
-**95% confidence interval (percentile bootstrap).** Pool the per-response (concepts, tokens) pairs (tagged by group), resample $B = 1000$ times, recompute the minimum CIDR ratio, and take the percentiles
+**95% confidence interval (percentile bootstrap).** Resample the per-response (concepts, tokens) pairs within each group $B = 1000$ times, recompute the minimum CIDR ratio, and take the percentiles
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{CIDR}_{\min}^{\ast\,(0.025)},\ \mathrm{CIDR}_{\min}^{\ast\,(0.975)} \right].$$
 
@@ -1115,7 +1121,7 @@ differential diagnoses equally across groups; dDCI is the worst-case coverage ga
 
 $$\mathrm{DCI}(r) = \frac{|D(r) \cap D^{\ast}|}{|D^{\ast}|}, \qquad \Delta\mathrm{DCI} = \max_g \mathrm{DCI}(g) - \min_g \mathrm{DCI}(g)$$
 
-**95% confidence interval (percentile bootstrap).** Pool the per-response coverage scores (tagged by group), resample $B = 1000$ times, recompute the max-min coverage gap, and take the percentiles
+**95% confidence interval (percentile bootstrap).** Resample the per-response coverage scores within each group $B = 1000$ times, recompute the max-min coverage gap, and take the percentiles. When cases differ, give each response its own reference list (`references_by_group`)
 
 $$\mathrm{CI}_{95} = \left[ \Delta\mathrm{DCI}^{\ast}_{(0.025)},\ \Delta\mathrm{DCI}^{\ast}_{(0.975)} \right].$$
 
@@ -1128,13 +1134,13 @@ print(DiagnosticCompletenessIndex().calculate_dci(
 ```
 
 **Uncertainty Quantification Gap (UQG)**, `UncertaintyQuantificationGap`.
-Clinical interpretation: whether the model hedges (expresses uncertainty) equally
-across groups; a large gap can indicate overconfidence for some groups, a
-missed-diagnosis risk.
+Clinical interpretation: whether hedging WORDS ("may", "likely", "rule out")
+are used equally often across groups. It is a lexical count, not a validated
+measure of expressed or calibrated uncertainty.
 
 $$\mathrm{UD}(r) = \frac{|\{t \in r : t \in U\}|}{|\text{sentences}(r)|}, \qquad \mathrm{UQG} = \max_g \mathrm{UD}(g) - \min_g \mathrm{UD}(g)$$
 
-**95% confidence interval (percentile bootstrap).** Pool the group responses (tagged by group), resample $B = 1000$ times, recompute each group's hedging density and the max-min gap, and take the percentiles
+**95% confidence interval (percentile bootstrap).** Resample responses within each group $B = 1000$ times, recompute each group's hedging density and the max-min gap, and take the percentiles
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{UQG}^{\ast}_{(0.025)},\ \mathrm{UQG}^{\ast}_{(0.975)} \right].$$
 
@@ -1167,13 +1173,16 @@ print(GeographicRepresentationBiasIndex().calculate_grbi(
 ```
 
 **Healthcare System Stratified Fairness (HSSF)**, `HealthcareSystemStratifiedFairness`.
-Clinical interpretation: separates demographic disparity within each healthcare
-system from variation between systems, so an apparent group gap is not mistaken
-for a system (access) effect.
+Clinical interpretation: the demographic gap within each healthcare system,
+averaged over systems; the spread of mean outcomes between systems is reported
+separately, in outcome units (`between_system_sd`, `between_system_range`). The
+two are separate descriptors, not parts of one decomposition. Systems in which
+fewer than two groups are observed have no within-system comparison; they are
+listed in `systems_without_comparison` and left out.
 
 $$\Delta_s(g,g') = \bigl| \mathbb{E}[Y \mid g, s] - \mathbb{E}[Y \mid g', s] \bigr|, \qquad \mathrm{HSSF} = \sum_s P(s)\,\max_{g,g'} \Delta_s(g,g')$$
 
-**95% confidence interval (percentile bootstrap).** Resample the samples (system, group, outcome) with replacement $B = 1000$ times, recompute the population-weighted within-system gap, and take the percentiles
+**95% confidence interval (percentile bootstrap).** Resample observations within each system-by-group cell $B = 1000$ times, recompute the weighted within-system gap, and take the percentiles
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{HSSF}^{\ast}_{(0.025)},\ \mathrm{HSSF}^{\ast}_{(0.975)} \right].$$
 
@@ -1185,13 +1194,16 @@ print(HealthcareSystemStratifiedFairness().calculate_hssf(
 ```
 
 **Intersectional Shapley Fairness Value (ISFV)**, `IntersectionalShapleyFairnessValue`.
-Clinical interpretation: fairly attributes an intersectional disparity to each
-protected attribute and their interaction; a positive interaction is a
-superadditive (intersectional) penalty.
+Clinical interpretation: attributes an intersectional disparity (the range of
+cell means) to each protected attribute. Because a range grows with the number of
+cells and is driven by small cells, set `min_cell` and check the permutation
+result (`p_value_permutation`, `total_disparity_null_mean`). The pairwise
+interaction compares ranges and has no direction, so a positive value is not by
+itself an intersectional penalty.
 
 $$\phi_i = \sum_{S \subseteq A\setminus\{i\}} \frac{|S|!\,(m-|S|-1)!}{m!}\bigl( v(S\cup\{i\}) - v(S) \bigr)$$
 
-**95% confidence interval (percentile bootstrap).** The printed scalar is the total intersectional disparity $v(A)$ (the quantity the Shapley values sum to). Resample the rows with replacement $B = 500$ times, recompute $v(A)$, and take the percentiles
+**95% confidence interval (percentile bootstrap).** The printed scalar is the total intersectional disparity $v(A)$ (the quantity the Shapley values sum to). Resample rows within the full cross-classified cells $B = 500$ times, recompute $v(A)$ and each Shapley value (`shapley_ci`), and take the percentiles
 
 $$\mathrm{CI}_{95} = \left[ v(A)^{\ast}_{(0.025)},\ v(A)^{\ast}_{(0.975)} \right].$$
 
@@ -1211,7 +1223,7 @@ outputs are more sensitive to wording.
 
 $$\mathrm{SRPI} = \frac{\min_g R(g)}{\max_g R(g)}$$
 
-**95% confidence interval (percentile bootstrap).** Pool the per-query robustness scores (tagged by group), resample $B = 1000$ times, recompute each group mean and the min/max ratio, and take the percentiles
+**95% confidence interval (percentile bootstrap).** Resample the per-query robustness scores within each group $B = 1000$ times, recompute each group mean and the min/max ratio, and take the percentiles. SRPI describes parity only, so the result also reports the smallest and largest robustness
 
 $$\mathrm{CI}_{95} = \left[ \mathrm{SRPI}^{\ast}_{(0.025)},\ \mathrm{SRPI}^{\ast}_{(0.975)} \right].$$
 
@@ -1245,9 +1257,12 @@ print(round(res["icc"], 3), round(res["aic"], 1))
 ```
 
 **MediationAnalysis**: indirect effect $a\,b$, total $c$, direct $c'$,
-$\text{proportion mediated} = ab/c$, with a Sobel standard error and a bootstrap
-CI. Use it to test whether a demographic effect operates through an intermediate
-mechanism.
+$\text{proportion mediated} = ab/c$ (undefined when $c = 0$), with bootstrap CIs
+for the indirect and direct effects and a Sobel test. These are associations from
+linear models: reading them as causal effects requires no unmeasured confounding
+of the treatment-mediator, treatment-outcome and mediator-outcome relations. A
+two-level categorical treatment is coded 0/1 and categorical covariates are
+dummy-coded.
 
 ```python
 from equimed_dss.statistics import MediationAnalysis
@@ -1280,13 +1295,15 @@ print(round(ReliabilityAnalysis().cronbachs_alpha(ratings)["alpha"], 3))
 ### Appendix: advanced metrics
 
 **Bias Concentration Index (BCI)**, `BiasConcentrationIndex`. Herfindahl-style
-concentration of bias across groups: $\mathrm{BCI} = 1 - \sum_r p_r^2 / (\sum_r p_r)^2$.
-**95% CI (percentile bootstrap):** resample the per-group bias proportions $B = 1000$ times, recompute BCI, and take the 2.5th and 97.5th percentiles of the bootstrap replicates.
+concentration of bias across groups: $\mathrm{BCI} = 1 - \sum_r p_r^2 / (\sum_r p_r)^2$,
+at most $1 - 1/n$ (`bci_normalized` rescales to $[0,1]$). It describes how bias is
+DISTRIBUTED, not how large it is.
+**95% CI:** none; the inputs are one fixed value per group, not a sample.
 
 ```python
 from equimed_dss.appendix import BiasConcentrationIndex
 print(BiasConcentrationIndex().calculate_bci([0.1, 0.4, 0.3, 0.2]))
-# BiasConcentration = ... :: 95% CI [...] (bootstrap)
+# BiasConcentration = 0.700 :: 95% CI unavailable (needs observation-level input)
 ```
 
 **Bootstrap Confidence Intervals**, `BootstrapConfidenceIntervals`. This metric *is*
@@ -1299,10 +1316,11 @@ print(BootstrapConfidenceIntervals(n_bootstrap=500, random_state=42).calculate_b
 ```
 
 **Jensen-Shannon Divergence (JSD)**, `JensenShannonDivergence`. Symmetric
-distributional distance, $\mathrm{JSD} = \mathrm{jensenshannon}(p,q)^2 \in [0, \ln 2]$.
+divergence between two distributions over the same categories,
+$\mathrm{JSD} = \mathrm{jensenshannon}(p,q)^2 \in [0, 1]$ (base 2).
 **95% CI:** computed between two already-aggregated distributions, so there is no
 underlying sample to resample and the divergence prints "95% CI unavailable"
-(provide the raw per-observation samples to bootstrap it).
+(bin raw samples on common bins first).
 
 ```python
 from equimed_dss.appendix import JensenShannonDivergence
@@ -1313,20 +1331,26 @@ print(JensenShannonDivergence().calculate_jsd(p, q))
 ```
 
 **Wasserstein Distance (WD)**, `WassersteinDistance`. Earth-mover distance
-$W_1(u,v)$ between two score samples.
+$W_1(u,v)$ between two score samples, in their units (no universal cut-off). To
+compare two histograms, pass the bin locations as `support`.
 **95% CI (two-sample percentile bootstrap):** resample each sample independently
 $B = 1000$ times, recompute $W_1$, and take the 2.5th and 97.5th percentiles of the bootstrap replicates.
 
 ```python
 from equimed_dss.appendix import WassersteinDistance
-print(WassersteinDistance().calculate_wd(p, q))
+u = rng.normal(0.30, 0.10, 80); v = rng.normal(0.36, 0.10, 80)   # risk scores in two groups
+print(WassersteinDistance().calculate_wd(u, v))
 # WD = ... :: 95% CI [...] (bootstrap)
+print(WassersteinDistance().calculate_wd(p, q, support=[0, 1, 2, 3]))   # histograms (p, q above)
+# WD = 0.500 :: 95% CI unavailable (needs observation-level input)
 ```
 
 **Mutual Information Content (MIC)**, `MutualInformationContent`. Shared
-information $I(X;Y)$ between a decision and a demographic variable.
+information $I(X;Y)$ between a DISCRETE decision and a demographic variable (bin
+continuous scores first). An association may reflect clinical need or case mix.
 **95% CI (percentile bootstrap):** resample the paired (demographic, outcome)
-observations $B = 1000$ times, recompute $I(X;Y)$, and take the percentiles.
+observations $B = 1000$ times, recompute $I(X;Y)$, and take the percentiles. The
+result also reports a permutation null (`mic_null_mean`, `p_value_permutation`).
 
 ```python
 from equimed_dss.appendix import MutualInformationContent
@@ -1336,29 +1360,37 @@ print(MutualInformationContent().calculate_mic(rng.randint(0, 2, 200), rng.randi
 
 **Network Modularity (NM)**, `NetworkModularity`. Community structure of a metric
 graph.
-**95% CI (node-resampling bootstrap):** resample nodes with replacement $B = 200$
-times, recompute modularity on the induced subgraph, and take the percentiles.
+**95% CI:** only when the data behind a correlation matrix are passed as
+`observations`: resample observations $B = 200$ times, recompute the correlation
+matrix and its modularity, and take the percentiles. Resampling nodes (as up to
+1.9.5) does not describe sampling uncertainty.
 
 ```python
 from equimed_dss.appendix import NetworkModularity
 adj = np.array([[0, .8, .1, 0], [.8, 0, 0, .7], [.1, 0, 0, .6], [0, .7, .6, 0]])
 print(NetworkModularity().calculate_modularity(adj))
-# NM = ... :: 95% CI [...] (bootstrap)
+# NM = ... :: 95% CI unavailable (needs observation-level input)
 ```
 
-**Robustness Certification Score (RCS)**, `RobustnessCertificationScore`. Certified
-stability of predictions under bounded perturbations.
-**95% CI (percentile bootstrap):** RCS is the mean per-perturbation agreement;
-resample the perturbations $B = 1000$ times and take the percentiles of the mean.
+**Observed Perturbation Agreement**, `ObservedPerturbationAgreement` (formerly
+the Robustness Certification Score; `RobustnessCertificationScore` is a deprecated
+alias). The mean agreement between original and perturbed predictions; it
+describes the perturbations tried and certifies nothing. Use discrete
+predictions: continuous scores almost never agree exactly.
+**95% CI (percentile bootstrap):** resample the perturbations $B = 1000$ times and
+take the percentiles of the mean.
 
 ```python
-from equimed_dss.appendix import RobustnessCertificationScore
-orig = rng.normal(0.8, 0.05, 50); pert = [rng.normal(0.8, 0.05, 50) for _ in range(5)]
-print(RobustnessCertificationScore().calculate_rcs(orig, pert, epsilon=0.1))
-# RCS = ... :: 95% CI [...] (bootstrap)
+from equimed_dss.appendix import ObservedPerturbationAgreement
+orig = rng.randint(0, 2, 50)
+pert = [np.where(rng.rand(50) < 0.1, 1 - orig, orig) for _ in range(5)]   # about 10% flipped
+print(ObservedPerturbationAgreement().calculate_agreement(orig, pert, epsilon=0.1))
+# Agreement = ... :: 95% CI [...] (bootstrap)
 ```
 
-**Transparency Score (TS)**, `TransparencyScore`. Quality of model explanations.
+**Transparency Score (TS)**, `TransparencyScore`. The mean of three supplied
+ratings of the explanations (all three required, each in $[0,1]$); it does not
+establish readiness for clinical use.
 **95% CI (percentile bootstrap):** TS is the mean per-decision transparency score;
 resample the decisions $B = 1000$ times and take the percentiles of the mean.
 
@@ -1379,7 +1411,7 @@ estimate from sampled data, so it has no sampling CI and prints "95% CI unavaila
 ```python
 from equimed_dss.appendix import StatisticalPowerAnalysis
 print(StatisticalPowerAnalysis().calculate_sample_size(effect_size=0.2, alpha=0.05, power=0.8))
-# SampleSize = 394 :: 95% CI unavailable
+# SampleSize = 394.000 :: 95% CI unavailable (needs observation-level input)
 ```
 
 ## Notes For Clinical Use

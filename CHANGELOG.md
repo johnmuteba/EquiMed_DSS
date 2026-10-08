@@ -7,10 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.10.0] - 2026-10-08
 
-A metric-by-metric review of the library. Values of BEMI, GCC, the GRI point
-estimate, ICE, wHAFG and DFR are unchanged for valid inputs, so results computed
-with 1.9.5 for those metrics stand. The corrections below change other results;
-the reasons are given so that earlier analyses can be checked.
+A metric-by-metric review of the library, followed by an independent methods
+review whose points were checked against the code and adopted where they held
+(section "Methods review" below). Point estimates of BEMI, GCC, GRI, ICE, wHAFG
+and DFR are unchanged for valid inputs (checked bit for bit against 1.9.5 on 150
+random cases), so results computed with 1.9.5 for those metrics stand; the
+built-in intervals of ICE and wHAFG now resample within groups. The corrections
+below change other results; the reasons are given so that earlier analyses can be
+checked.
+
+### Methods review
+- **Group-wise intervals.** Between-group metrics resampled the pooled records,
+  so a small group could be absent from a replicate (a group of one is absent
+  from about 37% of them) and the interval then compared a different set of
+  groups; HER even returned the point estimate when its reference group was
+  missing. HER, Bias-Gini, HAFG, ICE, wHAFG, CPS (and now CFU), SRPI, LDDI, REG,
+  CIDR, DCI, UQG, HSSF and ISFV now use `inference.stratified_bootstrap_ci`,
+  which resamples within each group (or cell) at its observed size and warns
+  about groups with fewer than five observations.
+- **No intervals for fixed aggregate inputs.** Bias-Gini (without
+  `group_observations`), the Bias Concentration Index and modularity (without
+  `observations`) no longer bootstrap fixed per-group values or metric nodes as
+  if they were samples. Modularity accepts the observations behind a correlation
+  matrix and then resamples them.
+- **HSSF.** The within-system gap and the between-system spread are reported as
+  separate descriptors in outcome units (`between_system_sd`,
+  `between_system_range`), not as a decomposition (`delta_between`, a variance,
+  is kept for compatibility). Systems with fewer than two comparable groups are
+  listed in `systems_without_comparison` and excluded instead of counting as a
+  gap of 0; `min_group_n` sets the smallest group compared.
+- **Names and claims.** `ObservedPerturbationAgreement` (method
+  `calculate_agreement`) replaces `RobustnessCertificationScore`, which remains as
+  a deprecated alias: the metric is observed agreement and certifies nothing.
+  `AdvancedNetworkMetrics.calculate_transparency_score` and `.calculate_rcs`
+  reused the names of different metrics and are deprecated in favour of
+  `calculate_explained_fraction` and `calculate_stability_pass_rate`. Verdict
+  strings no longer claim deployment readiness, compliance, certification, a need
+  for intervention, equity or "bias concern"; they state where a value falls
+  relative to a heuristic cut-off (HER: within or outside the 0.8-1.25 band; ATS:
+  meets or is below the 0.95 target; GCI: share of listed checks met; MIC: above
+  or not distinguishable from a permutation null). Bland-Altman reports bias and
+  limits of agreement instead of grading agreement by the bias alone, and the
+  hierarchical model and mediation analysis no longer give intervention advice.
+- **Mediation.** Results are labelled associational (`estimand`); a causal
+  reading requires no unmeasured confounding of the treatment-mediator,
+  treatment-outcome and mediator-outcome relations. The proportion mediated is
+  undefined (NaN) when the total effect is zero. A two-level categorical
+  treatment is coded 0/1 (`treatment_coding`), more levels raise an error, and
+  categorical covariates are dummy-coded.
+- **MIC** requires discrete outcomes (non-integer numbers raise an error; a
+  warning flags highly granular outcomes) and reports a permutation null
+  (`mic_null_mean`, `p_value_permutation`).
+- **SPG** has `paired=True` for matched cases: the interval resamples cases and
+  the permutation test swaps labels within pairs. Its interpretation notes that a
+  representation shift does not by itself show harm to patients.
+- **TFD** has `baseline_n`: the centre and limits come from an initial baseline
+  and are applied prospectively, so a shift is not absorbed into its own limits.
+  The interval of the centre is a moving-block bootstrap
+  (`inference.block_bootstrap_ci`), which keeps serial dependence.
+- **ISFV** reports bootstrap intervals for each attribution (`shapley_ci`) and a
+  permutation check of the total disparity against shuffled outcomes, warns about
+  cells with fewer than five observations, and no longer calls a positive
+  interaction an intersectional penalty. Its cell computation is vectorised
+  (identical values).
+- **CPS** requires similarities in [0, 1] (so CFU stays in [0, 1]) and reports a
+  CFU interval. **SRPI** is undefined (NaN) when every group has zero robustness
+  and reports the robustness range. **DCI** accepts case-specific reference lists
+  (`references_by_group`) and rejects empty groups. **ICE** requires 0/1 outcomes
+  and an integer `n_bins`, and its documentation now says that for a risk model
+  the outcome is the observed event. **GRI** also reports the volume view
+  (`non_western_mention_share`). **GCC**'s Gini is described as normalized (the
+  R/(R-1) factor is a rescaling, not a sampling correction), with the alias key
+  `gini_normalized`. **UQG** is documented as a count of hedging words, not a
+  measure of calibrated uncertainty.
+- **Undefined or invalid inputs raise errors** instead of returning 0: zero
+  outputs in ERI (also missing or negative severities), zero audited decisions in
+  ATS, no checks in GCI, no explanations or a missing rating in TS, no
+  perturbations in the agreement metric, an empty TFD series, a negative HER
+  score, negative bias proportions, invalid JSD distributions, negative or
+  non-finite GRBI, BEMI and GCC inputs. HAFG case lists that disagree with the
+  counts raise an error (they warned), and HAFG reports `hafg_per_patient` when
+  group sizes are known. `total_n` of both sample-size helpers is now exactly
+  twice the group size. The resampling helpers validate `conf`, `n_boot`,
+  `n_perm` and the null proportion.
+- **Documentation.** `Metric_Math_Derivations.md` was checked line by line
+  against the code: it documented a Wilson interval for CFU and an interval for
+  the geographic-bias correlation that the code never computed, a bootstrap for
+  JSD, $B = 1000$ for ISFV (the code uses 500), HER = 0 for a zero reference, and
+  permutation tests that the metrics do not return; these and every other
+  per-metric interval statement now match the code, and each domain heading is
+  back in its place. The LaTeX and PDF copies of the derivations, which had not
+  been kept in step with the code, were removed; the Markdown file is the single
+  authoritative version. The bundled WHO figures now cite the workbook, sheet,
+  cells and retrieval date.
 
 ### Fixed (values change)
 - `appendix.AdvancedReliabilityMetrics.calculate_power_analysis`: the per-group
@@ -102,9 +191,9 @@ the reasons are given so that earlier analyses can be checked.
 - `EthicalRiskIndex`: more violations than outputs now raises `ValueError`.
 - `InterRaterReliability.calculate_icc_2_1` needs at least 2 items and 2 judges;
   `EmbeddingConsistencyScore` checks that the two arrays have the same shape.
-- `HarmAdjustedFairnessGap` warns when the case lists disagree with the error
-  counts, or when the groups differ in size by more than 10% (HAFG compares total
-  harm; use counts per 1,000 patients or wHAFG).
+- `HarmAdjustedFairnessGap` warns when the groups differ in size by more than
+  10% (HAFG compares total harm; see `hafg_per_patient`), and rejects case lists
+  that disagree with the error counts.
 - `inference.permutation_test` and the score test of `proportion_ci` raise on an
   unknown `alternative` (a typo such as "two_sided" was treated as "less" or as
   "two-sided").
@@ -127,7 +216,7 @@ the reasons are given so that earlier analyses can be checked.
 ### Documentation
 - `Metric_Math_Derivations.md`: the worked instances now use invented,
   illustrative counts instead of quoting results of a specific study; ATS shows
-  the Wilson formula; the modularity bootstrap uses B = 200, as implemented.
+  the Wilson formula.
 - Jensen-Shannon examples in the README and the vignette passed raw samples,
   which are compared position by position; they now histogram both samples on
   common bins.

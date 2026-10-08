@@ -1,9 +1,9 @@
-> **Rendering note.** This Markdown version renders every equation directly on GitHub (via MathJax). The LaTeX source (`Metric_Math_Derivations.tex`) and a compiled PDF (`Metric_Math_Derivations.pdf`) are in this folder. The final section, *Uncertainty Quantification for Every Metric*, gives the confidence-interval and p-value formulas added in v1.9.5.
+> **Rendering note.** This Markdown file is the single authoritative version of the derivations; GitHub renders every equation (via MathJax). The LaTeX and PDF copies distributed up to 1.9.5 were removed in 1.10.0 because they had not been kept in step with the code. The final section, *Uncertainty Quantification*, states which interval or test each metric returns.
 
 # Purpose and Verification Scope
 
 This technical document derives the mathematical definitions used by the
-EquiMed-DSS library, version 1.9.5. The formulae below are aligned with
+EquiMed-DSS library, version 1.10.0. The formulae below are aligned with
 the local implementation in the package source code, especially the
 modules `domain1`, `domain2`, `domain3`, `domain4`, `domain5`,
 `geographic`, `appendix`, and `statistics`. Where an earlier derivation
@@ -76,9 +76,9 @@ over the supplied input arrays.
 | 34 | Wasserstein distance | WD | `appendix.advanced_metrics` |
 | 35 | Network modularity | NM | `appendix.advanced_metrics` |
 | 36 | Transparency score | TS | `appendix.advanced_metrics` |
-| 37 | Robustness certification score | RCS | `appendix.advanced_metrics` |
+| 37 | Observed perturbation agreement (formerly robustness certification score) | RCS | `appendix.advanced_metrics` |
 | 38 | Hierarchical variance partitioning | HLM/VPC | `statistics.hierarchical` |
-| 39 | Causal mediation and proportion mediated | PM | `statistics.mediation` |
+| 39 | Mediation (product of coefficients) and proportion mediated | PM | `statistics.mediation` |
 
 # Domain 1: Reliability and Robustness
 
@@ -88,7 +88,7 @@ Let $X_{ij}$ be the score assigned to item $i$ by judge $j$, with
 $n$ items and $k$ judges. Define the grand mean $\bar{X}_{..}$,
 item means $\bar{X}_{i.}$, and judge means $\bar{X}_{.j}$. This
 follows the Shrout-Fleiss ICC family and the Bland-Altman agreement
-convention . The implementation computes
+convention. The implementation computes
 ```math
 \begin{aligned}
 SS_{\mathrm{items}} &= k \sum_{i=1}^{n}(\bar{X}_{i.}-\bar{X}_{..})^2,\\
@@ -112,6 +112,9 @@ ICC(2,1)=
 \frac{MS_R-MS_E}
 {MS_R+(k-1)MS_E+\frac{k}{n}(MS_C-MS_E)}.
 ```
+ICC(2,1) is at most 1 and can be negative (less agreement than chance). At
+least 2 items and 2 judges are required. Verdicts use Cicchetti's (1994) bands:
+at least 0.75 excellent, 0.60 good, 0.40 fair.
 The same class also computes Bland-Altman pairwise agreement. For two
 judges $a$ and $b$,
 ```math
@@ -124,7 +127,7 @@ LOA_{\mathrm{lower}}, LOA_{\mathrm{upper}} &= \bar{d}\pm 1.96s_d.
 ```
 
 
-**95% CI (this section).** $ICC(2,1)$ is reported with a percentile bootstrap over targets $\times$ judges (items): resample with replacement $B=1000$ times, recompute $ICC(2,1)$, and take the empirical percentiles
+**95% CI (this section).** $ICC(2,1)$ is reported with a percentile bootstrap over items (rows of the rating matrix, every judge kept): $B=1000$ resamples, recompute $ICC(2,1)$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -173,12 +176,13 @@ CI_{95} &= [\max(0,c-h),\min(1,c+h)],
 \end{aligned}
 ```
 with $z=1.96$, following Wilson’s score interval for binomial
-proportions .
-
-# Domain 2: Fairness, Equity, and Ethics
+proportions. A missing decision (None or NaN) raises an error rather than
+counting as a flip (from 1.10.0).
 
 
 **95% CI (this section).** As a binomial proportion, $DFR$ is reported with a Wilson 95% score interval over decisions (Metric 9 form), with a one-sided score test against a tolerated flip rate.
+
+# Domain 2: Fairness, Equity, and Ethics
 
 ## Metric 4: Hierarchical Equity Ratio
 
@@ -187,11 +191,14 @@ reference-group score. The implementation calculates
 ```math
 HER_g = \frac{q_g}{q_0},
 ```
-with $HER_g=0$ if $q_0=0$. Values in $[0.8,1.25]$ are labelled
-equitable by the implemented four-fifths-rule convention .
+The scores must be finite and non-negative and the reference score positive:
+a zero reference makes every ratio undefined and raises an error (up to 1.9.5
+every group then received $HER_g=0$). Each group is labelled within or outside
+the band $[0.8,1.25]$ of the four-fifths convention; the label describes the
+ratio, not whether a difference is fair or clinically important.
 
 
-**95% CI (this section).** $HER$ is reported with a percentile bootstrap of the gap over per-group observations: resample with replacement $B=1000$ times, recompute $HER$, and take the empirical percentiles
+**95% CI (this section).** The gap $\max_g HER_g-\min_g HER_g$ is reported with a percentile bootstrap that resamples observations within each group (group sizes fixed, so the reference group is present in every replicate): $B=1000$ resamples, recompute the gap, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -201,16 +208,17 @@ CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ## Metric 4a: Bias-Gini Dispersion
 
 For group scores $q_1,\ldots,q_K$ with mean $\bar q$, the
-implemented dispersion index is the standard Gini coefficient :
+implemented dispersion index is the standard Gini coefficient:
 ```math
 G_{\mathrm{bias}}=
 \frac{\sum_{i=1}^{K}\sum_{j=1}^{K}|q_i-q_j|}
 {2K^2\bar q}.
 ```
-If the score list is empty or $\bar q=0$, the function returns zero.
+If the score list is empty or $\bar q=0$, the function returns zero. Scores
+must be finite and non-negative.
 
 
-**95% CI (this section).** Bias-Gini is reported with a percentile bootstrap over group scores: resample with replacement $B=1000$ times, recompute Bias-Gini, and take the empirical percentiles
+**95% CI (this section).** Bias-Gini carries an interval only when per-observation scores are supplied (`group_observations`): a percentile bootstrap that resamples observations within each group and recomputes the index from the group means, $B=1000$. Without them no interval is reported, because the group scores are fixed values, not a sample of groups (versions up to 1.9.5 resampled them anyway).
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -234,12 +242,15 @@ HAFG=\frac{|H_1-H_2|}{\max(H_1,H_2)}.
 If both group harms are zero, the denominator is zero and the
 implemented value is $0$. Because $H_g$ is a total, HAFG reflects group size as
 well as error rates when the groups differ in size; use counts per 1,000
-patients, or the per-patient wHAFG (Metric 16). From 1.10.0 the interval
-resamples cases within each group (group sizes fixed), and a warning flags case
-lists that disagree with the counts or groups whose sizes differ by more than 10%.
+patients, or the per-patient wHAFG (Metric 16). When the group sizes $n_g$ are
+known (from `group1_n`/`group2_n` or the case lists), the result also reports
+the harm per patient $H_g/n_g$ and the corresponding gap `hafg_per_patient`,
+with a warning when the sizes differ by more than 10%. Case lists that disagree
+with the error counts raise an error (from 1.10.0; earlier versions warned and
+then reported an interval for a different estimate).
 
 
-**95% CI (this section).** $HAFG$ is reported with a percentile bootstrap of the gap over per-case error labels: resample with replacement $B=1000$ times, recompute $HAFG$, and take the empirical percentiles
+**95% CI (this section).** $HAFG$ is reported with a percentile bootstrap that resamples cases within each group (two-sample bootstrap, group sizes fixed): $B=1000$ resamples, recompute $HAFG$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -253,7 +264,9 @@ $s_v$ be their severity scores. For $N$ total model outputs,
 ```math
 ERI = \frac{\sum_{v=1}^{V}s_v}{N}.
 ```
-If $N=0$, the function returns zero.
+Severities must be finite and non-negative, $N$ must be positive, and there
+can be at most one violation per output (from 1.10.0 these raise errors; a
+zero $N$ used to return zero even when violations were given).
 
 
 **95% CI (this section).** $ERI$ is reported with a percentile bootstrap over the per-output severity vector (severity for violations, 0 otherwise): resample with replacement $B=1000$ times, recompute $ERI$, and take the empirical percentiles
@@ -299,14 +312,17 @@ and group means $\bar Y_a$, the main-effect proxy is
 ```
 For the race-by-gender interaction, the implementation subtracts the
 race and gender main-effect proxies from the combined race-gender proxy.
+With unbalanced groups the main effects overlap, so this is a descriptive
+proxy (it can be negative), not a model-based interaction test; the `formula`
+argument is not parsed, and passing one raises a warning.
 
-# Domain 3: Governance and Transparency
 
-
-**95% CI (this section).** $IBS$ is reported with a percentile bootstrap over metric dimensions of the subgroup vectors: resample with replacement $B=1000$ times, recompute $IBS$, and take the empirical percentiles
+**95% CI (this section).** The mean similarity is reported with a percentile bootstrap over the metric dimensions (columns of the subgroup vectors): $B=1000$ resamples. It shows how much the similarity depends on which metrics were chosen; it is not a sampling interval for patients. Similarity depends on the scale of each metric, so standardise metrics on different scales first.
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
+
+# Domain 3: Governance and Transparency
 
 ## Metric 8: Temporal Fairness Drift
 
@@ -333,10 +349,15 @@ individuals-chart estimate
 \hat\sigma=\frac{\overline{MR}}{d_2},\qquad
 \overline{MR}=\frac{1}{T-1}\sum_{t=2}^{T}|m_t-m_{t-1}|,\qquad d_2=1.128,
 ```
-which a sustained shift does not inflate, unlike $s_m$.
+which a sustained shift does not inflate, unlike $s_m$. With `baseline_n`
+$=T_0$ (from 1.10.0) the centre and limits are estimated from $m_1,\ldots,m_{T_0}$
+only and applied prospectively to $m_{T_0+1},\ldots,m_T$, which is how a control
+chart should monitor drift. Without it the limits come from the whole series
+being monitored, so a shift can move the centre or widen the limits and go
+undetected.
 
 
-**95% CI (this section).** $TFD$ is reported with a percentile bootstrap over the observed time series: resample with replacement $B=1000$ times, recompute $TFD$, and take the empirical percentiles
+**95% CI (this section).** The centre (the mean of the points behind the limits) is reported with a moving-block bootstrap (Künsch 1989): blocks of $L=\mathrm{round}(T^{1/3})$ consecutive points are resampled, which keeps short-range serial dependence that an ordinary bootstrap ignores; $B=1000$ resamples and the empirical percentiles. (Up to 1.9.5 time points were resampled independently.)
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -360,7 +381,9 @@ CI_{95} &= [\,c - h,\; c + h\,].
 Versions up to 1.9.5 labelled the interval "Wilson score" but computed the
 Agresti-Coull interval, $\tilde p \pm z\sqrt{\tilde p(1-\tilde p)/(n+z^2)}$ with
 $\tilde p = (x+z^2/2)/(n+z^2)$, which has the same centre and is slightly wider.
-The score is labelled compliant at $ATS\ge 0.95$.
+The result reports whether $ATS\ge 0.95$ (a target, not a regulatory
+judgement). With no audited decisions ($n=0$) ATS is undefined and an error is
+raised (up to 1.9.5 it was reported as 0).
 
 ## Metric 10: Governance Compliance Index
 
@@ -369,12 +392,14 @@ evaluated as enforced. The implementation defines
 ```math
 GCI=\frac{E}{M}.
 ```
-When no policies are provided, the returned value is zero.
+GCI is the share of the listed checks that are met; it does not establish
+regulatory compliance. With no checks it is undefined and an error is raised
+(up to 1.9.5 the value was zero).
+
+
+**95% CI (this section).** As a proportion, $GCI$ is reported with a Wilson 95% score interval over the listed checks (Metric 9 form). The interval has a sampling meaning only if the checks are a sample from a larger defined set; for a complete, fixed list, report GCI itself.
 
 # Domain 4: Representation and Robustness
-
-
-**95% CI (this section).** As a binomial proportion, $GCI$ is reported with a Wilson 95% score interval over checklist items (Metric 9 form).
 
 ## Metric 11: Semantic Parity Gap
 
@@ -402,9 +427,15 @@ $b$-th random reassignment of the pooled rows to groups of sizes $n_p$ and $n_m$
 ```math
 p=\frac{1+\#\{b: D_b\ge SPG_{\mathrm{Euc}}\}}{1+B},\qquad B=1000.
 ```
+When row $i$ of both arrays is the same clinical case with only the protected
+attribute changed, use `paired=True`: the interval then resamples cases (each
+pair kept together) and the permutation test flips the sign of randomly chosen
+within-pair differences $p_i-m_i$, so the pairing is respected. A shift in the
+model's representation does not by itself show clinically harmful bias; relate
+it to differences in the outputs (for example DFR or CPS on the same pairs).
 
 
-**95% CI (this section).** $SPG$ is reported with a percentile bootstrap over embedding rows within each group (two-sample bootstrap): resample with replacement $B=1000$ times, recompute $SPG$, and take the empirical percentiles
+**95% CI (this section).** $SPG$ is reported with a percentile bootstrap over embedding rows within each group (two-sample bootstrap) or, with `paired=True`, over cases: $B=1000$ resamples, recompute $SPG$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -424,7 +455,9 @@ CHR_w=
 \frac{\sum_{c=1}^{C}w_c\mathbb{I}\{S(c,K)<\tau\}}
 {\sum_{c=1}^{C}w_c}.
 ```
-If no weights are supplied, the implementation sets $CHR_w=CHR$.
+If no weights are supplied, the implementation sets $CHR_w=CHR$. A missing
+(NaN) or out-of-range support score raises an error (from 1.10.0; a NaN used
+to count as a supported claim).
 
 
 **95% CI (this section).** As a binomial proportion, $CHR$ is reported with a Wilson 95% score interval over claims (Metric 9 form), with a one-sided score test against a tolerated rate.
@@ -443,7 +476,7 @@ IVI_{\mathrm{effect}}=\frac{1}{n}\sum_{i=1}^{n}B_i-\frac{1}{n}\sum_{i=1}^{n}A_i.
 ```
 The paired-counterfactual framing is conceptually related to
 counterfactual fairness, although IVI targets prompt framing rather than
-protected-attribute interventions .
+protected-attribute interventions.
 
 
 **95% CI (this section).** As a binomial proportion, $IVI$ is reported with a Wilson 95% score interval over case pairs (Metric 9 form), with a one-sided score test against a tolerated rate.
@@ -456,10 +489,14 @@ implemented index is set-based:
 ```math
 GRI=\frac{|L|-|W|}{|L|}.
 ```
-Duplicates do not change the score.
+Duplicates do not change the score: GRI measures the VARIETY of locations, so
+one study from each of many non-Western locations can outweigh thousands from a
+single Western location. The result also reports the VOLUME view, the share of
+mentions (duplicates included) that are non-Western
+(`non_western_mention_share`); report both.
 
 
-**95% CI (this section).** $GRI$ is reported with a percentile bootstrap over location mentions: resample with replacement $B=1000$ times, recompute $GRI$, and take the empirical percentiles
+**95% CI (this section).** $GRI$ is reported with a percentile bootstrap over location mentions: $B=1000$ resamples, recompute $GRI$, and take the empirical percentiles. A resample can only lose locations, never add unseen ones, so this interval describes how stable the ratio is to which locations happen to be mentioned, not uncertainty about the full set of locations.
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -475,20 +512,20 @@ GB =
 {\sqrt{\sum_i(x_i-\bar x)^2}\sqrt{\sum_i(y_i-\bar y)^2}}.
 ```
 
+
+**95% CI (this section).** No interval is computed: the method returns the correlation with its SciPy $p$-value (Pearson or Spearman).
+
 # Domain 5: Technical-supplement Fairness
-
-
-**95% CI (this section).** $GB$ is reported with a percentile bootstrap over paired (GRI, error) points; Fisher $z$ or bootstrap: resample with replacement $B=1000$ times, recompute $GB$, and take the empirical percentiles
-```math
-CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
-```
 
 ## Metric 15: Intersectional Calibration Error
 
 For group $g$ and bin $b$, let $S_{gb}$ be samples in
-intersectional group $g$ whose confidence falls in bin $b$. The
+intersectional group $g$ whose predicted probability $C_i$ falls in bin $b$, and
+let $Z_i\in\{0,1\}$ be the outcome that the probability predicts: for a risk
+model the observed event, for a classifier's confidence whether its label was
+correct (any other value raises an error from 1.10.0). The
 implementation uses equal-width bins on $[0,1]$. This extends expected
-calibration error as used in neural-network calibration studies . Let
+calibration error as used in neural-network calibration studies. Let
 ```math
 \begin{aligned}
 acc(S_{gb}) &= \frac{1}{|S_{gb}|}\sum_{i\in S_{gb}}Z_i,\\
@@ -508,9 +545,12 @@ The maximum calibration gap returned as `delta_ice` is
 ```math
 \Delta ICE = \max_g ECE_g-\min_g ECE_g.
 ```
+Binned ECE is biased upward in small samples (noise alone separates the mean
+prediction and the event rate within a bin), so read $\Delta ICE$ alongside the
+group sizes the result reports (`n_by_group`).
 
 
-**95% CI (this section).** $ICE$ is reported with a percentile bootstrap over samples (group, confidence, correctness): resample with replacement $B=1000$ times, recompute $ICE$, and take the empirical percentiles
+**95% CI (this section).** $ICE$ is reported with a percentile bootstrap that resamples (probability, outcome) pairs within each group, so the group sizes and the ICE weights stay fixed: $B=1000$ resamples, recompute $ICE$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -528,7 +568,7 @@ wHAFG_{\max}=\max_g H(g)-\min_g H(g).
 ```
 
 
-**95% CI (this section).** $wHAFG$ is reported with a percentile bootstrap of the gap over samples: resample with replacement $B=1000$ times, recompute $wHAFG$, and take the empirical percentiles
+**95% CI (this section).** $wHAFG$ is reported with a percentile bootstrap that resamples samples within each group (group sizes fixed): $B=1000$ resamples, recompute $wHAFG$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -536,7 +576,8 @@ CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ## Metric 17: Counterfactual Parity Score
 
 Let $s_i\in[0,1]$ be a precomputed semantic similarity between the
-original response and the response under a demographic swap. For a
+original response and the response under a demographic swap (values outside
+$[0,1]$ raise an error; rescale a cosine similarity $c$ as $(1+c)/2$). For a
 single pair type,
 ```math
 CPS=\frac{1}{n}\sum_{i=1}^{n}s_i.
@@ -551,7 +592,7 @@ CPS=\frac{1}{\sum_p n_p}\sum_p\sum_{i\in p}s_i.
 ```
 
 
-**95% CI (this section).** $CPS$ is reported with a percentile bootstrap over counterfactual pairs: resample with replacement $B=1000$ times, recompute $CPS$, and take the empirical percentiles
+**95% CI (this section).** $CPS$ is reported with a percentile bootstrap that resamples cases within each swap pair: $B=1000$ resamples, recompute $CPS$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -568,7 +609,7 @@ CFU=1-\min_p CPS_p.
 ```
 
 
-**95% CI (this section).** As a binomial proportion, $CFU$ is reported with a Wilson 95% score interval over pairs / $1-\mathrm{CPS}$ (Metric 9 form).
+**95% CI (this section).** $CFU$ is reported with the same stratified bootstrap as CPS (`cfu_ci_lower`, `cfu_ci_upper`); with similarities on $[0,1]$, $CFU\in[0,1]$. (Versions up to 1.9.5 documented a Wilson interval here that the code did not compute.)
 
 ## Metric 18: Semantic Robustness Parity Index
 
@@ -581,10 +622,13 @@ The implemented parity ratio is
 ```math
 SRPI=\frac{\min_g R(g)}{\max_g R(g)}.
 ```
-If the maximum group robustness is zero, the function returns zero.
+Scores must lie in $[0,1]$. If every group has zero robustness, SRPI is
+undefined (NaN; up to 1.9.5 it was 0, which read as maximal disparity). SRPI
+describes parity only (equal but low robustness also gives 1), so the result
+also reports the smallest and largest group robustness.
 
 
-**95% CI (this section).** $SRPI$ is reported with a percentile bootstrap over pooled per-query robustness scores (tagged by group): resample with replacement $B=1000$ times, recompute $SRPI$, and take the empirical percentiles
+**95% CI (this section).** $SRPI$ is reported with a percentile bootstrap that resamples queries within each group: $B=1000$ resamples, recompute $SRPI$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -607,7 +651,7 @@ LDDI_{\mathrm{norm}}=\frac{LDDI}{RTTR_{\mathrm{all}}}.
 ```
 
 
-**95% CI (this section).** $LDDI$ is reported with a percentile bootstrap over pooled group responses: resample with replacement $B=1000$ times, recompute $LDDI$, and take the empirical percentiles
+**95% CI (this section).** $LDDI$ is reported with a percentile bootstrap that resamples responses within each group (group sizes fixed): $B=1000$ resamples, recompute $LDDI$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -616,7 +660,7 @@ CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 
 Let $P_g(t)$ be the empirical distribution of recommendation labels
 $t$ in group $g$. The group recommendation entropy is based on
-Shannon entropy :
+Shannon entropy:
 ```math
 H(T\mid g)=-\sum_t P_g(t)\log_2 P_g(t).
 ```
@@ -631,7 +675,7 @@ REG_{KL}=\max_g \sum_t P_g(t)\log_2\frac{P_g(t)}{P(t)},
 where $P(t)$ is the marginal recommendation distribution.
 
 
-**95% CI (this section).** $REG$ is reported with a percentile bootstrap over pooled group recommendations: resample with replacement $B=1000$ times, recompute $REG$, and take the empirical percentiles
+**95% CI (this section).** $REG$ is reported with a percentile bootstrap that resamples recommendations within each group (group sizes fixed): $B=1000$ resamples, recompute $REG$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -660,18 +704,20 @@ If the maximum group density is zero, all implemented ratios are set to
 zero.
 
 
-**95% CI (this section).** $CIDR$ is reported with a percentile bootstrap over pooled (concepts, tokens) pairs (tagged by group): resample with replacement $B=1000$ times, recompute $CIDR$, and take the empirical percentiles
+**95% CI (this section).** $CIDR$ is reported with a percentile bootstrap that resamples responses within each group (group sizes fixed): $B=1000$ resamples, recompute $CIDR$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
 
 ## Metric 22: Diagnostic Completeness Index
 
-Let $D^\star$ be the reference differential diagnosis set. For
-response $i$,
+Let $D^\star_i$ be the reference differential diagnosis set for the case
+behind response $i$: one shared list, or, when the cases differ, a
+case-specific list per response (`references_by_group`). For response $i$,
 ```math
-DCI_i=\frac{|D(R_i)\cap D^\star|}{|D^\star|}.
+DCI_i=\frac{|D(R_i)\cap D^\star_i|}{|D^\star_i|}.
 ```
+A group with no responses raises an error (it used to score 0).
 The group mean is
 ```math
 DCI(g)=\frac{1}{n_g}\sum_{i:G_i=g}DCI_i,
@@ -688,7 +734,7 @@ wDCI_i=
 ```
 
 
-**95% CI (this section).** $DCI$ is reported with a percentile bootstrap over pooled group responses: resample with replacement $B=1000$ times, recompute $DCI$, and take the empirical percentiles
+**95% CI (this section).** $DCI$ is reported with a percentile bootstrap that resamples responses within each group (group sizes fixed): $B=1000$ resamples, recompute $DCI$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -712,9 +758,12 @@ The implemented uncertainty quantification gap is
 ```math
 UQG=\max_g UD(g)-\min_g UD(g).
 ```
+UQG counts hedging words; it measures how often hedging language is used, not
+whether stated uncertainty is calibrated, and the default lexicon has not been
+validated against annotated clinical language.
 
 
-**95% CI (this section).** $UQG$ is reported with a percentile bootstrap over pooled group responses: resample with replacement $B=1000$ times, recompute $UQG$, and take the empirical percentiles
+**95% CI (this section).** $UQG$ is reported with a percentile bootstrap that resamples responses within each group (group sizes fixed): $B=1000$ resamples, recompute $UQG$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -723,12 +772,12 @@ CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 
 Let $p_c(r)$ be the normalized corpus evidence share in region $r$
 and $p_b(r)$ the normalized burden share. EquiMed-DSS implements
-directed KL divergence in nats :
+directed KL divergence in nats:
 ```math
 GRBI=D_{\mathrm{KL}}(P_c\Vert P_b)=\sum_{r:p_c(r)>0}p_c(r)\log\frac{p_c(r)}{p_b(r)}.
 ```
-If $p_c(r)>0$ and $p_b(r)=0$, the implementation raises an error
-because KL is undefined. With optional high-income regions
+Counts and shares must be finite and non-negative. If $p_c(r)>0$ and
+$p_b(r)=0$, the implementation raises an error because KL is undefined. With optional high-income regions
 $\mathcal{H}$, the high-income overrepresentation ratio is
 ```math
 HIC_{\mathrm{ratio}}=
@@ -750,19 +799,28 @@ For system stratum $s$, let
 ```math
 \Delta_s=\max_g \mathbb{E}[Y\mid G=g,S=s]-\min_g \mathbb{E}[Y\mid G=g,S=s].
 ```
-The implemented within-system fairness gap is
+Only systems with at least two groups (each with at least `min_group_n`
+observations) have a gap; the others are listed in
+`systems_without_comparison` and excluded (up to 1.9.5 they counted as
+$\Delta_s=0$, which made sparse systems look fair). With $w_s$ the number of
+observations compared in system $s$ and $\mathcal{S}$ the eligible systems,
 ```math
-HSSF=\sum_s P(S=s)\Delta_s.
+HSSF=\sum_{s\in\mathcal{S}}\frac{w_s}{\sum_{u\in\mathcal{S}}w_u}\Delta_s .
 ```
-The implementation returns $\Delta_{\mathrm{within}}=HSSF$. It also
-returns the population-weighted between-system variance
+The implementation returns $\Delta_{\mathrm{within}}=HSSF$. Separately, it
+describes how mean outcomes differ BETWEEN systems, in outcome units: the range
+$\max_s\mathbb{E}[Y\mid S=s]-\min_s\mathbb{E}[Y\mid S=s]$ and the
+population-weighted standard deviation $\sqrt{\Delta_{\mathrm{between}}}$, where
 ```math
 \Delta_{\mathrm{between}}=
-\sum_s P(S=s)\left(\mathbb{E}[Y\mid S=s]-\sum_{u}P(S=u)\mathbb{E}[Y\mid S=u]\right)^2.
+\sum_s P(S=s)\left(\mathbb{E}[Y\mid S=s]-\sum_{u}P(S=u)\mathbb{E}[Y\mid S=u]\right)^2
 ```
+is kept for compatibility. The within-system gap and the between-system spread
+are separate descriptors, not additive components of a total disparity; the
+variance (squared units) must not be compared with HSSF directly.
 
 
-**95% CI (this section).** $HSSF$ is reported with a percentile bootstrap of the gap over samples: resample with replacement $B=1000$ times, recompute $HSSF$, and take the empirical percentiles
+**95% CI (this section).** $HSSF$ is reported with a percentile bootstrap that resamples observations within each system-by-group cell: $B=1000$ resamples, recompute $HSSF$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -770,7 +828,7 @@ CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ## Metric 26: Intersectional Shapley Fairness Value
 
 Let $\mathcal{A}=\{A_1,\ldots,A_m\}$ be protected attributes. The
-attribution formula follows Shapley’s cooperative-game value . For a
+attribution formula follows Shapley’s cooperative-game value. For a
 subset $S\subseteq\mathcal{A}$, the implemented characteristic
 function is
 ```math
@@ -791,20 +849,28 @@ The total disparity is $v(\mathcal{A})$. Pairwise interactions are
 ```math
 I(A_j,A_k)=v(\{A_j,A_k\})-v(\{A_j\})-v(\{A_k\}).
 ```
+Because $v$ is a range of cell means, it grows with the number of cells and is
+driven by small cells even when outcomes do not differ, so an attribute with
+more categories tends to receive a larger share; set `min_cell` (for example
+30). The interaction compares ranges and has no direction, so a positive value
+is not by itself an intersectional penalty. From 1.10.0 the result includes a
+permutation check of $v(\mathcal{A})$ against shuffled outcomes ($P=200$;
+`p_value_permutation` and `total_disparity_null_mean`, the range expected from
+noise alone).
 
-# Geographic Module
 
-
-**95% CI (this section).** $ISFV$ is reported with a percentile bootstrap over samples (CI on the total disparity $v(A)$): resample with replacement $B=1000$ times, recompute $ISFV$, and take the empirical percentiles
+**95% CI (this section).** The total disparity $v(\mathcal{A})$ and each attribution $\phi_j$ (`shapley_ci`) are reported with a percentile bootstrap that resamples within the full cross-classified cells: $B=500$ resamples (the documentation said 1000 up to 1.9.5; the code has always used 500), recompute, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
+
+# Geographic Module
 
 ## Metric 27: Burden-evidence Mismatch Index
 
 Let $e(r)$ be the normalized evidence share and $b(r)$ the
 normalized burden share over the union of supplied regions. EquiMed-DSS
-defines BEMI as total variation distance :
+defines BEMI as total variation distance:
 ```math
 BEMI=\frac{1}{2}\sum_{r\in\mathcal{R}}|e(r)-b(r)|.
 ```
@@ -817,7 +883,11 @@ M(r)&=e(r)-b(r),\\
 ```
 The ratio $\rho(r)$ is finite only when $b(r)>0$; the implementation
 records a missing value when the burden share is zero. The most
-underserved region is the region with the minimum $M(r)$.
+underserved region is the region with the minimum $M(r)$. Every region with
+evidence must appear in the burden mapping: a region code missing there raises
+an error (mismatched codes such as AFR against AFRO would otherwise be scored as
+evidence outside every burden region), and inputs must be finite and
+non-negative.
 
 
 **95% CI (this section).** $BEMI$ is reported with a percentile bootstrap over geolocated evidence records: resample with replacement $B=1000$ times, recompute $BEMI$, and take the empirical percentiles
@@ -837,11 +907,13 @@ G_{\mathrm{raw}}=
 {2R\sum_{r=1}^{R}x_r}.
 ```
 Because the maximum raw Gini for $R$ categories is $(R-1)/R$, the
-implementation uses the corrected value
+implementation reports the normalized value (a rescaling so that the maximum is
+1, not a correction for sampling bias; earlier documentation called it
+"sample-corrected")
 ```math
 G^\star=\frac{R}{R-1}G_{\mathrm{raw}}.
 ```
-The normalized Shannon entropy follows Shannon’s entropy definition :
+The normalized Shannon entropy follows Shannon’s entropy definition:
 ```math
 H_{\mathrm{norm}}=
 -\frac{\sum_{r:p_r>0}p_r\log p_r}{\log R},
@@ -851,8 +923,6 @@ and the concentration score is
 C_{\mathrm{geo}}=1-H_{\mathrm{norm}}.
 ```
 
-# Appendix Metrics
-
 
 **95% CI (this section).** $GCC$ is reported with a percentile bootstrap over geolocated evidence records: resample with replacement $B=1000$ times, recompute $GCC$, and take the empirical percentiles
 ```math
@@ -860,6 +930,8 @@ CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
 
 (needs record-level input; otherwise reported unavailable).
+
+# Appendix Metrics
 
 ## Metric 29: Bootstrap Confidence Interval
 
@@ -880,7 +952,7 @@ Q_{1-\alpha/2}(\theta_1^\ast,\ldots,\theta_B^\ast)
 ```
 The observed statistic is $T(x_1,\ldots,x_n)$. The percentile
 construction follows the nonparametric bootstrap framework of Efron and
-Tibshirani .
+Tibshirani.
 
 
 **95% CI (this section).** this metric IS the percentile bootstrap interval.
@@ -900,9 +972,9 @@ The solver returns the per-group sample size $n$ satisfying
 P\left(\mathrm{reject}\ H_0:\mu_1=\mu_2\mid d,\alpha,n\right)
 ```
 for the requested alternative. The returned per-group sample size is
-$\lceil n\rceil$, while the returned total sample size follows the
-implementation as $\lceil 2n\rceil$. The standardized effect-size
-scale follows Cohen’s two-sample convention .
+$\lceil n\rceil$, and the returned total is $2\lceil n\rceil$ (two equal
+groups; up to 1.9.5 it was $\lceil 2n\rceil$, which could be one short). The standardized effect-size
+scale follows Cohen’s two-sample convention.
 
 
 **95% CI (this section).** an analytic design quantity; no sampling CI of its own.
@@ -924,21 +996,21 @@ result also reports
 BCI^{\mathrm{norm}}_{\mathrm{bias}}=\frac{BCI_{\mathrm{bias}}}{1-1/K}\in[0,1],
 ```
 and from 1.10.0 the verdict thresholds (0.3, 0.7) apply to this normalized value,
-so that an even distribution over few groups is not labelled concentrated.
+so that an even distribution over few groups is not labelled concentrated. The
+index describes how bias is distributed, not how large it is: an even spread of
+a large bias scores as evenly distributed. Negative proportions raise an error.
 
 
-**95% CI (this section).** $BCI(concentration)$ is reported with a percentile bootstrap over the per-group bias proportions: resample with replacement $B=1000$ times, recompute $BCI(concentration)$, and take the empirical percentiles
-```math
-CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
-```
+**95% CI (this section).** No interval is reported: the inputs are one fixed value per group, not a sample (versions up to 1.9.5 resampled them as if they were).
 
 ## Metric 32: Mutual Information Content
 
-Let $D$ be a demographic categorical variable and $O$ an outcome
-categorical variable. In the implementation, $D$ is expected to be
-encoded as nonnegative integer categories for the entropy normalization.
+Let $D$ be a demographic categorical variable and $O$ a DISCRETE outcome
+(labels, decisions or binned scores); non-integer numeric outcomes raise an
+error, because when every value is unique the mutual information approaches
+$H(D)$ simply because each value identifies a row. Categories may be strings.
 The raw mutual information implemented via `mutual_info_score` uses
-Shannon mutual information :
+Shannon mutual information:
 ```math
 MIC=I(D;O)=\sum_{d,o}p(d,o)\log\frac{p(d,o)}{p(d)p(o)}.
 ```
@@ -948,7 +1020,12 @@ entropy:
 MIC_{\mathrm{norm}}=\frac{I(D;O)}{H(D)},\qquad
 H(D)=-\sum_d p(d)\log p(d).
 ```
-If $H(D)=0$, the normalized value is zero.
+If $H(D)=0$, the normalized value is zero. Plug-in mutual information is
+biased upward in small samples, so the result reports a permutation null: the
+mean of $I(D;O^{\pi})$ over $P=200$ shuffles of the outcomes (`mic_null_mean`)
+and the add-one $p$-value (`p_value_permutation`). An association can reflect
+clinical need or case mix; adjust for clinically relevant factors before
+interpreting it as bias.
 
 
 **95% CI (this section).** $MIC$ is reported with a percentile bootstrap over paired (demographic, outcome) observations: resample with replacement $B=1000$ times, recompute $MIC$, and take the empirical percentiles
@@ -963,7 +1040,7 @@ $p$ and $q$, let
 ```math
 m=\frac{p+q}{2}.
 ```
-The implementation returns the base-2 Jensen-Shannon divergence :
+The implementation returns the base-2 Jensen-Shannon divergence:
 ```math
 JSD(p,q)=
 \frac{1}{2}D_{\mathrm{KL}}^{(2)}(p\Vert m)+\frac{1}{2}D_{\mathrm{KL}}^{(2)}(q\Vert m),
@@ -973,18 +1050,13 @@ the distance $\sqrt{JSD}$, so the implementation squares that value.
 Both `jsd` and `jsd_distance` are reported.
 
 
-**95% CI (this section).** $JSD$ is reported with a percentile bootstrap over the underlying samples: resample with replacement $B=1000$ times, recompute $JSD$, and take the empirical percentiles
-```math
-CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
-```
-
-(between aggregate distributions the interval is reported unavailable).
+**95% CI (this section).** No interval is computed: the inputs are two aggregated distributions (or counts over the same categories), so there is no observation-level sample to resample. Raw samples must be binned on common bins first; inputs must be non-empty, of equal length, finite and non-negative.
 
 ## Metric 34: Wasserstein Distance
 
 For one-dimensional empirical samples $P_n=\{x_1,\ldots,x_n\}$ and
 $Q_m=\{y_1,\ldots,y_m\}$, the implemented metric delegates to SciPy’s
-first Wasserstein distance without explicit sample weights :
+first Wasserstein distance without explicit sample weights:
 ```math
 WD(P_n,Q_m)=\inf_{\gamma\in\Gamma(P_n,Q_m)}
 \int_{\mathbb{R}\times\mathbb{R}}|x-y|\,d\gamma(x,y),
@@ -999,7 +1071,8 @@ The inputs are samples, not probability vectors. To compare two histograms
 $(w^P_k)$ and $(w^Q_k)$ on shared bin locations $x_k$, pass `support` $=(x_k)$
 (from 1.10.0); the distance is then computed between the weighted empirical
 distributions $\sum_k w^P_k\delta_{x_k}$ and $\sum_k w^Q_k\delta_{x_k}$, with no
-bootstrap interval.
+bootstrap interval. The distance is in the units of the inputs, so there is no
+universal threshold.
 
 
 **95% CI (this section).** $WD$ is reported with a percentile bootstrap over each sample independently (two-sample bootstrap): resample with replacement $B=1000$ times, recompute $WD$, and take the empirical percentiles
@@ -1022,7 +1095,7 @@ Q=\frac{1}{2m}\sum_{i,j}
 ```
 
 
-**95% CI (this section).** $NM$ is reported with a percentile bootstrap over nodes (node-resampling stability bootstrap): resample with replacement $B=200$ times, recompute $NM$, and take the empirical percentiles
+**95% CI (this section).** When the observations behind a correlation matrix are supplied (`observations`, shape observations by metrics), $NM$ is reported with a percentile bootstrap over OBSERVATIONS: $B=200$ resamples, recompute the absolute correlation matrix and its modularity, and take the empirical percentiles. Without them no interval is reported: resampling metric nodes (as up to 1.9.5) does not describe sampling uncertainty.
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -1034,7 +1107,7 @@ expects three scores in $[0,1]$: explanation quality $e_i$, feature
 importance $f_i$, and interpretability $u_i$. This score is an
 implementation-level aggregate for post-hoc explanation adequacy,
 aligned with the clinical need to expose reasons for model outputs
-rather than predictions alone . The per-decision transparency
+rather than predictions alone. The per-decision transparency
 contribution is
 ```math
 t_i=\frac{e_i+f_i+u_i}{3}.
@@ -1043,7 +1116,11 @@ The transparency score is the empirical mean
 ```math
 TS=\frac{1}{n}\sum_{i=1}^{n}t_i.
 ```
-If no explanations are provided, the implementation returns zero.
+All three ratings are required for every decision and must lie in $[0,1]$;
+an empty list, a missing rating or an out-of-range rating raises an error (from
+1.10.0; a missing rating used to count as 0). TS reflects transparency only as
+well as the supplied ratings do and does not establish readiness for clinical
+use.
 
 
 **95% CI (this section).** $TS$ is reported with a percentile bootstrap over per-decision transparency scores: resample with replacement $B=1000$ times, recompute $TS$, and take the empirical percentiles
@@ -1051,7 +1128,7 @@ If no explanations are provided, the implementation returns zero.
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
 
-## Metric 37: Robustness Certification Score
+## Metric 37: Observed Perturbation Agreement (formerly Robustness Certification Score)
 
 Let $a_{ib}$ be the agreement indicator between the original
 prediction for case $i$ and the prediction under perturbation batch
@@ -1063,10 +1140,14 @@ For each perturbation batch,
 ```math
 r_b=\frac{1}{n}\sum_{i=1}^{n}a_{ib}.
 ```
-The implemented robustness certification score is
+The implemented observed perturbation agreement (class
+`ObservedPerturbationAgreement`; `RobustnessCertificationScore` is a deprecated
+alias) is
 ```math
 RCS=\frac{1}{B}\sum_{b=1}^{B}r_b.
 ```
+It describes the stability observed on the perturbations tried; it is not a
+certified robustness bound.
 The implementation also reports
 ```math
 \begin{aligned}
@@ -1075,21 +1156,21 @@ r_{\min} &= \min_b r_b,\qquad r_{\max}=\max_b r_b.
 \end{aligned}
 ```
 The input argument $\epsilon$ is recorded in the output but is not
-used in the calculation itself.
-
-# Implemented Statistical Estimands Included to Reach 39 Derivations
+used in the calculation itself. An empty list of perturbations raises an error.
 
 
-**95% CI (this section).** $RCS$ is reported with a percentile bootstrap over per-perturbation agreement scores: resample with replacement $B=1000$ times, recompute $RCS$, and take the empirical percentiles
+**95% CI (this section).** $RCS$ is reported with a percentile bootstrap over per-perturbation agreement scores: $B=1000$ resamples, recompute $RCS$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
+
+# Implemented Statistical Estimands Included to Reach 39 Derivations
 
 ## Metric 38: Hierarchical Variance Partitioning and MAIHDA-style VPC
 
 For a Gaussian mixed model with outcome $Y_{ij}$ for individual $i$
 in group $j$, EquiMed-DSS fits a random-intercept model using the
-standard multilevel variance-partitioning framework :
+standard multilevel variance-partitioning framework:
 ```math
 Y_{ij}=\beta_0+X_{ij}^{\top}\beta+u_j+\varepsilon_{ij},
 \qquad
@@ -1124,20 +1205,26 @@ MS_B &= \frac{SS_B}{J-1},\qquad
 MS_W = \frac{SS_W}{n-J}.
 \end{aligned}
 ```
-With $\bar n$ denoting the mean group size, the fallback ICC is
-bounded to $[0,1]$:
+With $n_0=\big(n-\sum_j n_j^2/n\big)/(J-1)$, the effective group size for
+unbalanced groups, the fallback reports the variance components
+$\hat\sigma_u^2=\max\{0,(MS_B-MS_W)/n_0\}$ and $\hat\sigma_e^2=MS_W$ and the
+ICC bounded to $[0,1]$:
 ```math
 ICC_{\mathrm{fallback}}=
 \max\left\{0,\min\left[1,
-\frac{MS_B-MS_W}{MS_B+(\bar n-1)MS_W}
+\frac{MS_B-MS_W}{MS_B+(n_0-1)MS_W}
 \right]\right\}.
 ```
+(Up to 1.9.5 the fallback used the mean group size and reported the mean
+squares themselves as variance components.) The fallback is announced with a
+warning and the result's `method` is "anova"; group-level predictors are
+included as fixed effects in the mixed model.
 
-## Metric 39: Causal Mediation and Proportion Mediated
+## Metric 39: Mediation (Product of Coefficients) and Proportion Mediated
 
 Let $X$ be the treatment or exposure, $M$ the mediator, $Y$ the
 outcome, and $C$ optional covariates. The implemented
-product-of-coefficients mediation uses linear regression models :
+product-of-coefficients mediation uses linear regression models:
 ```math
 \begin{aligned}
 M &= \alpha_0+\alpha_1X+C^\top\alpha_C+\varepsilon_M,\\
@@ -1160,9 +1247,18 @@ The implemented proportion mediated is
 ```math
 PM=\frac{IE}{TE},
 ```
-with $PM=0$ if $|TE|\le 10^{-10}$. The indirect-effect confidence
-interval is a percentile bootstrap over the product
-$\alpha_1^\ast\beta_2^\ast$. The Sobel test implemented in the same
+and $PM$ is undefined (NaN) if $|TE|\le 10^{-10}$ (up to 1.9.5 it was set to 0).
+The indirect-effect confidence interval is a percentile bootstrap over the
+product $\alpha_1^\ast\beta_2^\ast$, and the direct effect has its own
+bootstrap interval over $\beta_1^\ast$. The mediation type follows Zhao,
+Lynch and Chen (2010): indirect effect significant and direct effect not,
+complete mediation; both significant, partial mediation, complementary or
+competitive by the signs; indirect effect not significant, no mediation. These
+are associations from linear models: reading them as causal effects requires no
+unmeasured confounding of the treatment-mediator, treatment-outcome and
+mediator-outcome relations (Imai, Keele and Tingley 2010). A two-level
+categorical treatment is coded 0/1 (first level in sorted order as reference)
+and categorical covariates are dummy-coded. The Sobel test implemented in the same
 class is
 ```math
 \begin{aligned}
@@ -1258,6 +1354,21 @@ Imai K, Keele L, Tingley D. A general approach to causal mediation
 analysis. *Psychological Methods*. 2010;15(4):309-334.
 doi:10.1037/a0020761.
 
+Zhao X, Lynch JG Jr, Chen Q. Reconsidering Baron and Kenny: myths and truths
+about mediation analysis. *Journal of Consumer Research*. 2010;37(2):197-206.
+doi:10.1086/651257.
+
+Cicchetti DV. Guidelines, criteria, and rules of thumb for evaluating normed
+and standardized assessment instruments in psychology. *Psychological
+Assessment*. 1994;6(4):284-290. doi:10.1037/1040-3590.6.4.284.
+
+Künsch HR. The jackknife and the bootstrap for general stationary
+observations. *Annals of Statistics*. 1989;17(3):1217-1241.
+doi:10.1214/aos/1176347265.
+
+Montgomery DC. *Introduction to Statistical Quality Control*. Hoboken:
+Wiley.
+
 
 # Implementation Notes
 
@@ -1283,24 +1394,19 @@ doi:10.1037/a0020761.
   but this file uses the exact implemented details where the older
   derivations were more general.
 
-# Uncertainty Quantification for Every Metric (v1.9.5)
+# Uncertainty Quantification (v1.10.0)
 
-From v1.9.5 a metric is never reported as a bare point estimate. Each estimate
-$\hat\theta$ is accompanied by a 95% confidence interval and, where a
-pre-specified null or acceptability threshold exists, a $p$-value. Three master
-estimators cover every metric in this library; the table at the end tags each
-metric with the one it uses, and the proportion metrics (CHR, IVI, DFR) carry
-their CI and $p$-value directly in the result dict.
+Most metrics return a 95% confidence interval with the estimate. The table at
+the end states, for every metric, which interval or test the code returns, or
+why none is returned (for example, when the inputs are aggregate values rather
+than a sample). Throughout, $z_{1-\alpha/2}=\Phi^{-1}(1-\alpha/2)$, $\Phi$ is the
+standard-normal CDF, and $B$, $P$ are the numbers of bootstrap and permutation
+resamples.
 
-Throughout, $z_{1-\alpha/2}=\Phi^{-1}(1-\alpha/2)$ (so $z=1.96$ for a 95%
-interval), $\Phi$ is the standard-normal CDF, and $B$, $P$ are the numbers of
-bootstrap and permutation resamples.
+## A. Proportions: Wilson interval and score test
 
-## A. Binomial-proportion metrics: Wilson interval + score test
-
-A metric that is a proportion $\hat p = k/n$ (CHR, IVI, DFR, Safety Violation
-Rate, Audit Traceability, Counterfactual Unfairness, Transparency Score,
-Robustness Certification) is reported with the **Wilson score interval**
+A metric that is a proportion $\hat p = k/n$ (DFR, CHR, IVI, the Safety
+Violation Rate, ATS, GCI) is reported with the **Wilson score interval**
 
 ```math
 \mathrm{CI}_{1-\alpha}
@@ -1310,25 +1416,19 @@ Robustness Certification) is reported with the **Wilson score interval**
 \qquad z=z_{1-\alpha/2},
 ```
 
-and, against an acceptability threshold $p_0$ (default $0.05$), the one-sided
-**score test** (`p_value_above_threshold`)
+and, for DFR, CHR and IVI, against an acceptability threshold $p_0$ (default
+$0.05$; it must lie strictly between 0 and 1), the one-sided **score test**
+(`p_value_above_threshold`)
 
 ```math
 Z=\frac{\hat p-p_0}{\sqrt{p_0(1-p_0)/n}},
 \qquad p = 1-\Phi(Z)\quad(\text{alternative } \hat p>p_0).
 ```
 
-For example the Clinical Hallucination Rate returns
-$\widehat{\mathrm{CHR}}=k/n$ with the Wilson CI above and
-$p=1-\Phi\!\big((\hat p-p_0)\sqrt{n/(p_0(1-p_0))}\big)$.
+## B. Bootstrap intervals
 
-## B. Sample statistics (means, distances, divergences): bootstrap
-
-For a metric $\hat\theta=T(x_1,\dots,x_n)$ that is a mean, centroid distance,
-entropy, Gini, total-variation distance, or KL/JS divergence (ECS, ICC, SPG,
-ICE, CPS, SRPI, LDDI, REG, CIDR, UQG, GRBI, BEMI, GCC, ISFV, MIC, JSD,
-Wasserstein, and the remaining Domain-2/3/5 indices), the **percentile
-bootstrap** draws $B$ resamples $x^{\ast(b)}$ with replacement and forms
+For a statistic $\hat\theta=T(x_1,\dots,x_n)$ the **percentile bootstrap**
+draws $B$ resamples $x^{\ast(b)}$ with replacement and forms
 
 ```math
 \hat\theta^{\ast(b)}=T\!\big(x^{\ast(b)}\big),
@@ -1337,12 +1437,26 @@ bootstrap** draws $B$ resamples $x^{\ast(b)}$ with replacement and forms
 =\Big[\;\hat\theta^{\ast}_{(\alpha/2)},\;\hat\theta^{\ast}_{(1-\alpha/2)}\;\Big],
 ```
 
-the $\alpha/2$ and $1-\alpha/2$ empirical quantiles of
-$\{\hat\theta^{\ast(1)},\dots,\hat\theta^{\ast(B)}\}$, with standard error
-$\widehat{\mathrm{se}}=\operatorname{sd}\big(\hat\theta^{\ast(1)},\dots,\hat\theta^{\ast(B)}\big)$.
-When observations are **clustered** (multiple evaluations of the same
-patient/visit), the **cluster bootstrap** resamples whole clusters
-$g\in\{1,\dots,G\}$ rather than rows,
+the $\alpha/2$ and $1-\alpha/2$ empirical quantiles of the replicates. Three
+resampling designs are used:
+
+- **Ordinary**: rows are resampled (single-sample statistics such as ECS, ERI,
+  TS, and the record-based geographic indices).
+- **Stratified**: rows are resampled WITHIN each group (or system-by-group cell,
+  swap pair, or cross-classified cell), so every replicate keeps every group at
+  its observed size and the interval describes the same groups as the estimate.
+  This is used for every between-group statistic (HER, Bias-Gini, HAFG, ICE,
+  wHAFG, CPS and CFU, SRPI, LDDI, REG, CIDR, DCI, UQG, HSSF, ISFV). Up to 1.9.5
+  most of these pooled the groups, so a small group could be absent from a
+  replicate (a group of one is absent from about 37% of them) and the interval
+  then compared a different set of groups. A warning flags groups with fewer
+  than five observations, and replicates with an undefined statistic are
+  dropped and counted.
+- **Moving block**: for the TFD time series, blocks of consecutive points are
+  resampled (Künsch 1989).
+
+When observations are **clustered** (several evaluations of the same patient or
+visit), resample whole clusters instead of rows,
 
 ```math
 \{g_1^{\ast},\dots,g_G^{\ast}\}\stackrel{\text{iid}}{\sim}\mathrm{Unif}\{1,\dots,G\},
@@ -1350,68 +1464,68 @@ $g\in\{1,\dots,G\}$ rather than rows,
 \hat\theta^{\ast(b)}=T\!\Big(\textstyle\bigcup_{j} x_{g_j^{\ast}}\Big),
 ```
 
-which widens the interval to reflect within-cluster correlation; use it
-whenever the same patient or visit contributes several rows. Any metric can
-be wrapped with `inference.bootstrap_metric(metric_fn, data, value_key=...,
-clusters=...)`.
+which widens the interval to reflect within-cluster correlation. The metrics do
+not do this themselves; wrap a metric with `inference.bootstrap_metric(metric_fn,
+data, value_key=..., clusters=...)` or call `inference.bootstrap_ci` with
+`clusters`.
 
-## C. Between-group gaps: permutation test
+## C. Permutation tests
 
-For a fairness gap $\Delta=\hat\theta_A-\hat\theta_B$ between groups $A$ and $B$
-(HER, HAFG/wHAFG, IBS, HSSF, the between-group Theil component, Temporal
-Fairness Drift), the **permutation test** shuffles the group labels $P$ times,
-recomputes $\Delta^{\pi_b}$, and reports the add-one $p$-value
+Three metrics return a permutation $p$-value: SPG (group labels, or within-pair
+swaps with `paired=True`), ISFV and MIC (shuffled outcomes). For any other
+between-group gap $\Delta=\hat\theta_A-\hat\theta_B$,
+`inference.permutation_test` shuffles the group labels $P$ times and reports the
+add-one $p$-value
 
 ```math
 p=\frac{1+\#\{\,b:\ |\Delta^{\pi_b}|\ge|\Delta_{\mathrm{obs}}|\,\}}{1+P},
 ```
 
-which is never exactly zero. A bootstrap CI for $\Delta$ is available from the
-same resampling.
+which is never exactly zero. The metrics do not run this test themselves.
 
-## Per-metric interval / test assignment
+## Per-metric interval and test
 
-| # | Metric | Estimand | Sampling unit | Method (CI / test) |
+| # | Metric | Estimand | Resampling unit | Returned interval / test |
 |--:|---|---|---|---|
-| 1 | Inter-rater Reliability ICC(2,1) | variance ratio | targets × judges | B (bootstrap CI) |
-| 2 | Embedding Consistency Score | mean cosine similarity | embedding pairs | B |
-| 3 | Decision Flip Rate | proportion | decisions | **A** (Wilson + score test) |
-| 4 | Hierarchical Equity Ratio | per-group ratio | group scores | C / B |
-| 4a | Bias-Gini Dispersion | Gini | group scores | B |
-| 5 | Harm-adjusted Fairness Gap | weighted gap | group errors | C / B |
-| 6 | Ethical Risk Index | weighted mean | cases | B |
-| 6a | Safety Violation Rate | proportion | cases | **A** |
-| 7 | Intersectional Bias Score | dispersion | strata | B |
-| 8 | Temporal Fairness Drift | difference over time | time windows | C / B |
-| 9 | Audit Traceability Score | proportion | audit items | **A** |
-| 10 | Governance Compliance Index | weighted proportion | checklist items | A / B |
-| 11 | Semantic Parity Gap | centroid distance | prompt embeddings | B |
-| 12 | Clinical Hallucination Rate | proportion | claims | **A** (Wilson + score test) |
-| 13 | Instructional Vulnerability Index | proportion | case pairs | **A** (Wilson + score test) |
-| 14 | Geographic Representation Index | set coverage | country types | B |
-| 14a | Geographic Bias Correlation | correlation | regions | B (Fisher z / bootstrap) |
-| 15 | Intersectional Calibration Error | mean abs. calibration gap | strata × bins | B |
-| 16 | Weighted Clinical HAFG | weighted gap | group errors | C / B |
-| 17 | Counterfactual Parity Score | mean cosine similarity | counterfactual pairs | B |
-| 17a | Counterfactual Unfairness | proportion / (1 - CPS) | pairs | **A** / B |
-| 18 | Semantic Robustness Parity Index | parity ratio | paraphrase sets | B |
-| 19 | Lexical Diversity Disparity Index | range of RTTR | group responses | B |
-| 20 | Recommendation Entropy Gap | entropy difference | group recommendations | B |
-| 21 | Clinical Information Density Ratio | ratio | responses | B |
-| 22 | Diagnostic Completeness Index | proportion | responses | A / B |
-| 23 | Uncertainty Quantification Gap | hedging-density gap | group responses | B |
-| 24 | Geographic Representation Bias Index | KL divergence | evidence records | B |
-| 25 | Healthcare System Stratified Fairness | within/between gap | system strata | C / B |
-| 26 | Intersectional Shapley Fairness Value | Shapley share | strata | B |
-| 27 | Burden-Evidence Mismatch Index | total-variation distance | evidence records | B |
-| 28 | Geographic Concentration of Coverage | Gini / norm. entropy | regions | B |
-| 31 | Bias Concentration Index | concentration | groups | B |
-| 32 | Mutual Information Content | mutual information | paired observations | B |
-| 33 | Jensen-Shannon Divergence | divergence | distribution pair | B |
-| 34 | Wasserstein Distance | distance | distribution pair | B |
-| 35 | Network Modularity | modularity | graph edges | B (edge bootstrap) |
-| 36 | Transparency Score | proportion | checklist items | **A** |
-| 37 | Robustness Certification Score | proportion | perturbations | **A** |
+| 1 | Inter-rater Reliability ICC(2,1) | variance ratio | items | B, ordinary |
+| 2 | Embedding Consistency Score | mean cosine distance | embedding pairs | B, ordinary |
+| 3 | Decision Flip Rate | proportion | decisions | **A** (Wilson, $z=1.96$) + score test |
+| 4 | Hierarchical Equity Ratio | max-min ratio gap | observations within groups | B, stratified (needs `group_observations`) |
+| 4a | Bias-Gini Dispersion | Gini of group means | observations within groups | B, stratified (needs `group_observations`); otherwise none |
+| 5 | Harm-adjusted Fairness Gap | normalized harm gap | cases within groups | B, stratified (needs case lists) |
+| 6 | Ethical Risk Index | mean severity per output | outputs | B, ordinary |
+| 6a | Safety Violation Rate | proportion | outputs | **A** |
+| 7 | Intersectional Bias Score | mean subgroup similarity | metric dimensions | B, ordinary (sensitivity to the metrics chosen) |
+| 8 | Temporal Fairness Drift | centre of the chart | consecutive points | B, moving block |
+| 9 | Audit Traceability Score | proportion | audited decisions | **A** |
+| 10 | Governance Compliance Index | proportion | listed checks | **A** (sampling meaning only if the checks are sampled) |
+| 11 | Semantic Parity Gap | centroid distance | rows within groups, or cases when paired | B + permutation $p$ |
+| 12 | Clinical Hallucination Rate | proportion | claims | **A** + score test |
+| 13 | Instructional Vulnerability Index | proportion | case pairs | **A** + score test |
+| 14 | Geographic Representation Index | set-based ratio | location mentions | B, ordinary (stability of the ratio) |
+| 14a | Geographic Bias Correlation | correlation | query pairs | none ($p$-value only) |
+| 15 | Intersectional Calibration Error | weighted ECE | samples within groups | B, stratified |
+| 16 | Weighted Clinical HAFG | max-min weighted harm | samples within groups | B, stratified |
+| 17 | Counterfactual Parity Score | mean similarity | cases within swap pairs | B, stratified |
+| 17a | Counterfactual Unfairness | 1 minus the lowest pair mean | cases within swap pairs | B, stratified |
+| 18 | Semantic Robustness Parity Index | min/max robustness | queries within groups | B, stratified |
+| 19 | Lexical Diversity Disparity Index | range of RTTR | responses within groups | B, stratified |
+| 20 | Recommendation Entropy Gap | range of entropy | recommendations within groups | B, stratified |
+| 21 | Clinical Information Density Ratio | minimum density ratio | responses within groups | B, stratified |
+| 22 | Diagnostic Completeness Index | range of coverage | responses within groups | B, stratified |
+| 23 | Uncertainty Quantification Gap | range of hedging density | responses within groups | B, stratified |
+| 24 | Geographic Representation Bias Index | KL divergence | evidence records | B, ordinary (needs records) |
+| 25 | Healthcare System Stratified Fairness | weighted within-system gap | observations within system-group cells | B, stratified |
+| 26 | Intersectional Shapley Fairness Value | range-based disparity and Shapley shares | observations within cross-classified cells | B, stratified ($B=500$) + permutation $p$ |
+| 27 | Burden-Evidence Mismatch Index | total-variation distance | evidence records | B, ordinary (needs records) |
+| 28 | Geographic Concentration of Coverage | normalized Gini | evidence records | B, ordinary (needs records) |
+| 31 | Bias Concentration Index | one minus Herfindahl | none | none (one fixed value per group) |
+| 32 | Mutual Information Content | mutual information | (demographic, outcome) pairs | B, ordinary + permutation null |
+| 33 | Jensen-Shannon Divergence | divergence | none | none (aggregated distributions) |
+| 34 | Wasserstein Distance | distance | each sample separately | B, two-sample; none for histograms |
+| 35 | Network Modularity | modularity | observations | B (needs `observations`); otherwise none |
+| 36 | Transparency Score | mean of ratings | decisions | B, ordinary |
+| 37 | Observed Perturbation Agreement | mean agreement | perturbations | B, ordinary |
 
 Metrics 29 (Bootstrap Confidence Interval) and 30 (Statistical Power Analysis)
 are themselves inference utilities and define, rather than consume, the

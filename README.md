@@ -251,8 +251,8 @@ print(validation)
 | Metric | Abbreviation | Range | Ideal | Description |
 |--------|--------------|-------|-------|-------------|
 | Decision Flip Rate | DFR | [0, 1] | close to 0 | Decision instability under counterfactual inputs |
-| Embedding Consistency Score | ECS | [0, 1] | higher | Embedding stability under perturbation |
-| Inter-Rater Reliability (ICC 2,1) | ICC | [0, 1] | > 0.75 | Agreement across judges |
+| Embedding Consistency Score | ECS | [0, 2] (cosine distance) | close to 0 | Embedding shift under perturbation |
+| Inter-Rater Reliability (ICC 2,1) | ICC | at most 1 (can be negative) | ≥ 0.75 (Cicchetti) | Agreement across judges |
 
 Every metric result carries a 95% confidence interval and prints it. Just
 `print(result)` and the value is shown alongside its CI (the result is still a
@@ -288,9 +288,9 @@ print(icc.calculate_icc_2_1(np.array([[3, 4, 3], [5, 5, 4], [2, 3, 2], [4, 4, 5]
 | Metric | Abbreviation | Range | Ideal | Description |
 |--------|--------------|-------|-------|-------------|
 | Hierarchical Equity Ratio | HER | [0, ∞) | 0.8-1.25 | Group equity (4/5ths rule) |
-| Bias-Gini Index | BGI | [0, 1] | < 0.2 | Performance dispersion |
-| Harm-Adjusted Fairness Gap | HAFG | [0, ∞) | < 0.1 | Clinical harm-weighted disparity |
-| Ethical Risk Index | ERI | [0, ∞) | < 0.05 | Aggregated ethical violations |
+| Bias-Gini Index | BGI | [0, 1] | close to 0 | Performance dispersion (CI needs per-observation scores) |
+| Harm-Adjusted Fairness Gap | HAFG | [0, 1] | close to 0 | Cost-weighted harm gap between two groups (`hafg_per_patient` for unequal sizes) |
+| Ethical Risk Index | ERI | [0, ∞) | close to 0 | Mean violation severity per output |
 | Intersectional Bias Score | IBS | varies | low | Subgroup outlier detection |
 
 ```python
@@ -323,8 +323,8 @@ print(result)
 | Metric | Abbreviation | Range | Ideal | Description |
 |--------|--------------|-------|-------|-------------|
 | Temporal Fairness Drift | TFD | varies | stable | Fairness degradation over time |
-| Audit Traceability Score | ATS | [0, 1] | > 0.9 | Audit trail completeness |
-| Governance Compliance Index | GCI | [0, 1] | 1.0 | Regulatory compliance |
+| Audit Traceability Score | ATS | [0, 1] | ≥ 0.95 (target) | Share of decisions traceable to a source |
+| Governance Compliance Index | GCI | [0, 1] | 1.0 | Share of listed checks met (not regulatory compliance) |
 
 ```python
 from equimed_dss.domain3 import TemporalFairnessDrift, AuditTraceabilityScore, GovernanceComplianceIndex
@@ -429,17 +429,17 @@ print("By attribute:", result['shapley_by_attribute'])
 
 These 9 additional metrics provide deeper statistical analysis:
 
-| Metric | Class | Range | Threshold | Description |
+| Metric | Class | Range | Heuristic cut-off | Description |
 |--------|-------|-------|-----------|-------------|
 | Bootstrap Confidence Intervals | `BootstrapConfidenceIntervals` | varies | CI width < 0.05 | Robust uncertainty estimation |
 | Statistical Power Analysis | `StatisticalPowerAnalysis` | [0, 1] | ≥ 0.8 | Sample size adequacy |
-| Bias Concentration Index | `BiasConcentrationIndex` | [0, 1 - 1/n]; normalized [0, 1] | normalized > 0.7 | Bias distribution across groups |
-| Mutual Information Content | `MutualInformationContent` | [0, ∞) | < 0.1 | Demographic information leakage |
+| Bias Concentration Index | `BiasConcentrationIndex` | [0, 1 - 1/n]; normalized [0, 1] | normalized > 0.7 | How evenly bias is spread (not how large it is) |
+| Mutual Information Content | `MutualInformationContent` | [0, ∞) nats | permutation null | Association between demographics and discrete outcomes |
 | Jensen-Shannon Divergence | `JensenShannonDivergence` | [0, 1] | < 0.1 | Distributional similarity |
-| Wasserstein Distance | `WassersteinDistance` | [0, ∞) | < 0.1 | Optimal transport distance |
+| Wasserstein Distance | `WassersteinDistance` | [0, ∞), input units | none (units-dependent) | Optimal transport distance between two samples |
 | Network Modularity | `NetworkModularity` | [-1, 1] | > 0.3 | Metric clustering structure |
-| Transparency Score | `TransparencyScore` | [0, 1] | > 0.7 | Explanation quality |
-| Robustness Certification | `RobustnessCertificationScore` | [0, 1] | > 0.8 | Perturbation stability |
+| Transparency Score | `TransparencyScore` | [0, 1] | > 0.7 | Mean of three supplied explanation ratings |
+| Observed Perturbation Agreement | `ObservedPerturbationAgreement` | [0, 1] | > 0.8 | Agreement under perturbations (certifies nothing; formerly `RobustnessCertificationScore`) |
 
 ```python
 from equimed_dss.appendix import (
@@ -451,7 +451,7 @@ from equimed_dss.appendix import (
     WassersteinDistance,
     NetworkModularity,
     TransparencyScore,
-    RobustnessCertificationScore
+    ObservedPerturbationAgreement
 )
 import numpy as np
 
@@ -469,20 +469,23 @@ print(result)                       # SampleSize = N per group :: 95% CI unavail
 # Bias Concentration Index
 bci_metric = BiasConcentrationIndex()
 result = bci_metric.calculate_bci([0.3, 0.25, 0.25, 0.2])  # Bias proportions
-print(result)                       # BiasConcentration = ... :: 95% CI [...] (bootstrap)
+print(result)                       # BiasConcentration = ... :: 95% CI unavailable (fixed group values)
 
 # Mutual Information Content
 mic = MutualInformationContent()
 demographics = np.array([0, 0, 1, 1, 2, 2, 0, 1])  # Encoded demographics
-outcomes = np.array([1, 1, 0, 0, 1, 0, 1, 0])      # Model outcomes
+outcomes = np.array([1, 1, 0, 0, 1, 0, 1, 0])      # Discrete model outcomes
 result = mic.calculate_mic(demographics, outcomes)
 print(result)                       # MIC = ... :: 95% CI [...] (bootstrap)
+print(result["p_value_permutation"])  # against shuffled outcomes
 
 # Network Modularity
 nm = NetworkModularity()
 adjacency = np.array([[0, 0.8, 0.3], [0.8, 0, 0.4], [0.3, 0.4, 0]])
 result = nm.calculate_modularity(adjacency)
-print(result)                       # NM = ... :: 95% CI [...] (bootstrap)
+print(result)                       # NM = ... :: 95% CI unavailable
+# Pass the data behind a correlation matrix for a CI that resamples observations:
+# nm.calculate_modularity(np.corrcoef(X, rowvar=False), observations=X)
 
 # Transparency Score
 ts = TransparencyScore()
@@ -493,12 +496,12 @@ explanations = [
 result = ts.calculate_ts(explanations)
 print(result)                       # TS = ... :: 95% CI [...] (bootstrap)
 
-# Robustness Certification Score
-rcs = RobustnessCertificationScore()
+# Observed Perturbation Agreement (formerly Robustness Certification Score)
+opa = ObservedPerturbationAgreement()
 original = np.array([1, 1, 0, 1, 0])
 perturbed = [np.array([1, 1, 0, 1, 0]), np.array([1, 0, 0, 1, 0])]
-result = rcs.calculate_rcs(original, perturbed)
-print(result)                       # RCS = ... :: 95% CI [...] (bootstrap)
+result = opa.calculate_agreement(original, perturbed)
+print(result)                       # Agreement = ... :: 95% CI [...] (bootstrap)
 ```
 
 ### Geographic Equity (v1.1.0)
@@ -790,8 +793,8 @@ EquiMed_DSS/
 | `EthicalRiskIndex` | `domain2` | Ethical violations |
 | `IntersectionalBiasScore` | `domain2` | Subgroup bias detection |
 | `TemporalFairnessDrift` | `domain3` | Fairness over time |
-| `AuditTraceabilityScore` | `domain3` | Audit completeness |
-| `GovernanceComplianceIndex` | `domain3` | Regulatory compliance |
+| `AuditTraceabilityScore` | `domain3` | Share of traceable decisions |
+| `GovernanceComplianceIndex` | `domain3` | Share of listed checks met |
 | `SemanticParityGap` | `domain4` | Latent demographic sensitivity (SPG) |
 | `ClinicalHallucinationRate` | `domain4` | Unsupported-claim rate (CHR) |
 | `InstructionalVulnerabilityIndex` | `domain4` | Susceptibility to bias-priming (IVI) |
@@ -811,12 +814,12 @@ EquiMed_DSS/
 | `BootstrapConfidenceIntervals` | `appendix` | Uncertainty quantification |
 | `StatisticalPowerAnalysis` | `appendix` | Sample size planning |
 | `BiasConcentrationIndex` | `appendix` | Bias distribution |
-| `MutualInformationContent` | `appendix` | Information leakage |
+| `MutualInformationContent` | `appendix` | Demographic-outcome association (discrete outcomes) |
 | `JensenShannonDivergence` | `appendix` | Distribution divergence |
 | `WassersteinDistance` | `appendix` | Optimal transport |
 | `NetworkModularity` | `appendix` | Community structure |
 | `TransparencyScore` | `appendix` | Explanation quality |
-| `RobustnessCertificationScore` | `appendix` | Perturbation stability |
+| `ObservedPerturbationAgreement` | `appendix` | Agreement under perturbations (`RobustnessCertificationScore` is a deprecated alias) |
 | `BurdenEvidenceMismatch` | `geographic` | Evidence-burden mismatch (BEMI) |
 | `GeographicConcentration` | `geographic` | Regional concentration (GCC) |
 | `WHO_REGION_IHD_BURDEN` | `geographic` | IHD DALY burden reference shares |
