@@ -1,3 +1,4 @@
+import inspect
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -403,8 +404,19 @@ def plot_figure3_corpus_comparison(
             harm_values.append(harm_data[key])
             harm_labels.append(corpus_name)
 
+    # matplotlib 3.9 renamed boxplot's ``labels`` to ``tick_labels`` and later
+    # releases removed ``labels``; pass whichever this matplotlib accepts.
+    labels_kw = (
+        "tick_labels"
+        if "tick_labels" in inspect.signature(ax3.boxplot).parameters
+        else "labels"
+    )
     bp = ax3.boxplot(
-        harm_values, labels=harm_labels, patch_artist=True, notch=True, showmeans=True
+        harm_values,
+        patch_artist=True,
+        notch=True,
+        showmeans=True,
+        **{labels_kw: harm_labels},
     )
 
     # Color the boxes

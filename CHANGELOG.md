@@ -72,6 +72,9 @@ the reasons are given so that earlier analyses can be checked.
   Lynch and Chen (2010).
 - `inference.wilson_ci`: the bounds are now exactly 0 at k = 0 and 1 at k = n
   (previously about 1e-17 off).
+- `utils.plot_figure3_corpus_comparison` failed with matplotlib 3.11
+  (`boxplot()` no longer accepts `labels`); it now passes `tick_labels` when
+  available and `labels` on older matplotlib.
 
 ### Changed (bundled reference data)
 - `WHO_REGION_IHD_BURDEN` now holds each WHO region's share of ischaemic heart
