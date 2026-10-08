@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "equimed_dss"
 dynamic = ["version"]
-description = "A comprehensive Python library for clinical AI fairness assessment with 37 metrics across five domains"
+description = "A comprehensive Python library for clinical AI fairness assessment with 37 metrics (five core domains, geographic and advanced modules)"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

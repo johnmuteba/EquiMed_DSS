@@ -225,6 +225,11 @@ checked.
   verdict cut-offs are described as heuristics, not validated thresholds.
 - The README citation, `CITATION.cff` and `.zenodo.json` give the author as
   John Weirstrass Muteba Mwamba, with ORCID and affiliation.
+- The package description (README, `pyproject.toml`, `CITATION.cff`,
+  `.zenodo.json`) gives the metric breakdown (26 in five core domains, 2
+  geographic, 9 advanced) and no longer says that every result has a
+  confidence interval: results whose inputs leave nothing to resample mark the
+  interval as unavailable.
 
 ### Maintenance
 - Code formatted with black and isort (the project's CI checks), in a separate

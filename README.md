@@ -4,7 +4,7 @@
 
 <h3>A Comprehensive Python Library for Clinical AI Fairness Assessment</h3>
 
-<p>Evaluate reliability, equity, governance, and intersectionality in clinical AI systems using <strong>37 metrics across five domains</strong></p>
+<p>Evaluate reliability, equity, governance, and intersectionality in clinical AI systems using <strong>37 metrics</strong>: five core domains (26), a geographic module (2) and an advanced appendix (9)</p>
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/johnmuteba/EquiMed_DSS/blob/master/LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
@@ -17,7 +17,7 @@
 
 ## Overview
 
-**EquiMed_DSS** (Equitable Medical Decision Support System) provides a systematic framework for evaluating clinical AI systems across multiple dimensions of fairness, reliability, and governance. The library implements **37 metrics across five domains** specifically designed for healthcare applications where equity and safety are paramount.
+**EquiMed_DSS** (Equitable Medical Decision Support System) provides a systematic framework for evaluating clinical AI systems across multiple dimensions of fairness, reliability, and governance. The library implements **37 metrics** (26 in five core domains, 2 in a geographic module and 9 in an advanced appendix) designed for healthcare applications where equity and safety are paramount.
 
 ### Key Features
 
@@ -254,8 +254,9 @@ print(validation)
 | Embedding Consistency Score | ECS | [0, 2] (cosine distance) | close to 0 | Embedding shift under perturbation |
 | Inter-Rater Reliability (ICC 2,1) | ICC | at most 1 (can be negative) | ≥ 0.75 (Cicchetti) | Agreement across judges |
 
-Every metric result carries a 95% confidence interval and prints it. Just
-`print(result)` and the value is shown alongside its CI (the result is still a
+Every metric result prints its value with a 95% confidence interval, or marks
+the interval as unavailable when the inputs leave nothing to resample (for
+example, fixed group-level values). Just `print(result)` (the result is still a
 plain dict, so `result['flip_rate']` etc. keep working):
 
 ```python

@@ -1,8 +1,8 @@
 """
 EquiMed-DSS: A Comprehensive Library for Clinical AI Fairness Assessment
 
-This package provides 37 metrics across five domains, plus geographic and
-advanced-appendix metrics, for evaluating reliability, equity, governance,
+This package provides 37 metrics (26 in five core domains, 2 geographic and
+9 in an advanced appendix) for evaluating reliability, equity, governance,
 representation, robustness, and intersectionality in clinical AI systems.
 
 Domains:
