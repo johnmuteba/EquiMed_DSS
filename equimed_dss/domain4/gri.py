@@ -45,7 +45,13 @@ class GeographicRepresentationIndex:
             locations happen to be mentioned, not the uncertainty about the
             full set of locations. Pass the mention list (with duplicates)
             rather than the distinct set for a meaningful interval.
+
+            GRI measures VARIETY: one study from each of many non-Western
+            locations can outweigh thousands from a single Western location.
+            ``non_western_mention_share`` reports the VOLUME view (the share of
+            mentions, duplicates included, that are non-Western); report both.
         """
+        locations = list(locations)
         L = set(locations)
         if not L:
             raise ValueError("locations must be non-empty.")
@@ -72,10 +78,14 @@ class GeographicRepresentationIndex:
             "n_western": len(W),
             "n_non_western": len(non_western),
             "non_western_locations": non_western,
+            "non_western_mention_share": float(
+                sum(1 for x in locations if x not in W_full) / len(locations)
+            ),
             "interpretation": (
                 f"GRI = {gri:.3f}; {len(non_western)} of {len(L)} represented "
                 "locations are non-Western. Values near 0 indicate a "
-                "Western-centric knowledge base (by variety of locations)."
+                "Western-centric knowledge base by VARIETY of locations; see "
+                "non_western_mention_share for the share by volume."
             ),
         }
         mentions = list(locations)

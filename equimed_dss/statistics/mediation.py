@@ -59,26 +59,42 @@ class MediationAnalysis:
 
         Args:
             data: DataFrame containing all variables
-            treatment_var: Independent variable (X)
-            mediator_var: Mediator variable (M)
-            outcome_var: Dependent variable (Y)
-            covariates: List of covariate names to control for
+            treatment_var: Independent variable (X): numeric, boolean, or a
+                category with exactly two levels (coded 0 for the first level in
+                sorted order and 1 for the other; reported as
+                ``treatment_coding``). With more than two categories, analyse one
+                two-group contrast at a time.
+            mediator_var: Mediator variable (M), numeric or boolean
+            outcome_var: Dependent variable (Y), numeric or boolean
+            covariates: List of covariate names to control for; categorical
+                covariates are dummy-coded (first level as reference)
             alpha: Significance level for confidence intervals
 
         Returns:
-            Dict with direct effects, indirect effects, and proportions
+            Dict with direct, indirect and total effects, their bootstrap CIs,
+            the proportion mediated (NaN when the total effect is zero, where it
+            is undefined) and an interpretation. The effects are ASSOCIATIONS
+            from linear models (``estimand``); reading them as causal effects
+            requires no unmeasured confounding of the X-M, X-Y and M-Y
+            relations (see Imai, Keele and Tingley, Psychol Methods 2010).
+
+        Raises:
+            ValueError: for missing columns, missing values, a non-numeric
+                mediator or outcome, or a treatment with more than two categories.
 
         Example:
             >>> med = MediationAnalysis(n_bootstrap=1000)
             >>> results = med.analyze_mediation(
             ...     data=df,
-            ...     treatment_var='demographic_group',
+            ...     treatment_var='demographic_group',  # two categories
             ...     mediator_var='access_to_care',
             ...     outcome_var='diagnostic_accuracy'
             ... )
             >>> print(f"Proportion mediated: {results['proportion_mediated']:.1%}")
         """
-        df = data.copy()
+        df, covariates, coding = self._prepare(
+            data.copy(), treatment_var, mediator_var, outcome_var, covariates
+        )
 
         try:
             from sklearn.linear_model import LinearRegression
@@ -111,8 +127,11 @@ class MediationAnalysis:
             # Calculate effects
             indirect_effect = alpha_1 * beta_2
             direct_effect = beta_1
+            # Undefined when the total effect is zero (up to 1.9.5 it was set to 0).
             proportion_mediated = (
-                indirect_effect / total_effect if abs(total_effect) > 1e-10 else 0
+                indirect_effect / total_effect
+                if abs(total_effect) > 1e-10
+                else float("nan")
             )
 
             # Bootstrap confidence intervals (indirect and direct effects)
@@ -148,6 +167,8 @@ class MediationAnalysis:
             direct_ci_upper = np.percentile(direct_boots, (1 - alpha / 2) * 100)
 
             self.results = {
+                "estimand": "associational (product of linear-model coefficients)",
+                "treatment_coding": coding,
                 "total_effect": float(total_effect),
                 "direct_effect": float(direct_effect),
                 "indirect_effect": float(indirect_effect),
@@ -168,7 +189,12 @@ class MediationAnalysis:
                         direct_ci_lower,
                         direct_ci_upper,
                     ),
-                    "proportion_description": f"{proportion_mediated*100:.1f}% of effect is mediated",
+                    "proportion_description": (
+                        f"{proportion_mediated*100:.1f}% of the total association "
+                        "runs through the mediator in this linear model"
+                        if np.isfinite(proportion_mediated)
+                        else "Proportion mediated undefined (total effect is zero)"
+                    ),
                     "clinical_implication": self._interpret_mediation(
                         proportion_mediated
                     ),
@@ -224,24 +250,65 @@ class MediationAnalysis:
             return "No mediation"
 
     def _interpret_mediation(self, proportion: float) -> str:
-        """Interpret clinical implications of mediation proportion."""
-        if proportion > 0.7:
-            return (
-                "Bias primarily operates through indirect pathways. "
-                "Interventions should target intermediate mechanisms, not just "
-                "direct demographic factors."
+        """Describe what the proportion does and does not show.
+
+        Up to 1.9.5 fixed cut-offs of the proportion were turned into advice on
+        which interventions to make; a linear decomposition cannot support that.
+        """
+        return (
+            "Associational decomposition from linear models. Reading it causally "
+            "requires no unmeasured confounding of the treatment-mediator, "
+            "treatment-outcome and mediator-outcome relations, and the proportion "
+            "does not by itself indicate which intervention would work."
+        )
+
+    @staticmethod
+    def _prepare(df, treatment_var, mediator_var, outcome_var, covariates):
+        """Check the analysis columns and encode categorical variables."""
+        covariates = list(covariates or [])
+        cols = [treatment_var, mediator_var, outcome_var] + covariates
+        absent = [c for c in cols if c not in df.columns]
+        if absent:
+            raise ValueError(f"columns not found: {absent}")
+        n_missing = int(df[cols].isna().any(axis=1).sum())
+        if n_missing:
+            raise ValueError(
+                f"{n_missing} rows have missing values in the analysis columns; drop "
+                "or impute them first."
             )
-        elif proportion > 0.3:
-            return (
-                "Mixed direct and indirect effects. Both pathway types "
-                "should be addressed in bias mitigation strategies."
-            )
-        else:
-            return (
-                "Bias primarily operates through direct pathways. "
-                "Traditional fairness interventions targeting direct "
-                "associations may be effective."
-            )
+        coding = None
+        t = df[treatment_var]
+        if pd.api.types.is_bool_dtype(t):
+            df[treatment_var] = t.astype(int)
+        elif not pd.api.types.is_numeric_dtype(t):
+            levels = sorted(t.astype(str).unique())
+            if len(levels) != 2:
+                raise ValueError(
+                    f"treatment '{treatment_var}' has {len(levels)} categories; this "
+                    "analysis needs a numeric or two-level exposure, so analyse one "
+                    "two-group contrast at a time."
+                )
+            df[treatment_var] = (t.astype(str) == levels[1]).astype(int)
+            coding = {"reference (0)": levels[0], "exposed (1)": levels[1]}
+        for c in (mediator_var, outcome_var):
+            if pd.api.types.is_bool_dtype(df[c]):
+                df[c] = df[c].astype(int)
+            elif not pd.api.types.is_numeric_dtype(df[c]):
+                raise ValueError(f"'{c}' must be numeric (the models are linear).")
+        cov_cols = []
+        for c in covariates:
+            if pd.api.types.is_bool_dtype(df[c]):
+                df[c] = df[c].astype(int)
+                cov_cols.append(c)
+            elif pd.api.types.is_numeric_dtype(df[c]):
+                cov_cols.append(c)
+            else:
+                dummies = pd.get_dummies(
+                    df[c].astype(str), prefix=c, drop_first=True, dtype=float
+                )
+                df = pd.concat([df, dummies], axis=1)
+                cov_cols.extend(dummies.columns)
+        return df, cov_cols, coding
 
     def calculate_sobel_test(
         self, alpha_1: float, beta_2: float, se_alpha: float, se_beta: float

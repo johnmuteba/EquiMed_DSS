@@ -7,7 +7,7 @@ This example showcases each advanced metric with:
 - Metric calculation
 - Interpretation of results
 
-Reference: Manuscript Equations 11-19
+Formulas: docs/Metric_Math_Derivations.md (Metrics 29-37)
 """
 
 import numpy as np
@@ -18,7 +18,7 @@ from equimed_dss.appendix import (
     JensenShannonDivergence,
     MutualInformationContent,
     NetworkModularity,
-    RobustnessCertificationScore,
+    ObservedPerturbationAgreement,
     StatisticalPowerAnalysis,
     TransparencyScore,
     WassersteinDistance,
@@ -55,7 +55,7 @@ def main():
     generator = SampleDataGenerator(random_state=42)
 
     # ========================================================================
-    # Metric 1: Bootstrap Confidence Intervals (BCI) - Equation 11
+    # Metric 1: Bootstrap Confidence Intervals (BCI)
     # ========================================================================
     print_section("1. Bootstrap Confidence Intervals (BCI)")
     print("Purpose: Robust uncertainty estimation without distributional assumptions")
@@ -78,7 +78,7 @@ def main():
     print(f"  Verdict: {result['interpretation']['verdict']}")
 
     # ========================================================================
-    # Metric 2: Statistical Power Analysis (SPA) - Equation 12
+    # Metric 2: Statistical Power Analysis (SPA)
     # ========================================================================
     print_section("2. Statistical Power Analysis (SPA)")
     print("Purpose: Determine sample size needed to detect meaningful differences")
@@ -101,7 +101,7 @@ def main():
     print(f"  Verdict: {result_power['interpretation']['verdict']}")
 
     # ========================================================================
-    # Metric 3: Bias Concentration Index (BCI) - Equation 13
+    # Metric 3: Bias Concentration Index (BCI)
     # ========================================================================
     print_section("3. Bias Concentration Index")
     print("Purpose: Measure whether bias is concentrated in specific groups")
@@ -127,16 +127,16 @@ def main():
     print(f"  Verdict: {result2['interpretation']['verdict']}")
 
     # ========================================================================
-    # Metric 4: Mutual Information Content (MIC) - Equation 14
+    # Metric 4: Mutual Information Content (MIC)
     # ========================================================================
     print_section("4. Mutual Information Content (MIC)")
-    print("Purpose: Detect information leakage from demographics to outcomes")
-    print("Use case: Check if protected attributes influence AI predictions")
+    print("Purpose: Measure the association between demographics and discrete outcomes")
+    print("Note: an association may reflect clinical need or case mix")
     print()
 
     mic = MutualInformationContent()
 
-    # Scenario 1: Independent (no leakage)
+    # Scenario 1: Independent
     rng = np.random.RandomState(42)
     demographics_independent = rng.randint(0, 3, 200)
     outcomes_independent = rng.randint(0, 2, 200)
@@ -144,21 +144,21 @@ def main():
     result1 = mic.calculate_mic(demographics_independent, outcomes_independent)
     print("Scenario 1: Demographics and outcomes are independent")
     print(f"  MIC: {result1['mic']:.4f}")
-    print(f"  Leakage level: {result1['interpretation']['leakage_level']}")
+    print(f"  Permutation p: {result1['p_value_permutation']:.3f}")
     print()
 
-    # Scenario 2: Correlated (potential leakage)
+    # Scenario 2: Associated
     demographics_correlated = rng.randint(0, 3, 200)
     outcomes_correlated = (demographics_correlated > 1).astype(int)  # Correlated
 
     result2 = mic.calculate_mic(demographics_correlated, outcomes_correlated)
-    print("Scenario 2: Demographics predict outcomes (leakage)")
+    print("Scenario 2: Outcomes depend on demographics")
     print(f"  MIC: {result2['mic']:.4f}")
-    print(f"  Leakage level: {result2['interpretation']['leakage_level']}")
+    print(f"  Permutation p: {result2['p_value_permutation']:.3f}")
     print(f"  Verdict: {result2['interpretation']['verdict']}")
 
     # ========================================================================
-    # Metric 5: Jensen-Shannon Divergence (JSD) - Equation 15
+    # Metric 5: Jensen-Shannon Divergence (JSD)
     # ========================================================================
     print_section("5. Jensen-Shannon Divergence (JSD)")
     print("Purpose: Measure distributional differences between groups")
@@ -192,7 +192,7 @@ def main():
     print(f"  Verdict: {result2['interpretation']['verdict']}")
 
     # ========================================================================
-    # Metric 6: Wasserstein Distance (WD) - Equation 16
+    # Metric 6: Wasserstein Distance (WD)
     # ========================================================================
     print_section("6. Wasserstein Distance (WD)")
     print("Purpose: Measure optimal transport distance between distributions")
@@ -215,7 +215,7 @@ def main():
     print(f"  Verdict: {result['interpretation']['verdict']}")
 
     # ========================================================================
-    # Metric 7: Network Modularity (NM) - Equation 17
+    # Metric 7: Network Modularity (NM)
     # ========================================================================
     print_section("7. Network Modularity (NM)")
     print("Purpose: Identify clustered relationships among fairness metrics")
@@ -236,11 +236,11 @@ def main():
     print(f"  Verdict: {result['interpretation']['verdict']}")
 
     # ========================================================================
-    # Metric 8: Transparency Score (TS) - Equation 18
+    # Metric 8: Transparency Score (TS)
     # ========================================================================
     print_section("8. Transparency Score (TS)")
-    print("Purpose: Evaluate AI explanation quality for clinicians")
-    print("Use case: Assess readiness for clinical deployment")
+    print("Purpose: Summarise three supplied ratings of AI explanations")
+    print("Note: a mean of ratings does not establish readiness for clinical use")
     print()
 
     ts = TransparencyScore()
@@ -262,14 +262,14 @@ def main():
     print(f"  Verdict: {result['interpretation']['verdict']}")
 
     # ========================================================================
-    # Metric 9: Robustness Certification Score (RCS) - Equation 19
+    # Metric 9: Observed Perturbation Agreement (formerly RCS)
     # ========================================================================
-    print_section("9. Robustness Certification Score (RCS)")
-    print("Purpose: Quantify model stability under input perturbations")
-    print("Use case: Ensure predictions are robust to clinical variations")
+    print_section("9. Observed Perturbation Agreement (formerly RCS)")
+    print("Purpose: Describe how often predictions agree under input perturbations")
+    print("Note: observed agreement on the perturbations tried; not a certification")
     print()
 
-    rcs = RobustnessCertificationScore()
+    rcs = ObservedPerturbationAgreement()
 
     # Generate original and perturbed predictions
     original, perturbed = generator.generate_perturbation_data(
@@ -279,7 +279,7 @@ def main():
     result = rcs.calculate_rcs(original, perturbed, epsilon=0.1)
     print(f"Testing robustness with {len(perturbed)} perturbation sets:")
     print()
-    print(f"  RCS: {result['rcs']:.4f}")
+    print(f"  Agreement: {result['agreement']:.4f}")
     print(f"  RCS std: {result['rcs_std']:.4f}")
     print(f"  Min consistency: {result['min_consistency']:.4f}")
     print(f"  Max consistency: {result['max_consistency']:.4f}")
@@ -296,14 +296,14 @@ def main():
     print("Metric Categories:")
     print("  - Reliability: BCI, SPA, Bias Concentration Index")
     print("  - Information Theory: MIC, JSD, WD")
-    print("  - Network & Governance: NM, TS, RCS")
+    print("  - Network & Governance: NM, TS, observed perturbation agreement")
     print()
-    print("For more details, see the manuscript Appendix A (Equations 11-19)")
+    print("For the formulas, see docs/Metric_Math_Derivations.md (Metrics 29-37)")
     print()
     print("Next steps:")
     print("  1. Apply these metrics to your clinical AI system")
-    print("  2. Compare results against thresholds in documentation")
-    print("  3. Address any concerning findings before deployment")
+    print("  2. Report each value with its interval")
+    print("  3. Judge it against a threshold justified for your setting")
 
 
 if __name__ == "__main__":

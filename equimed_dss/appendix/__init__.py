@@ -4,6 +4,7 @@ from .advanced_metrics import (
     JensenShannonDivergence,
     MutualInformationContent,
     NetworkModularity,
+    ObservedPerturbationAgreement,
     RobustnessCertificationScore,
     StatisticalPowerAnalysis,
     TransparencyScore,

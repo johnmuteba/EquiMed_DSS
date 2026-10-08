@@ -1,7 +1,7 @@
 """
 Reliability Analysis Statistics
 
-Implements reliability measures referenced in manuscript:
+Reliability measures:
 - Cronbach's Alpha (internal consistency)
 - Bland-Altman analysis (inter-rater agreement)
 - Test-retest reliability
@@ -95,10 +95,12 @@ class ReliabilityAnalysis:
             "loa_lower": float(loa_lower),
             "loa_width": float(loa_upper - loa_lower),
             "interpretation": {
+                # Up to 1.9.5 this graded agreement from the mean difference
+                # alone with fixed cut-offs (0.1, 0.2), whatever the units.
                 "agreement": (
-                    "Excellent agreement"
-                    if abs(mean_diff) < 0.1
-                    else "Good agreement" if abs(mean_diff) < 0.2 else "Poor agreement"
+                    f"Mean difference {mean_diff:.4g}; 95% limits of agreement "
+                    f"{loa_lower:.4g} to {loa_upper:.4g}. Judge agreement against a "
+                    "clinically acceptable difference in the same units."
                 )
             },
         }

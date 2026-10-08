@@ -3,12 +3,22 @@
 Source: World Health Organization. Global Health Estimates 2023: disease burden
 by cause, age, sex, by country and by region, 2000-2023. Geneva: World Health
 Organization; 2026. Workbook "Global Health Estimates 2023: DALYs by cause and
-region, 2000-2023" (WHO regions), year 2023, cause "Ischaemic heart disease".
-Aggregate published statistics, not patient-level data.
+region, 2000-2023" (WHO regions), retrieved 5 October 2026 from the WHO Global
+Health Estimates DALY page as ghe2023_daly_whoregion_2026-09-30.xlsx (SHA-256
+9677a3897da01a2d1bc54e51a51a7d41bffa310f4443f004c41eb6ec5634931b). Aggregate
+published statistics, not patient-level data.
+
+Cells (values in thousands, rounded here to 3 decimals):
+- IHD DALYs, sheet "Summary", row 155 ("Ischaemic heart disease"), 2023 block:
+  AFRO I155, AMRO K155, SEARO M155, EURO O155, EMRO Q155, WPRO S155 (Global
+  G155 = 212,040.177, equal to the sum of the six unrounded regional values).
+- Population, cell G8 ("Population (thousands)", total all ages) of the
+  sheets "AFR 2023", "AMR 2023", "SEAR 2023", "EUR 2023", "EMR 2023",
+  "WPR 2023".
 
 WHO_GHE2023_IHD_DALYS_THOUSANDS: ischaemic heart disease (IHD) DALYs by WHO
 region in 2023, in thousands, as published (rounded here to the nearest DALY).
-The six regions sum to the published global total.
+Before rounding, the six regions sum to the published global total.
 
 WHO_GHE2023_POPULATION_THOUSANDS: total population (all ages) by WHO region in
 2023, in thousands, from the same workbook.

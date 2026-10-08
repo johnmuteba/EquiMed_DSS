@@ -83,6 +83,8 @@ class BurdenEvidenceMismatch:
         regions = sorted(set(evidence_counts) | set(burden_shares))
         a = np.array([float(evidence_counts.get(r, 0.0)) for r in regions])
         b = np.array([float(burden_shares.get(r, 0.0)) for r in regions])
+        if not (np.all(np.isfinite(a)) and np.all(np.isfinite(b))):
+            raise ValueError("evidence_counts and burden_shares must be finite.")
         if np.any(a < 0) or np.any(b < 0):
             raise ValueError("evidence_counts and burden_shares must be non-negative.")
         if a.sum() <= 0 or b.sum() <= 0:

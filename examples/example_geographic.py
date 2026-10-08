@@ -1,14 +1,14 @@
 """Geographic-equity metrics demo (BEMI + GCC) and equity visualisations.
 
-Uses illustrative sample counts. REAL-DATA HOOK: to render the actual
-manuscript numbers on your machine, replace ``evidence`` below with your
-corpus's per-WHO-region study/case counts (e.g. loaded from your
-geography_distinctive_layer output) and pass your sourced burden reference.
+Uses illustrative sample counts. To analyse your own corpus, replace
+``evidence`` below with its per-WHO-region study or case counts and, if needed,
+pass a burden reference of your own (the bundled one is WHO Global Health
+Estimates 2023, ischaemic heart disease).
 
-This example also demonstrates the two equity figures added in v1.5.2:
-``plot_geographic_dumbbell`` (the Cleveland/dumbbell chart used for manuscript
-Figure 4/5) and ``plot_equity_radar``. Both return a Matplotlib ``Figure`` and,
-when ``save_path`` is given, also write the file.
+This example also demonstrates two equity figures: ``plot_geographic_dumbbell``
+(a Cleveland/dumbbell chart of burden against evidence share) and
+``plot_equity_radar``. Both return a Matplotlib ``Figure`` and, when
+``save_path`` is given, also write the file.
 """
 import matplotlib
 matplotlib.use("Agg")  # headless-safe; remove for interactive viewing
@@ -46,13 +46,10 @@ def main():
     # ------------------------------------------------------------------
     # Visualisation 1: geographic dumbbell (burden vs evidence per region).
     # Shares need not be pre-normalised; the function normalises counts.
-    # The evidence shares below are the manuscript's verified corpus geography
-    # (AMRO 78.0%, EURO 10.5%, WPRO 7.7%, EMRO 3.7%, AFRO 0.2%, SEARO 0%).
+    # The evidence shares are the illustrative counts used above.
     # ------------------------------------------------------------------
-    evidence_shares = {
-        "AMRO": 0.780, "EURO": 0.105, "WPRO": 0.077,
-        "EMRO": 0.037, "AFRO": 0.002, "SEARO": 0.000,
-    }
+    total = sum(evidence.values())
+    evidence_shares = {region: n / total for region, n in evidence.items()}
     fig_db = plot_geographic_dumbbell(
         burden_shares=WHO_REGION_IHD_BURDEN,
         evidence_shares=evidence_shares,

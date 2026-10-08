@@ -119,14 +119,11 @@ class TestBiasConcentrationIndex:
         assert "Concentrated bias" in result["interpretation"]["distribution"]
 
     def test_calculate_bci_validation(self):
-        """Test BCI with negative values (should still work)."""
+        """Negative bias proportions are invalid and raise (from 1.10.0)."""
         bci_metric = BiasConcentrationIndex()
 
-        result = bci_metric.calculate_bci([-0.1, 0.5, 0.6])
-
-        # Should still calculate BCI even with negative values
-        assert "bci" in result
-        assert "interpretation" in result
+        with pytest.raises(ValueError):
+            bci_metric.calculate_bci([-0.1, 0.5, 0.6])
 
 
 class TestMutualInformationContent:
@@ -295,8 +292,11 @@ class TestTransparencyScore:
 
         result = ts.calculate_ts(explanations)
 
+        # From 1.10.0 the verdict is descriptive: a mean of ratings does not
+        # establish readiness for clinical use.
         if result["ts"] > 0.7:
-            assert "deployment ready" in result["interpretation"]["verdict"].lower()
+            assert result["interpretation"]["verdict"].startswith("Above 0.7")
+        assert "deployment" not in result["interpretation"]["verdict"].lower()
 
 
 class TestRobustnessCertificationScore:
@@ -327,7 +327,7 @@ class TestRobustnessCertificationScore:
         result = rcs.calculate_rcs(original, perturbed)
 
         assert result["rcs"] == 1.0
-        assert "deployment ready" in result["interpretation"]["verdict"].lower()
+        assert result["interpretation"]["verdict"] == "High agreement (> 0.8)"
 
     def test_calculate_rcs_with_epsilon(self):
         """Test RCS with custom epsilon threshold."""

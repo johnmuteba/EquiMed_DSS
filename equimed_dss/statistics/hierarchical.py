@@ -165,9 +165,8 @@ class HierarchicalLinearModeling:
                         )
                     ),
                     "clinical_implication": (
-                        "Institutional interventions needed"
-                        if icc > 0.25
-                        else "Individual-level interventions appropriate"
+                        "The ICC describes where outcome variance lies; it does not "
+                        "by itself indicate which level to intervene at."
                     ),
                 },
             }

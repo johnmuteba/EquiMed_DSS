@@ -149,7 +149,7 @@ def stats():
 def appendix():
     from equimed_dss.appendix import (BiasConcentrationIndex, BootstrapConfidenceIntervals,
         JensenShannonDivergence, MutualInformationContent, WassersteinDistance,
-        NetworkModularity, RobustnessCertificationScore, TransparencyScore,
+        NetworkModularity, ObservedPerturbationAgreement, TransparencyScore,
         StatisticalPowerAnalysis)
     print("BiasConcentration:", BiasConcentrationIndex().calculate_bci([0.1, 0.4, 0.3, 0.2]))
     print("BCI:", BootstrapConfidenceIntervals(n_bootstrap=500, random_state=42).calculate_bci(
@@ -157,13 +157,16 @@ def appendix():
     # JSD compares distributions over the same categories (here 4 recommendation types)
     p = np.array([0.40, 0.30, 0.20, 0.10]); q = np.array([0.25, 0.25, 0.25, 0.25])
     print("JSD:", JensenShannonDivergence().calculate_jsd(p, q))
-    print("WD:", WassersteinDistance().calculate_wd(p, q))
+    print("WD (samples):", WassersteinDistance().calculate_wd(
+        rng.normal(0.30, 0.1, 80), rng.normal(0.36, 0.1, 80)))
+    print("WD (histograms):", WassersteinDistance().calculate_wd(p, q, support=[0, 1, 2, 3]))
     print("MIC:", MutualInformationContent().calculate_mic(
         rng.randint(0, 2, 200), rng.randint(0, 2, 200)))
     adj = np.array([[0, .8, .1, 0], [.8, 0, 0, .7], [.1, 0, 0, .6], [0, .7, .6, 0]])
     print("NM:", NetworkModularity().calculate_modularity(adj))
-    print("RCS:", RobustnessCertificationScore().calculate_rcs(
-        rng.normal(0.8, 0.05, 50), [rng.normal(0.8, 0.05, 50) for _ in range(5)], epsilon=0.1))
+    orig = rng.randint(0, 2, 50)
+    print("Agreement:", ObservedPerturbationAgreement().calculate_agreement(
+        orig, [np.where(rng.rand(50) < 0.1, 1 - orig, orig) for _ in range(5)], epsilon=0.1))
     print("TS:", TransparencyScore().calculate_ts([
         {"explanation_quality": 0.9, "feature_importance": 0.8, "interpretability": 0.85},
         {"explanation_quality": 0.7, "feature_importance": 0.6, "interpretability": 0.65}]))

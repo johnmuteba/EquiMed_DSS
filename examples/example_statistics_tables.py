@@ -2,7 +2,7 @@
 
 Uses bundled illustrative sample data. REAL-DATA HOOK: replace the sample
 DataFrames with your real result frames (or load a saved result dict) to render
-the actual manuscript tables for slides.
+your own tables for slides or a paper.
 """
 import numpy as np
 import pandas as pd

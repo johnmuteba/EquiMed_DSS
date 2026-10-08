@@ -268,8 +268,9 @@ class TestReliabilityAnalysis:
 
         result = reliability.bland_altman_analysis(method1, method2)
 
-        if abs(result["mean_difference"]) < 0.1:
-            assert "excellent" in result["interpretation"]["agreement"].lower()
+        # From 1.10.0 the interpretation reports bias and limits of agreement
+        # instead of grading agreement with unit-dependent cut-offs.
+        assert "limits of agreement" in result["interpretation"]["agreement"]
 
     def test_bland_altman_arrays_different_length(self):
         """Test Bland-Altman with arrays of different lengths."""

@@ -28,16 +28,10 @@ class AuditTraceabilityScore:
         """
         from equimed_dss.inference import MetricResult, wilson_ci
 
-        if n_total == 0:
-            return MetricResult(
-                {
-                    "ats_score": 0.0,
-                    "ci_lower": 0.0,
-                    "ci_upper": 0.0,
-                    "ci_method": "Wilson score",
-                },
-                name="ATS",
-                value_key="ats_score",
+        if n_total <= 0:
+            raise ValueError(
+                "n_total must be positive: with no audited decisions ATS is undefined "
+                "(up to 1.9.5 it was reported as 0 with a 0-0 interval)."
             )
 
         # Wilson score interval (95%), shared with the rest of the library.
@@ -58,7 +52,11 @@ class AuditTraceabilityScore:
                 "interpretation": {
                     "range": "[0, 1]",
                     "ideal": "Higher is better (target >= 0.95)",
-                    "verdict": "Compliant" if p >= 0.95 else "Non-Compliant",
+                    "verdict": (
+                        "Meets the 0.95 target"
+                        if p >= 0.95
+                        else "Below the 0.95 target"
+                    ),
                 },
             },
             name="ATS",

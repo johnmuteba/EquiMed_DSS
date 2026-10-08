@@ -72,7 +72,7 @@ class AdvancedReliabilityMetrics:
 
         return {
             "required_n_per_group": int(np.ceil(n_per_group)),
-            "total_n": int(np.ceil(n_per_group * 2)),
+            "total_n": 2 * int(np.ceil(n_per_group)),
             "parameters": {"alpha": alpha, "power": power, "effect_size": effect_size},
         }
 

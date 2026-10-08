@@ -53,7 +53,7 @@ from equimed_dss.appendix import (
     JensenShannonDivergence,
     MutualInformationContent,
     NetworkModularity,
-    RobustnessCertificationScore,
+    ObservedPerturbationAgreement,
     StatisticalPowerAnalysis,
     TransparencyScore,
     WassersteinDistance,
@@ -78,7 +78,12 @@ def _all_metric_results():
         {"White": 0.85, "Black": 0.75}, group_observations={
             "White": rng.rand(10).tolist(), "Black": rng.rand(10).tolist()}
     )
-    yield "Bias-Gini", HierarchicalEquityRatio().calculate_bias_gini([0.85, 0.75, 0.80, 0.82])
+    # Bias-Gini needs observation-level input for a CI (1.10.0): group scores alone
+    # are fixed values, not a sample.
+    yield "Bias-Gini", HierarchicalEquityRatio().calculate_bias_gini(
+        group_observations={"A": rng.rand(10).tolist(), "B": rng.rand(10).tolist(),
+                            "C": rng.rand(10).tolist()}
+    )
     # Case lists consistent with the error counts (1.10.0 warns otherwise).
     yield "HAFG", HarmAdjustedFairnessGap().calculate_hafg(
         {"fn": 1, "fp": 2}, {"fn": 1, "fp": 1},
@@ -126,8 +131,10 @@ def _all_metric_results():
     yield "GRBI", GeographicRepresentationBiasIndex().calculate_grbi(
         {"AMRO": 3, "EURO": 1}, burden, corpus_records=["AMRO", "AMRO", "AMRO", "EURO"]
     )
+    # Both groups observed within each system (with one group per system there is
+    # no within-system comparison, which 1.10.0 rejects instead of scoring 0).
     yield "HSSF", HealthcareSystemStratifiedFairness().calculate_hssf(
-        ["US"] * 30 + ["CA"] * 30, groups2, rng.rand(n).tolist()
+        ["US", "CA"] * 30, groups2, rng.rand(n).tolist()
     )
     race = rng.choice(["W", "B"], 120)
     gender = rng.choice(["F", "M"], 120)
@@ -151,22 +158,25 @@ def _all_metric_results():
     yield "WD", WassersteinDistance().calculate_wd(
         np.array([1.0, 2.0, 3.0, 4.0]), np.array([5.0, 6.0, 7.0, 8.0])
     )
+    # NM's CI resamples the observations behind the correlation matrix (1.10.0).
+    z = rng.randn(40, 2)
+    obs = np.column_stack([z[:, 0] + 0.3 * rng.randn(40), z[:, 0] + 0.3 * rng.randn(40),
+                           z[:, 1] + 0.3 * rng.randn(40), z[:, 1] + 0.3 * rng.randn(40)])
     yield "NM", NetworkModularity().calculate_modularity(
-        np.array([[0, 1, 1, 0, 0], [1, 0, 1, 0, 0], [1, 1, 0, 0, 0],
-                  [0, 0, 0, 0, 1], [0, 0, 0, 1, 0]])
+        np.corrcoef(obs, rowvar=False), observations=obs
     )
     yield "TS", TransparencyScore().calculate_ts(
         [{"explanation_quality": 0.8, "feature_importance": 0.7, "interpretability": 0.9},
          {"explanation_quality": 0.7, "feature_importance": 0.8, "interpretability": 0.8}]
     )
-    yield "RCS", RobustnessCertificationScore().calculate_rcs(
+    yield "RCS", ObservedPerturbationAgreement().calculate_rcs(
         np.array([0, 1, 1, 0, 1]), [np.array([0, 1, 1, 0, 1]), np.array([0, 1, 0, 0, 1])]
     )
 
 
 # Metrics whose inputs are aggregate-only here and therefore legitimately print
 # "CI unavailable" rather than a numeric interval.
-_UNAVAILABLE_OK = {"JSD", "SampleSize"}
+_UNAVAILABLE_OK = {"JSD", "SampleSize", "BiasConcentration"}
 
 
 def test_every_metric_prints_a_confidence_interval():

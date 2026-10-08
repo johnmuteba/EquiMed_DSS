@@ -26,9 +26,10 @@ Examples
 from __future__ import annotations
 
 import math
+import warnings
 from dataclasses import asdict, dataclass
 from statistics import NormalDist
-from typing import Callable, Optional, Sequence
+from typing import Any, Callable, Dict, Optional, Sequence
 
 import numpy as np
 
@@ -39,6 +40,8 @@ __all__ = [
     "proportion_ci",
     "bootstrap_ci",
     "bootstrap_metric",
+    "stratified_bootstrap_ci",
+    "block_bootstrap_ci",
     "permutation_test",
 ]
 
@@ -181,6 +184,7 @@ class InferenceResult:
     null_value: Optional[float] = None
     n_boot: Optional[int] = None
     n_clusters: Optional[int] = None
+    n_failed: Optional[int] = None
 
     def to_dict(self) -> dict:
         """Drop unpopulated (None) fields for compact JSON export."""
@@ -232,6 +236,8 @@ def _prop_ztest(k: int, n: int, p0: float, alternative: str) -> float:
     """
     if alternative not in _ALTERNATIVES:
         raise ValueError(f"alternative must be one of {_ALTERNATIVES}")
+    if not 0 < p0 < 1:
+        raise ValueError("the null proportion must lie strictly between 0 and 1")
     se0 = math.sqrt(p0 * (1 - p0) / n)
     if se0 == 0:
         return float("nan")
@@ -282,6 +288,7 @@ def bootstrap_ci(
         giving honest intervals under within-cluster correlation.
     random_state : seed for reproducibility.
     """
+    _check_resampling(conf, n_boot)
     rng = np.random.default_rng(random_state)
     data = list(data)
     n = len(data)
@@ -321,6 +328,141 @@ def bootstrap_ci(
         se=float(np.std(boots, ddof=1)),
         n_boot=n_boot,
         n_clusters=n_clusters,
+    )
+
+
+def _check_resampling(conf: float, n_boot: int) -> None:
+    if not 0 < conf < 1:
+        raise ValueError("conf must be in (0, 1)")
+    if int(n_boot) < 2:
+        raise ValueError("n_boot must be at least 2")
+
+
+def _percentile_result(est, boots, n, conf, n_boot, method, n_failed=None):
+    a = (1 - conf) / 2
+    lo, hi = np.percentile(boots, [100 * a, 100 * (1 - a)])
+    return InferenceResult(
+        estimate=float(est),
+        method=method,
+        n=n,
+        ci_lower=float(lo),
+        ci_upper=float(hi),
+        conf_level=conf,
+        se=float(np.std(boots, ddof=1)) if len(boots) > 1 else None,
+        n_boot=n_boot,
+        n_failed=n_failed,
+    )
+
+
+def stratified_bootstrap_ci(
+    strata: Dict[Any, Sequence],
+    statistic: Callable[[Dict[Any, Sequence]], float],
+    conf: float = 0.95,
+    n_boot: int = 1000,
+    random_state: Optional[int] = 0,
+    min_stratum_n: int = 5,
+    label: str = "group",
+) -> InferenceResult:
+    """Percentile bootstrap that resamples WITHIN each stratum (e.g. group).
+
+    Every stratum keeps its observed size in every replicate, so the interval
+    describes the same set of groups as the point estimate. A pooled bootstrap
+    instead lets small groups vanish from some replicates (a group of one is
+    absent from about 37% of them) and then compares whichever groups remain.
+
+    Parameters
+    ----------
+    strata : mapping stratum -> its observations (list or array). Every
+        stratum must be non-empty.
+    statistic : callable mapping a dict of the same keys (resampled
+        observations) to a float.
+    min_stratum_n : strata smaller than this trigger a warning, because their
+        contribution to the interval is unreliable.
+
+    Replicates whose statistic is not finite (for example a ratio whose
+    denominator is 0 in that replicate) are dropped and counted in
+    ``n_failed``; a warning is raised if more than 5% are dropped.
+    """
+    _check_resampling(conf, n_boot)
+    keys = list(strata)
+    if not keys:
+        raise ValueError("strata is empty")
+    data = {}
+    for k in keys:
+        v = strata[k]
+        v = v if isinstance(v, np.ndarray) else list(v)
+        if len(v) == 0:
+            raise ValueError(f"{label} {k!r} has no observations")
+        data[k] = v
+    small = sorted(str(k) for k in keys if len(data[k]) < min_stratum_n)
+    if small:
+        warnings.warn(
+            f"{label}s with fewer than {min_stratum_n} observations: {small}; their "
+            "contribution to the confidence interval is unreliable.",
+            UserWarning,
+            stacklevel=3,
+        )
+    rng = np.random.default_rng(random_state)
+    est = float(statistic(data))
+    boots, failed = [], 0
+    for _ in range(int(n_boot)):
+        sample = {}
+        for k in keys:
+            v = data[k]
+            idx = rng.integers(0, len(v), size=len(v))
+            sample[k] = v[idx] if isinstance(v, np.ndarray) else [v[i] for i in idx]
+        b = float(statistic(sample))
+        if np.isfinite(b):
+            boots.append(b)
+        else:
+            failed += 1
+    if len(boots) < 2:
+        raise ValueError("too few finite bootstrap replicates to form an interval")
+    if failed > 0.05 * n_boot:
+        warnings.warn(
+            f"{failed} of {n_boot} bootstrap replicates gave an undefined statistic "
+            "and were dropped; the interval may be unreliable.",
+            UserWarning,
+            stacklevel=3,
+        )
+    n = sum(len(data[k]) for k in keys)
+    return _percentile_result(
+        est, boots, n, conf, int(n_boot), f"bootstrap (stratified by {label})", failed
+    )
+
+
+def block_bootstrap_ci(
+    series: Sequence[float],
+    statistic: Callable[[np.ndarray], float],
+    block_length: Optional[int] = None,
+    conf: float = 0.95,
+    n_boot: int = 1000,
+    random_state: Optional[int] = 0,
+) -> InferenceResult:
+    """Moving-block bootstrap CI for a statistic of a time series.
+
+    Resamples overlapping blocks of consecutive points, which keeps short-range
+    serial dependence that an ordinary bootstrap destroys (Kunsch, Ann Stat
+    1989). The default block length is round(n ** (1/3)), at least 1.
+    """
+    _check_resampling(conf, n_boot)
+    x = np.asarray(series, dtype=float)
+    n = len(x)
+    if n == 0:
+        raise ValueError("series is empty")
+    L = int(block_length) if block_length else max(1, int(round(n ** (1 / 3))))
+    if not 1 <= L <= n:
+        raise ValueError("block_length must be between 1 and the series length")
+    rng = np.random.default_rng(random_state)
+    n_blocks = int(np.ceil(n / L))
+    starts_max = n - L + 1
+    boots = []
+    for _ in range(int(n_boot)):
+        starts = rng.integers(0, starts_max, size=n_blocks)
+        sample = np.concatenate([x[s : s + L] for s in starts])[:n]
+        boots.append(float(statistic(sample)))
+    return _percentile_result(
+        statistic(x), boots, n, conf, int(n_boot), f"moving-block bootstrap (block {L})"
     )
 
 
@@ -379,6 +521,8 @@ def permutation_test(
     """
     if alternative not in _ALTERNATIVES:
         raise ValueError(f"alternative must be one of {_ALTERNATIVES}")
+    if int(n_perm) < 1:
+        raise ValueError("n_perm must be at least 1")
     rng = np.random.default_rng(random_state)
     a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)

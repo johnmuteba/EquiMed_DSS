@@ -41,12 +41,23 @@ class IntersectionalCalibrationError:
 
         Args:
             groups: per-sample intersectional group label (e.g. "Black|F").
-            confidences: per-sample predicted confidence in [0, 1].
-            correct: per-sample correctness indicator (1 correct, 0 incorrect).
-            n_bins: number of equal-width confidence bins.
+            confidences: per-sample predicted probability in [0, 1].
+            correct: per-sample binary outcome (1/0) that the probability
+                predicts. For a risk model this is the OBSERVED EVENT (1 event,
+                0 no event), paired with the predicted event probability; for a
+                classifier's confidence in its own label, it is whether that label
+                was correct. Calibration compares the two within each bin.
+            n_bins: number of equal-width probability bins (integer >= 1).
 
         Returns:
-            Dict with ice, delta_ice, ece_by_group, n_groups, and interpretation.
+            Dict with ice, delta_ice, ece_by_group, n_by_group, n_groups, and
+            interpretation, plus a 95% bootstrap CI for ICE that resamples within
+            each group.
+
+        Raises:
+            ValueError: for mismatched lengths, empty input, probabilities that
+                are missing or outside [0, 1], outcomes other than 0/1, or an
+                invalid ``n_bins``.
         """
         g = np.asarray(groups)
         conf = np.asarray(confidences, dtype=float)
@@ -55,8 +66,15 @@ class IntersectionalCalibrationError:
             raise ValueError("groups, confidences, correct must be the same length.")
         if len(g) == 0:
             raise ValueError("Inputs must be non-empty.")
-        if np.any((conf < 0) | (conf > 1)):
-            raise ValueError("confidences must lie in [0, 1].")
+        if not np.all(np.isfinite(conf)) or np.any((conf < 0) | (conf > 1)):
+            raise ValueError("confidences must be finite and lie in [0, 1].")
+        if not np.all(np.isin(corr, (0.0, 1.0))):
+            raise ValueError(
+                "correct must contain only 0 and 1 (the observed outcome)."
+            )
+        if int(n_bins) != n_bins or n_bins < 1:
+            raise ValueError("n_bins must be an integer >= 1.")
+        n_bins = int(n_bins)
 
         edges = np.linspace(0.0, 1.0, n_bins + 1)
 
@@ -109,18 +127,19 @@ class IntersectionalCalibrationError:
             ),
         }
 
-        # Percentile bootstrap over samples (resample (group, conf, correct)
-        # triples and recompute the population-weighted ICE).
-        from equimed_dss.inference import MetricResult, bootstrap_ci
+        # Percentile bootstrap that resamples (probability, outcome) pairs within
+        # each group, so group sizes, and hence the ICE weights, stay fixed.
+        # (Up to 1.9.5 samples were pooled across groups.)
+        from equimed_dss.inference import MetricResult, stratified_bootstrap_ci
 
         if len(g) >= 2:
-            idx = list(range(len(g)))
-            ci = bootstrap_ci(
-                idx,
-                lambda s: _ice_from(g[list(s)], conf[list(s)], corr[list(s)])[0],
-                n_boot=1000,
-                random_state=0,
-            )
+            strata = {str(grp): np.flatnonzero(g == grp) for grp in np.unique(g)}
+
+            def _ice_boot(smp):
+                idx = np.concatenate(list(smp.values()))
+                return _ice_from(g[idx], conf[idx], corr[idx])[0]
+
+            ci = stratified_bootstrap_ci(strata, _ice_boot, n_boot=1000, random_state=0)
             out["ci_lower"] = ci.ci_lower
             out["ci_upper"] = ci.ci_upper
             out["ci_method"] = ci.method

@@ -56,6 +56,10 @@ class GeographicRepresentationBiasIndex:
 
         regions = sorted(set(corpus_counts) | set(burden_shares))
         b = np.array([float(burden_shares.get(r, 0.0)) for r in regions])
+        c_chk = np.array([float(corpus_counts.get(r, 0.0)) for r in regions])
+        for name, arr in (("burden_shares", b), ("corpus_counts", c_chk)):
+            if not np.all(np.isfinite(arr)) or np.any(arr < 0):
+                raise ValueError(f"{name} must be finite and non-negative.")
         if b.sum() <= 0:
             raise ValueError("burden_shares must have a positive total.")
         pb = b / b.sum()

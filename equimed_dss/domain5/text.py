@@ -69,27 +69,28 @@ class LexicalDiversityDisparityIndex:
             ),
         }
 
-        # Bootstrap the max-min RTTR gap over pooled, group-tagged responses.
-        from equimed_dss.inference import MetricResult, bootstrap_ci
+        # Bootstrap that resamples responses within each group (group sizes
+        # fixed; up to 1.9.5 responses were pooled across groups).
+        from equimed_dss.inference import MetricResult, stratified_bootstrap_ci
 
-        records = [
-            {"group": str(grp), "text": r}
+        strata = {
+            str(grp): [_tokens(r) for r in texts]
             for grp, texts in responses_by_group.items()
-            for r in texts
-        ]
+        }
 
-        def _lddi(sample):
-            by: Dict[str, list] = {}
-            for rec in sample:
-                by.setdefault(rec["group"], []).extend(_tokens(rec["text"]))
-            rv = [len(set(t)) / np.sqrt(len(t)) for t in by.values() if t]
-            return float(max(rv) - min(rv)) if len(rv) > 1 else 0.0
+        def _lddi(smp):
+            rv = []
+            for resp in smp.values():
+                toks = [t for r in resp for t in r]
+                if not toks:
+                    return float("nan")  # a resample without tokens: dropped
+                rv.append(len(set(toks)) / np.sqrt(len(toks)))
+            return float(max(rv) - min(rv))
 
-        if len(records) >= 2:
-            ci = bootstrap_ci(records, _lddi, n_boot=1000, random_state=0)
-            out["ci_lower"] = ci.ci_lower
-            out["ci_upper"] = ci.ci_upper
-            out["ci_method"] = ci.method
+        ci = stratified_bootstrap_ci(strata, _lddi, n_boot=1000, random_state=0)
+        out["ci_lower"] = ci.ci_lower
+        out["ci_upper"] = ci.ci_upper
+        out["ci_method"] = ci.method
         return MetricResult(out, name="LDDI", value_key="lddi")
 
 
@@ -169,32 +170,30 @@ class RecommendationEntropyGap:
             ),
         }
 
-        # Bootstrap the max-min entropy gap over pooled, group-tagged recommendations.
-        from equimed_dss.inference import MetricResult, bootstrap_ci
+        # Bootstrap that resamples recommendations within each group.
+        from equimed_dss.inference import MetricResult, stratified_bootstrap_ci
 
-        records = [
-            {"group": str(grp), "rec": t}
-            for grp, recs in recommendations_by_group.items()
-            for t in recs
-        ]
+        def _entropy(recs):
+            n = len(recs)
+            p = np.array([recs.count(t) / n for t in set(recs)])
+            nz = p[p > 0]
+            return float(-(nz * np.log2(nz)).sum())
 
-        def _reg(sample):
-            by: Dict[str, list] = {}
-            for rec in sample:
-                by.setdefault(rec["group"], []).append(rec["rec"])
-            ents = []
-            for recs in by.values():
-                n = len(recs)
-                p = np.array([recs.count(t) / n for t in set(recs)])
-                nz = p[p > 0]
-                ents.append(float(-(nz * np.log2(nz)).sum()))
-            return float(max(ents) - min(ents)) if len(ents) > 1 else 0.0
-
-        if len(records) >= 2:
-            ci = bootstrap_ci(records, _reg, n_boot=1000, random_state=0)
-            out["ci_lower"] = ci.ci_lower
-            out["ci_upper"] = ci.ci_upper
-            out["ci_method"] = ci.method
+        strata = {
+            str(grp): list(recs) for grp, recs in recommendations_by_group.items()
+        }
+        ci = stratified_bootstrap_ci(
+            strata,
+            lambda smp: float(
+                max(_entropy(v) for v in smp.values())
+                - min(_entropy(v) for v in smp.values())
+            ),
+            n_boot=1000,
+            random_state=0,
+        )
+        out["ci_lower"] = ci.ci_lower
+        out["ci_upper"] = ci.ci_upper
+        out["ci_method"] = ci.method
         return MetricResult(out, name="REG", value_key="reg")
 
 
@@ -251,41 +250,33 @@ class ClinicalInformationDensityRatio:
             ),
         }
 
-        # Bootstrap the minimum CIDR ratio over pooled, group-tagged (concepts,
-        # tokens) pairs.
-        from equimed_dss.inference import MetricResult, bootstrap_ci
+        # Bootstrap that resamples responses (with tokens) within each group.
+        from equimed_dss.inference import MetricResult, stratified_bootstrap_ci
 
-        records = [
-            {"group": str(grp), "pair": (nc, nt)}
+        strata = {
+            str(grp): np.array([(nc / nt) * 100 for nc, nt in pairs if nt > 0])
             for grp, pairs in concept_counts_by_group.items()
-            for nc, nt in pairs
-        ]
+        }
 
-        def _cidr_min(sample):
-            by: Dict[str, list] = {}
-            for rec in sample:
-                nc, nt = rec["pair"]
-                if nt > 0:
-                    by.setdefault(rec["group"], []).append((nc / nt) * 100)
-            cids = [float(np.mean(v)) for v in by.values() if v]
-            if len(cids) < 2:
-                return 0.0
+        def _cidr_min(smp):
+            cids = [float(v.mean()) for v in smp.values()]
             m = max(cids)
-            return float(min(cids) / m) if m > 0 else 0.0
+            return float(min(cids) / m) if m > 0 else float("nan")
 
-        if len(records) >= 2:
-            ci = bootstrap_ci(records, _cidr_min, n_boot=1000, random_state=0)
-            out["ci_lower"] = ci.ci_lower
-            out["ci_upper"] = ci.ci_upper
-            out["ci_method"] = ci.method
+        ci = stratified_bootstrap_ci(strata, _cidr_min, n_boot=1000, random_state=0)
+        out["ci_lower"] = ci.ci_lower
+        out["ci_upper"] = ci.ci_upper
+        out["ci_method"] = ci.method
         return MetricResult(out, name="CIDR", value_key="cidr_min")
 
 
 class DiagnosticCompletenessIndex:
     """Diagnostic Completeness Index (DCI).
 
-    DCI(r) = |D(r) ∩ D*| / |D*|; DCI(g) = mean over group; dDCI = max_g - min_g.
-    Optional severity-weighted wDCI with per-differential weights.
+    DCI(r) = |D(r) ∩ D*(r)| / |D*(r)|; DCI(g) = mean over group; dDCI = max_g - min_g.
+    D*(r) is the reference differential list for the case behind response r:
+    one shared list, or a case-specific list per response. Optional
+    severity-weighted wDCI with per-differential weights.
     """
 
     def __init__(self):
@@ -293,39 +284,70 @@ class DiagnosticCompletenessIndex:
 
     def calculate_dci(
         self,
-        reference_differentials: Sequence[str],
+        reference_differentials: Optional[Sequence[str]],
         mentioned_by_group: Dict[str, Sequence[Sequence[str]]],
         weights: Optional[Dict[str, float]] = None,
+        references_by_group: Optional[Dict[str, Sequence[Sequence[str]]]] = None,
     ) -> Dict[str, Any]:
         """Compute DCI coverage of a reference differential list by group.
 
         Args:
-            reference_differentials: the guideline differential list D*.
+            reference_differentials: the guideline differential list D* shared by
+                all responses; pass None when ``references_by_group`` is given.
             mentioned_by_group: mapping group -> list of responses, each a list
-                of the differentials the response mentions (at least two groups).
+                of the differentials the response mentions (at least two groups,
+                none empty).
             weights: optional differential -> severity weight for wDCI.
+            references_by_group: optional case-specific references, with the
+                same structure as ``mentioned_by_group`` (one reference list per
+                response). Use it when the cases differ, so that each response is
+                scored against the differentials appropriate to its own case.
 
         Returns:
             MetricResult with dci_by_group, delta_dci (max - min), optional
-            wdci_by_group, and a 95% percentile-bootstrap CI for delta_dci.
+            wdci_by_group, and a 95% bootstrap CI for delta_dci that resamples
+            responses within each group.
+
+        Raises:
+            ValueError: for fewer than 2 groups, an empty group, an empty
+                reference list, or references that do not match the responses.
         """
-        Dstar = set(reference_differentials)
-        if not Dstar:
-            raise ValueError("reference_differentials must be non-empty.")
         if len(mentioned_by_group) < 2:
             raise ValueError("Need at least 2 groups.")
-        dci = {}
-        wdci = {}
-        wtot = sum(weights.get(d, 0.0) for d in Dstar) if weights else None
+        if references_by_group is None:
+            if not reference_differentials:
+                raise ValueError("reference_differentials must be non-empty.")
+            shared = set(reference_differentials)
+            references_by_group = {
+                grp: [shared] * len(resp) for grp, resp in mentioned_by_group.items()
+            }
+        elif set(references_by_group) != set(mentioned_by_group):
+            raise ValueError("references_by_group must have the same groups.")
+
+        dci, wdci, strata = {}, {}, {}
         for grp, responses in mentioned_by_group.items():
-            scores = [len(set(m) & Dstar) / len(Dstar) for m in responses]
-            dci[str(grp)] = float(np.mean(scores)) if scores else 0.0
-            if weights and wtot:
-                wscores = [
-                    sum(weights.get(d, 0.0) for d in (set(m) & Dstar)) / wtot
-                    for m in responses
-                ]
-                wdci[str(grp)] = float(np.mean(wscores)) if wscores else 0.0
+            refs = references_by_group[grp]
+            if len(responses) == 0:
+                raise ValueError(f"Group {grp!r} has no responses.")
+            if len(refs) != len(responses):
+                raise ValueError(
+                    f"Group {grp!r}: one reference list is needed per response."
+                )
+            scores, wscores = [], []
+            for m, ref in zip(responses, refs):
+                ref = set(ref)
+                if not ref:
+                    raise ValueError(f"Group {grp!r} has an empty reference list.")
+                hit = set(m) & ref
+                scores.append(len(hit) / len(ref))
+                if weights:
+                    wtot = sum(weights.get(d, 0.0) for d in ref)
+                    if wtot > 0:
+                        wscores.append(sum(weights.get(d, 0.0) for d in hit) / wtot)
+            dci[str(grp)] = float(np.mean(scores))
+            strata[str(grp)] = np.array(scores, dtype=float)
+            if weights and wscores:
+                wdci[str(grp)] = float(np.mean(wscores))
         vals = list(dci.values())
         ddci = float(max(vals) - min(vals))
         out = {
@@ -339,36 +361,34 @@ class DiagnosticCompletenessIndex:
         if weights:
             out["wdci_by_group"] = wdci
 
-        # Bootstrap the max-min coverage gap over pooled, group-tagged responses.
-        from equimed_dss.inference import MetricResult, bootstrap_ci
+        # Bootstrap that resamples responses within each group.
+        from equimed_dss.inference import MetricResult, stratified_bootstrap_ci
 
-        records = [
-            {"group": str(grp), "mentions": m}
-            for grp, responses in mentioned_by_group.items()
-            for m in responses
-        ]
-
-        def _ddci(sample):
-            by: Dict[str, list] = {}
-            for rec in sample:
-                by.setdefault(rec["group"], []).append(
-                    len(set(rec["mentions"]) & Dstar) / len(Dstar)
-                )
-            ms = [float(np.mean(v)) for v in by.values() if v]
-            return float(max(ms) - min(ms)) if len(ms) > 1 else 0.0
-
-        if len(records) >= 2:
-            ci = bootstrap_ci(records, _ddci, n_boot=1000, random_state=0)
-            out["ci_lower"] = ci.ci_lower
-            out["ci_upper"] = ci.ci_upper
-            out["ci_method"] = ci.method
+        ci = stratified_bootstrap_ci(
+            strata,
+            lambda smp: float(
+                max(v.mean() for v in smp.values())
+                - min(v.mean() for v in smp.values())
+            ),
+            n_boot=1000,
+            random_state=0,
+        )
+        out["ci_lower"] = ci.ci_lower
+        out["ci_upper"] = ci.ci_upper
+        out["ci_method"] = ci.method
         return MetricResult(out, name="DCI", value_key="delta_dci")
 
 
 class UncertaintyQuantificationGap:
-    """Uncertainty Quantification Gap (UQG).
+    """Uncertainty Quantification Gap (UQG), a hedging-language density gap.
 
     UD(r) = |hedging terms in r| / |sentences(r)|; UD(g) = mean; UQG = max_g - min_g.
+
+    UQG counts hedging words and phrases ("may", "likely", "rule out", ...). It
+    measures how often hedging language is used, not whether a model's stated
+    uncertainty is calibrated, and the default lexicon has not been validated
+    against annotated clinical language; the name is kept for compatibility.
+    Interpret differences as differences in wording.
     """
 
     DEFAULT_HEDGES = [
@@ -423,41 +443,38 @@ class UncertaintyQuantificationGap:
         """
         if len(responses_by_group) < 2:
             raise ValueError("Need at least 2 groups.")
-        ud = {}
+        ud, strata = {}, {}
         for grp, texts in responses_by_group.items():
             vals = [self._ud(r) for r in texts]
-            ud[str(grp)] = float(np.mean(vals)) if vals else 0.0
+            if not vals:
+                raise ValueError(f"Group {grp!r} has no responses.")
+            ud[str(grp)] = float(np.mean(vals))
+            strata[str(grp)] = np.array(vals, dtype=float)
         vals = list(ud.values())
         uqg = float(max(vals) - min(vals))
         out = {
             "ud_by_group": ud,
             "uqg": uqg,
             "interpretation": (
-                f"UQG = {uqg:.3f} (max-min hedging density across groups); large "
-                "values mean the model expresses uncertainty unequally, a possible "
-                "overconfidence-by-group risk."
+                f"UQG = {uqg:.3f} (max-min hedging-term density across groups); "
+                "a lexical count of hedging words, not a measure of calibrated "
+                "uncertainty."
             ),
         }
 
-        # Bootstrap the max-min hedging-density gap over pooled, group-tagged responses.
-        from equimed_dss.inference import MetricResult, bootstrap_ci
+        # Bootstrap that resamples responses within each group.
+        from equimed_dss.inference import MetricResult, stratified_bootstrap_ci
 
-        records = [
-            {"group": str(grp), "text": r}
-            for grp, texts in responses_by_group.items()
-            for r in texts
-        ]
-
-        def _uqg(sample):
-            by: Dict[str, list] = {}
-            for rec in sample:
-                by.setdefault(rec["group"], []).append(self._ud(rec["text"]))
-            ms = [float(np.mean(v)) for v in by.values() if v]
-            return float(max(ms) - min(ms)) if len(ms) > 1 else 0.0
-
-        if len(records) >= 2:
-            ci = bootstrap_ci(records, _uqg, n_boot=1000, random_state=0)
-            out["ci_lower"] = ci.ci_lower
-            out["ci_upper"] = ci.ci_upper
-            out["ci_method"] = ci.method
+        ci = stratified_bootstrap_ci(
+            strata,
+            lambda smp: float(
+                max(v.mean() for v in smp.values())
+                - min(v.mean() for v in smp.values())
+            ),
+            n_boot=1000,
+            random_state=0,
+        )
+        out["ci_lower"] = ci.ci_lower
+        out["ci_upper"] = ci.ci_upper
+        out["ci_method"] = ci.method
         return MetricResult(out, name="UQG", value_key="uqg")

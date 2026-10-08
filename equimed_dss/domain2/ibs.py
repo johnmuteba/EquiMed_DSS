@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, Dict, List, Union
 
 import numpy as np
@@ -94,13 +95,16 @@ class IntersectionalBiasScore:
         self, df: pd.DataFrame, formula: str = "score ~ C(race) * C(gender) * C(ses)"
     ) -> Dict[str, float]:
         """
-        Perform simplified interaction analysis (ANOVA-like) to detect intersectional effects.
-        Note: Full ANOVA requires statsmodels, here we implement a simplified variance analysis
-        if statsmodels is not available or for lightweight usage.
+        Descriptive variance-share summary of race, gender and SES differences.
+
+        This is NOT a model-based interaction test: the columns used are fixed
+        (race, gender, ses and score), and ``formula`` is not parsed. Passing a
+        formula other than the default raises a warning (up to 1.9.5 it was
+        ignored silently).
 
         Args:
             df: DataFrame containing columns for demographics and 'score'.
-            formula: Formula string (informational here, logic assumes race/gender/ses columns).
+            formula: not used; kept for backward compatibility.
 
         Returns:
             Dictionary of interaction effect sizes (eta-squared proxies). The
@@ -109,6 +113,14 @@ class IntersectionalBiasScore:
             main effects overlap, so it is a descriptive proxy (it can be
             negative), not an ANOVA interaction test.
         """
+        if formula != "score ~ C(race) * C(gender) * C(ses)":
+            warnings.warn(
+                "interaction_analysis does not parse 'formula'; it always summarises "
+                "race, gender and ses against 'score'. Fit a model (for example with "
+                "statsmodels) for a formula-based interaction test.",
+                UserWarning,
+                stacklevel=2,
+            )
         # Work on a copy so the caller's DataFrame is never mutated (a temporary
         # 'race_gender' column is added below for the interaction term).
         df = df.copy()

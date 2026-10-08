@@ -113,7 +113,7 @@ def test_bias_concentration_verdict_uses_normalized_index():
     res = BiasConcentrationIndex().calculate_bci([0.5, 0.5])
     assert res["bci"] == pytest.approx(0.5)            # maximum for 2 groups
     assert res["bci_normalized"] == pytest.approx(1.0)
-    assert res["interpretation"]["verdict"] == "Acceptable (distributed)"
+    assert res["interpretation"]["verdict"] == "Evenly distributed (normalized > 0.7)"
 
 
 def test_wasserstein_histograms_with_support():

@@ -21,7 +21,8 @@ class EthicalRiskIndex:
         Calculate ERI based on a list of violations with severity scores.
 
         Args:
-            violations: List of dicts, each containing 'severity' (float).
+            violations: List of dicts, each containing 'severity' (a finite,
+                non-negative number).
             n_total_outputs: Total number of outputs evaluated (each output has at
                 most one violation record; more violations than outputs raises
                 ``ValueError``).
@@ -35,14 +36,19 @@ class EthicalRiskIndex:
         """
         from equimed_dss.inference import MetricResult, bootstrap_ci, proportion_ci
 
-        if n_total_outputs == 0:
-            return MetricResult(
-                {"eri": 0.0, "svr": 0.0, "n_violations": 0, "total_severity": 0.0},
-                name="ERI",
-                value_key="eri",
+        if n_total_outputs <= 0:
+            raise ValueError(
+                "n_total_outputs must be positive: with no outputs ERI is undefined "
+                "(up to 1.9.5 it was reported as 0, even when violations were given)."
             )
-
-        severities = [float(v.get("severity", 0)) for v in violations]
+        severities = []
+        for i, v in enumerate(violations):
+            if "severity" not in v:
+                raise ValueError(f"violation {i} has no 'severity'.")
+            sev = float(v["severity"])
+            if not np.isfinite(sev) or sev < 0:
+                raise ValueError(f"violation {i}: severity must be finite and >= 0.")
+            severities.append(sev)
         total_severity = float(sum(severities))
         n_violations = len(violations)
         if n_violations > n_total_outputs:

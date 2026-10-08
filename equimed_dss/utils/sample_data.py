@@ -336,9 +336,9 @@ class SampleDataGenerator:
         Example:
             >>> generator = SampleDataGenerator(random_state=42)
             >>> original, perturbed = generator.generate_perturbation_data()
-            >>> from equimed_dss.appendix import RobustnessCertificationScore
-            >>> rcs = RobustnessCertificationScore()
-            >>> result = rcs.calculate_rcs(original, perturbed)
+            >>> from equimed_dss.appendix import ObservedPerturbationAgreement
+            >>> result = ObservedPerturbationAgreement().calculate_agreement(
+            ...     original, perturbed)
         """
         original = self.rng.randint(0, 2, n_samples)
 
@@ -521,7 +521,7 @@ def generate_sample_corpus(
 
 
 def generate_figure_data(random_state: int = 42) -> Dict[str, Dict]:
-    """Generate ready-to-use sample inputs for the manuscript figure functions.
+    """Generate ready-to-use sample inputs for the multi-panel figure templates.
 
     Returns a dict keyed by figure name ("fig2" through "fig7"), each value being
     a dict in the exact structure the matching ``plot_figure*`` function expects.

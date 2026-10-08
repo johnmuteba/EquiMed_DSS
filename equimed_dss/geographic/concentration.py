@@ -3,10 +3,13 @@
 Two complementary descriptors of how a corpus's evidence (e.g. included
 studies) is spread across regions:
 
-- Sample-corrected Gini, G* = (R / (R-1)) * G_raw, range [0, 1].
+- Normalized Gini, G* = (R / (R-1)) * G_raw, range [0, 1].
   0 = perfectly even coverage, 1 = all evidence in one region. The R/(R-1)
-  factor is required because the raw Gini for R categories maxes out at
-  (R-1)/R, so without it the index could not reach 1.
+  factor rescales the index so that its maximum is 1 (the raw Gini of R
+  categories cannot exceed (R-1)/R); it is a normalization, not a correction
+  for sampling bias. Earlier versions called it "sample-corrected"; the key
+  ``gini_corrected`` is kept for compatibility, with ``gini_normalized`` as an
+  identical alias.
 - Normalized Shannon entropy, H_norm = -sum_r p_r ln(p_r) / ln(R), range [0, 1].
   1 = perfectly even, 0 = single-region concentration.
 
@@ -46,8 +49,8 @@ class GeographicConcentration:
 
         Returns:
             Dict with keys:
-              - ``gini_corrected`` (float): sample-corrected Gini G* in [0, 1];
-                0 = even, 1 = single-region.
+              - ``gini_corrected`` / ``gini_normalized`` (float, identical):
+                normalized Gini G* in [0, 1]; 0 = even, 1 = single-region.
               - ``entropy_normalized`` (float): normalized Shannon entropy H_norm
                 in [0, 1]; 1 = even, 0 = single-region (opposite to G*).
               - ``concentration`` (float): 1 - H_norm; higher = more concentrated.
@@ -60,8 +63,8 @@ class GeographicConcentration:
             raise ValueError("region_counts must be a non-empty mapping.")
         regions = sorted(region_counts)
         x = np.array([float(region_counts[r]) for r in regions])
-        if np.any(x < 0):
-            raise ValueError("region_counts must be non-negative.")
+        if not np.all(np.isfinite(x)) or np.any(x < 0):
+            raise ValueError("region_counts must be finite and non-negative.")
         if x.sum() <= 0:
             raise ValueError("region_counts total must be positive.")
         R = len(x)
@@ -69,7 +72,7 @@ class GeographicConcentration:
             raise ValueError("Need at least 2 regions to measure concentration.")
 
         def _gini_corrected(vec: np.ndarray) -> float:
-            """Sample-corrected Gini G* over a fixed region ordering."""
+            """Normalized Gini G* over a fixed region ordering."""
             if vec.sum() <= 0:
                 return 0.0
             graw = np.abs(vec[:, None] - vec[None, :]).sum() / (2 * R * vec.sum())
@@ -90,6 +93,7 @@ class GeographicConcentration:
 
         out = {
             "gini_corrected": gini_corrected,
+            "gini_normalized": gini_corrected,
             "entropy_normalized": entropy_normalized,
             "concentration": concentration,
             "n_regions": R,
@@ -105,7 +109,7 @@ class GeographicConcentration:
 
         # A CI cannot be computed honestly from aggregate region counts. When the
         # caller supplies per-evidence region labels, resample records and recompute
-        # the sample-corrected Gini over the fixed region ordering.
+        # the normalized Gini over the fixed region ordering.
         if region_records is not None:
             recs = [str(r) for r in region_records]
             check_records(

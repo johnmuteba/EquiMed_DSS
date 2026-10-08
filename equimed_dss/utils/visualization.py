@@ -151,7 +151,7 @@ def plot_control_chart(
 
 
 # ========================================================================
-# MANUSCRIPT VISUALIZATIONS (Figures 2-7)
+# MULTI-PANEL FIGURE TEMPLATES (plot_figure2 to plot_figure7)
 # ========================================================================
 
 
@@ -176,7 +176,7 @@ def plot_figure2_reliability_dashboard(
             - 'temporal': Dict with 'timepoints' and 'reliability_scores'
         save_path: Optional path to save figure
 
-    Reference: Manuscript Figure 2
+    Multi-panel figure template (plot_figure2).
     """
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     fig.suptitle("Reliability Analysis Dashboard", fontsize=16, fontweight="bold")
@@ -318,7 +318,7 @@ def plot_figure3_corpus_comparison(
             - 'network_stability': Dict[corpus_name, Dict] with 'density', 'clustering', 'modularity'
         save_path: Optional path to save figure
 
-    Reference: Manuscript Figure 3
+    Multi-panel figure template (plot_figure3).
     """
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
     fig.suptitle("Three-Corpus Comparative Analysis", fontsize=16, fontweight="bold")
@@ -490,7 +490,7 @@ def plot_figure4_temporal_robustness(
             - 'robustness': Dict with 'perturbation_levels', 'rcs_scores'
         save_path: Optional path to save figure
 
-    Reference: Manuscript Figure 4
+    Multi-panel figure template (plot_figure4).
     """
     fig = plt.figure(figsize=(18, 6))
     gs = fig.add_gridspec(1, 3, hspace=0.3, wspace=0.3)
@@ -649,7 +649,7 @@ def plot_figure5_ethics_governance(
             - 'fairness_ecosystem': Dict with 'components', 'connections' (adjacency matrix)
         save_path: Optional path to save figure
 
-    Reference: Manuscript Figure 5
+    Multi-panel figure template (plot_figure5).
     """
     fig = plt.figure(figsize=(18, 6))
     gs = fig.add_gridspec(1, 3, hspace=0.3, wspace=0.3)
@@ -810,7 +810,7 @@ def plot_figure6_metric_networks(
             - 'combined': Dict with 'adjacency_matrix', 'metric_names'
         save_path: Optional path to save figure
 
-    Reference: Manuscript Figure 6
+    Multi-panel figure template (plot_figure6).
     """
     fig, axes = plt.subplots(2, 2, figsize=(18, 16))
     fig.suptitle(
@@ -924,7 +924,7 @@ def plot_figure7_intersectional_heatmap(
             - 'marginal_col': Marginal fairness scores by column
         save_path: Optional path to save figure
 
-    Reference: Manuscript Figure 7
+    Multi-panel figure template (plot_figure7).
     """
     from matplotlib.gridspec import GridSpec
 

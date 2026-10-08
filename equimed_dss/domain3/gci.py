@@ -17,15 +17,24 @@ class GovernanceComplianceIndex:
         Calculate GCI based on a dictionary of policy compliance statuses.
 
         Args:
-            policy_compliance: Dictionary mapping policy names to boolean status (True=Compliant).
+            policy_compliance: Dictionary mapping each listed check (policy) to
+                True when it is met.
 
         Returns:
-            Dictionary containing GCI score and details.
+            Dictionary containing GCI (the share of listed checks met) and details.
+            GCI describes the checks given; it does not establish regulatory
+            compliance. Its Wilson interval has a sampling meaning only if the
+            checks are a sample from a larger defined set; for a complete,
+            fixed list, report GCI itself.
+
+        Raises:
+            ValueError: if no checks are given (GCI undefined; up to 1.9.5 it was
+                reported as 0).
         """
         from equimed_dss.inference import MetricResult, proportion_ci
 
         if not policy_compliance:
-            return MetricResult({"gci": 0.0}, name="GCI", value_key="gci")
+            raise ValueError("policy_compliance is empty, so GCI is undefined.")
 
         n_mandated = len(policy_compliance)
         n_enforced = sum(1 for status in policy_compliance.values() if status)
@@ -51,11 +60,11 @@ class GovernanceComplianceIndex:
                 "ci_method": inf.method,
                 "interpretation": {
                     "range": "[0, 1]",
-                    "ideal": "1.0 (Full Compliance)",
+                    "ideal": "1.0 (all listed checks met)",
                     "verdict": (
-                        "Fully Compliant"
+                        "All listed checks met"
                         if gci == 1.0
-                        else f"Partial Compliance ({gci:.0%})"
+                        else f"{gci:.0%} of listed checks met"
                     ),
                 },
             },

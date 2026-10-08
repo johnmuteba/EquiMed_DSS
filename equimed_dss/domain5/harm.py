@@ -51,17 +51,13 @@ class WeightedClinicalHarmAdjustedFairnessGap:
             )
         if len(g) == 0:
             raise ValueError("Inputs must be non-empty.")
+        if not (np.all(np.isfinite(w)) and np.all(np.isfinite(loss))):
+            raise ValueError("severity_weights and losses must be finite.")
+        if np.any(w < 0) or np.any(loss < 0):
+            raise ValueError("severity_weights and losses must be non-negative.")
 
-        def _whafg(gv, wv, lv) -> float:
-            hbg = [
-                float((wv[gv == grp] * lv[gv == grp]).mean()) for grp in np.unique(gv)
-            ]
-            return float(max(hbg) - min(hbg)) if len(hbg) > 1 else 0.0
-
-        harm_by_group = {
-            str(grp): float((w[g == grp] * loss[g == grp]).mean())
-            for grp in np.unique(g)
-        }
+        harm = w * loss
+        harm_by_group = {str(grp): float(harm[g == grp].mean()) for grp in np.unique(g)}
         items = sorted(harm_by_group.items(), key=lambda kv: kv[1])
         whafg_max = float(items[-1][1] - items[0][1]) if len(items) > 1 else 0.0
         most_harmed = items[-1][0]
@@ -71,20 +67,26 @@ class WeightedClinicalHarmAdjustedFairnessGap:
             "whafg_max": whafg_max,
             "most_harmed_group": most_harmed,
             "n_groups": len(harm_by_group),
+            "n_by_group": {str(grp): int((g == grp).sum()) for grp in np.unique(g)},
             "interpretation": (
                 f"Maximum severity-weighted harm gap wHAFG = {whafg_max:.3f}; "
                 f"highest weighted harm in group '{most_harmed}'."
             ),
         }
 
-        # Percentile bootstrap over samples for the maximum weighted-harm gap.
-        from equimed_dss.inference import MetricResult, bootstrap_ci
+        # Percentile bootstrap that resamples within each group (group sizes
+        # fixed), so every replicate compares the same groups as the estimate.
+        # (Up to 1.9.5 samples were pooled, and small groups could vanish.)
+        from equimed_dss.inference import MetricResult, stratified_bootstrap_ci
 
-        if len(g) >= 2:
-            idx = list(range(len(g)))
-            ci = bootstrap_ci(
-                idx,
-                lambda s: _whafg(g[list(s)], w[list(s)], loss[list(s)]),
+        if len(harm_by_group) >= 2:
+            strata = {str(grp): harm[g == grp] for grp in np.unique(g)}
+            ci = stratified_bootstrap_ci(
+                strata,
+                lambda smp: float(
+                    max(v.mean() for v in smp.values())
+                    - min(v.mean() for v in smp.values())
+                ),
                 n_boot=1000,
                 random_state=0,
             )

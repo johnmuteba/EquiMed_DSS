@@ -1,8 +1,7 @@
 """
 Network Analysis Statistics
 
-Implements centrality measures and network analysis as described in
-Manuscript Section 2.4:
+Centrality measures and network properties:
 - Degree centrality: deg(v)/(n-1)
 - Betweenness centrality: Σ σst(v)/σst
 """

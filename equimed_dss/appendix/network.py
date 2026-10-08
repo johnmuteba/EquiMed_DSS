@@ -1,3 +1,4 @@
+import warnings
 from typing import Any, Dict, List
 
 import networkx as nx
@@ -6,12 +7,20 @@ import numpy as np
 
 class AdvancedNetworkMetrics:
     """
-    Appendix A.3: Advanced Network and Governance Metrics
+    Appendix A.3: network and governance helpers.
 
     Includes:
-    17. Network Modularity (NM)
-    18. Transparency Score (TS) - (Note: TS is also in Domain 3 as part of RAMS, implemented here as standalone)
-    19. Robustness Certification Score (RCS)
+    - calculate_modularity: Newman modularity of a weighted network.
+    - calculate_explained_fraction: share of decisions that came with an
+      explanation (a count; different from TransparencyScore, which averages
+      three ratings).
+    - calculate_stability_pass_rate: share of stability scores at or above a
+      threshold (different from ObservedPerturbationAgreement, which averages
+      prediction agreement).
+
+    The older names calculate_transparency_score and calculate_rcs are kept as
+    deprecated aliases: they reused the names of different metrics, and the
+    "certified" flag of calculate_rcs certified nothing.
     """
 
     def __init__(self):
@@ -40,29 +49,67 @@ class AdvancedNetworkMetrics:
         communities = greedy_modularity_communities(G, weight="weight")
         return float(modularity(G, communities, weight="weight"))
 
-    def calculate_transparency_score(self, n_explained: int, n_total: int) -> float:
-        """
-        Calculate Transparency Score (clinician ability to understand AI reasoning).
-        """
-        if n_total == 0:
-            return 0.0
+    def calculate_explained_fraction(self, n_explained: int, n_total: int) -> float:
+        """Share of decisions that came with an explanation, n_explained / n_total."""
+        if n_total <= 0:
+            raise ValueError("n_total must be positive.")
+        if not 0 <= n_explained <= n_total:
+            raise ValueError("n_explained must lie between 0 and n_total.")
         return float(n_explained / n_total)
+
+    def calculate_stability_pass_rate(
+        self,
+        stability_scores: List[float],
+        threshold: float = 0.8,
+        target: float = 0.95,
+    ) -> Dict[str, Any]:
+        """Share of stability scores at or above ``threshold``.
+
+        Returns the pass rate and whether it reaches ``target``. This describes
+        the scores given; it is not a robustness certification.
+        """
+        x = np.asarray(stability_scores, dtype=float)
+        if x.size == 0:
+            raise ValueError(
+                "stability_scores is empty, so the pass rate is undefined."
+            )
+        if not np.all(np.isfinite(x)):
+            raise ValueError("stability_scores must be finite.")
+        rate = float(np.mean(x >= threshold))
+        return {
+            "pass_rate": rate,
+            "threshold": threshold,
+            "target": target,
+            "meets_target": bool(rate >= target),
+        }
+
+    def calculate_transparency_score(self, n_explained: int, n_total: int) -> float:
+        """Deprecated: use :meth:`calculate_explained_fraction` (same value)."""
+        warnings.warn(
+            "AdvancedNetworkMetrics.calculate_transparency_score is deprecated (it is "
+            "not TransparencyScore); use calculate_explained_fraction.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.calculate_explained_fraction(n_explained, n_total)
 
     def calculate_rcs(
         self, stability_scores: List[float], threshold: float = 0.8
     ) -> Dict[str, Any]:
-        """
-        Calculate Robustness Certification Score based on stability under variations.
-        """
-        if not stability_scores:
-            return {}
+        """Deprecated: use :meth:`calculate_stability_pass_rate`.
 
-        pass_rate = sum(1 for s in stability_scores if s >= threshold) / len(
-            stability_scores
+        Returns the old keys; ``certified`` only means pass rate >= 0.95.
+        """
+        warnings.warn(
+            "AdvancedNetworkMetrics.calculate_rcs is deprecated (it is not the RCS "
+            "of ObservedPerturbationAgreement, and 'certified' certifies nothing); "
+            "use calculate_stability_pass_rate.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-
+        r = self.calculate_stability_pass_rate(stability_scores, threshold)
         return {
-            "rcs_score": float(pass_rate),
-            "certified": bool(pass_rate >= 0.95),
+            "rcs_score": r["pass_rate"],
+            "certified": r["meets_target"],
             "threshold": threshold,
         }

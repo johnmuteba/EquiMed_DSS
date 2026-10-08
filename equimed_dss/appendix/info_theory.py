@@ -1,7 +1,5 @@
 from typing import Any, Dict, List
 
-import numpy as np
-from scipy.spatial.distance import jensenshannon
 from scipy.stats import entropy, wasserstein_distance
 
 
@@ -34,13 +32,10 @@ class AdvancedInfoTheoryMetrics:
         ``advanced_metrics.JensenShannonDivergence`` (both return the divergence,
         not the distance).
         """
-        # Normalize if needed
-        p = np.array(p) / np.sum(p)
-        q = np.array(q) / np.sum(q)
+        from equimed_dss.appendix.advanced_metrics import JensenShannonDivergence
 
-        # jensenshannon returns the distance (sqrt of divergence) in the given
-        # base; square it for the divergence, base 2 so the range is [0, 1].
-        return float(jensenshannon(p, q, base=2) ** 2)
+        # Same validation and value as the canonical implementation.
+        return float(JensenShannonDivergence().calculate_jsd(p, q)["jsd"])
 
     def calculate_wasserstein(
         self, u_values: List[float], v_values: List[float]
