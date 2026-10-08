@@ -4,6 +4,7 @@ include CHANGELOG.md
 include LICENSE
 
 prune EquiMed_DSS.egg-info
+prune docs/superpowers
 prune build
 prune dist
 

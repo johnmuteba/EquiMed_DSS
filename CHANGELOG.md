@@ -140,7 +140,8 @@ the reasons are given so that earlier analyses can be checked.
 ### Maintenance
 - Code formatted with black and isort (the project's CI checks), in a separate
   commit with no functional change.
-- `.claude/` (local editor settings) is no longer tracked.
+- `.claude/` (local editor settings) is no longer tracked, and internal planning
+  notes (`docs/superpowers/`) are no longer shipped in the source distribution.
 
 ## [1.9.5] - 2026-06-19
 
