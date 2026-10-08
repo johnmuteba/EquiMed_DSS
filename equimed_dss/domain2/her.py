@@ -104,8 +104,7 @@ class HierarchicalEquityRatio:
                     return her_gap
                 rs = float(np.mean(means[reference_group]))
                 rr = [
-                    (0.0 if rs == 0 else float(np.mean(v)) / rs)
-                    for v in means.values()
+                    (0.0 if rs == 0 else float(np.mean(v)) / rs) for v in means.values()
                 ]
                 return max(rr) - min(rr)
 

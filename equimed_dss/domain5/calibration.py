@@ -18,6 +18,7 @@ alone separates the mean prediction and the event rate within a bin, so a small
 group can show a larger ECE than a large group with the same calibration;
 interpret dICE alongside the group sizes (``n_by_group``).
 """
+
 from typing import Any, Dict, Sequence
 
 import numpy as np
@@ -75,7 +76,9 @@ class IntersectionalCalibrationError:
                     inbin = (c > lo) & (c <= hi) if b > 0 else (c >= lo) & (c <= hi)
                     if inbin.sum() == 0:
                         continue
-                    ece += (inbin.sum() / n) * abs(float(y[inbin].mean()) - float(c[inbin].mean()))
+                    ece += (inbin.sum() / n) * abs(
+                        float(y[inbin].mean()) - float(c[inbin].mean())
+                    )
                 ebg[str(grp)] = float(ece)
             tot = sum(szs.values())
             return float(sum(szs[k] / tot * ebg[k] for k in ebg)), ebg
@@ -115,7 +118,8 @@ class IntersectionalCalibrationError:
             ci = bootstrap_ci(
                 idx,
                 lambda s: _ice_from(g[list(s)], conf[list(s)], corr[list(s)])[0],
-                n_boot=1000, random_state=0,
+                n_boot=1000,
+                random_state=0,
             )
             out["ci_lower"] = ci.ci_lower
             out["ci_upper"] = ci.ci_upper

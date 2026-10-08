@@ -8,6 +8,7 @@ biased query qb on the same cases:
 For a numeric decision Y, a directional effect is also reported:
     IVI_effect = E[Y | qb] - E[Y | q0]
 """
+
 from typing import Any, Dict, Sequence
 
 import numpy as np
@@ -69,30 +70,35 @@ class InstructionalVulnerabilityIndex:
         # and a one-sided test that it exceeds an acceptable tolerance.
         from equimed_dss.inference import MetricResult, proportion_ci
 
-        inf = proportion_ci(int(sum(flips)), len(a),
-                            null_value=threshold, alternative="greater")
+        inf = proportion_ci(
+            int(sum(flips)), len(a), null_value=threshold, alternative="greater"
+        )
         p_txt = "<0.001" if inf.p_value < 0.001 else f"{inf.p_value:.3g}"
 
-        return MetricResult({
-            "ivi_flip_rate": ivi_flip_rate,
-            "ivi_effect": ivi_effect,
-            "n_pairs": len(a),
-            "n_flipped": int(sum(flips)),
-            "ci_lower": inf.ci_lower,
-            "ci_upper": inf.ci_upper,
-            "ci_method": inf.method,
-            "threshold": float(threshold),
-            "p_value_above_threshold": inf.p_value,
-            "interpretation": (
-                f"IVI = {ivi_flip_rate:.3f} (95% CI {inf.ci_lower:.3f} to "
-                f"{inf.ci_upper:.3f}) of decisions flipped under a biased "
-                f"instruction ({int(sum(flips))} of {len(a)})"
-                + (
-                    f"; directional effect {ivi_effect:+.4f}"
-                    if ivi_effect is not None
-                    else ""
-                )
-                + f". One-sided p={p_txt} that the true rate exceeds "
-                f"{threshold:.0%}. Higher means more susceptible to bias-priming."
-            ),
-        }, name="IVI", value_key="ivi_flip_rate")
+        return MetricResult(
+            {
+                "ivi_flip_rate": ivi_flip_rate,
+                "ivi_effect": ivi_effect,
+                "n_pairs": len(a),
+                "n_flipped": int(sum(flips)),
+                "ci_lower": inf.ci_lower,
+                "ci_upper": inf.ci_upper,
+                "ci_method": inf.method,
+                "threshold": float(threshold),
+                "p_value_above_threshold": inf.p_value,
+                "interpretation": (
+                    f"IVI = {ivi_flip_rate:.3f} (95% CI {inf.ci_lower:.3f} to "
+                    f"{inf.ci_upper:.3f}) of decisions flipped under a biased "
+                    f"instruction ({int(sum(flips))} of {len(a)})"
+                    + (
+                        f"; directional effect {ivi_effect:+.4f}"
+                        if ivi_effect is not None
+                        else ""
+                    )
+                    + f". One-sided p={p_txt} that the true rate exceeds "
+                    f"{threshold:.0%}. Higher means more susceptible to bias-priming."
+                ),
+            },
+            name="IVI",
+            value_key="ivi_flip_rate",
+        )

@@ -23,7 +23,11 @@ def _icc_2_1_score(judge_matrix: np.ndarray) -> float:
     ms_items = ss_items / (n_items - 1)
     ms_judges = ss_judges / (n_judges - 1)
     ms_error = ss_error / ((n_items - 1) * (n_judges - 1))
-    denom = ms_items + (n_judges - 1) * ms_error + n_judges * (ms_judges - ms_error) / n_items
+    denom = (
+        ms_items
+        + (n_judges - 1) * ms_error
+        + n_judges * (ms_judges - ms_error) / n_items
+    )
     if not np.isfinite(denom) or denom == 0:
         return 0.0
     val = (ms_items - ms_error) / denom
@@ -97,21 +101,29 @@ class InterRaterReliability:
         # wide, honestly unstable interval.
         from equimed_dss.inference import MetricResult, bootstrap_ci
 
-        ci = bootstrap_ci(list(judge_matrix), lambda rows: _icc_2_1_score(np.asarray(rows)),
-                          n_boot=1000, random_state=0)
-        return MetricResult({
-            "score": float(icc_2_1),
-            "ci_lower": ci.ci_lower,
-            "ci_upper": ci.ci_upper,
-            "ci_method": "bootstrap (over items)",
-            "interpretation": {
-                "range": "at most 1; negative values mean less agreement than chance",
-                "ideal": "Higher is better (close to 1)",
-                "verdict": verdict,
-                "thresholds": ">=0.75 Excellent, >=0.60 Good, >=0.40 Fair "
-                "(Cicchetti 1994)",
+        ci = bootstrap_ci(
+            list(judge_matrix),
+            lambda rows: _icc_2_1_score(np.asarray(rows)),
+            n_boot=1000,
+            random_state=0,
+        )
+        return MetricResult(
+            {
+                "score": float(icc_2_1),
+                "ci_lower": ci.ci_lower,
+                "ci_upper": ci.ci_upper,
+                "ci_method": "bootstrap (over items)",
+                "interpretation": {
+                    "range": "at most 1; negative values mean less agreement than chance",
+                    "ideal": "Higher is better (close to 1)",
+                    "verdict": verdict,
+                    "thresholds": ">=0.75 Excellent, >=0.60 Good, >=0.40 Fair "
+                    "(Cicchetti 1994)",
+                },
             },
-        }, name="ICC(2,1)", value_key="score")
+            name="ICC(2,1)",
+            value_key="score",
+        )
 
     def bland_altman_analysis(
         self, judge_matrix: np.ndarray

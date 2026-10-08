@@ -18,6 +18,7 @@ bootstrap interval never contains 0 and cannot show "no gap". The permutation
 p-value tests the null that the group labels are exchangeable: it compares the
 observed distance with the distances obtained after shuffling the labels.
 """
+
 from typing import Any, Dict
 
 import numpy as np
@@ -92,7 +93,9 @@ class SemanticParityGap:
             for _ in range(n_boot):
                 ip = rng.integers(0, np_, size=np_)
                 im = rng.integers(0, nm_, size=nm_)
-                boots.append(float(np.linalg.norm(p[ip].mean(axis=0) - m[im].mean(axis=0))))
+                boots.append(
+                    float(np.linalg.norm(p[ip].mean(axis=0) - m[im].mean(axis=0)))
+                )
             lo, hi = np.percentile(boots, [2.5, 97.5])
             out["ci_lower"] = float(lo)
             out["ci_upper"] = float(hi)
@@ -111,8 +114,8 @@ class SemanticParityGap:
             p_perm = (exceed + 1) / (n_perm + 1)
             out["p_value_permutation"] = float(p_perm)
             out["n_permutations"] = n_perm
-            out["interpretation"] += (
-                f" Permutation p = {p_perm:.3g} against exchangeable group labels."
-            )
+            out[
+                "interpretation"
+            ] += f" Permutation p = {p_perm:.3g} against exchangeable group labels."
 
         return MetricResult(out, name="SPG", value_key="spg_euclidean")

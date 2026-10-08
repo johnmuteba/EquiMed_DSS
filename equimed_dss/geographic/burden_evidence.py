@@ -9,6 +9,7 @@ distribution and a disease-*burden* distribution over the same regions:
 completely disjoint. It equals the fraction of evidence that would need
 geographic reallocation to match burden. Bounds proven and verified.
 """
+
 from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
@@ -132,6 +133,7 @@ class BurdenEvidenceMismatch:
                 recs, regions, dict(zip(regions, a.tolist())), "evidence_records"
             )
             if len(recs) >= 2:
+
                 def _bemi(sample):
                     counts: Dict[str, float] = {}
                     for r in sample:

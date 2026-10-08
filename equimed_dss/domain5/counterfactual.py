@@ -4,6 +4,7 @@ These take precomputed response-similarity scores (for example cosine similarity
 of response embeddings or BERTScore); generating the responses is the caller's
 responsibility.
 """
+
 from typing import Any, Dict, Sequence, Union
 
 import numpy as np
@@ -77,8 +78,9 @@ class CounterfactualParityScore:
         from equimed_dss.inference import MetricResult, bootstrap_ci
 
         if len(allsim) >= 2:
-            ci = bootstrap_ci(list(allsim), lambda x: float(np.mean(x)),
-                              n_boot=1000, random_state=0)
+            ci = bootstrap_ci(
+                list(allsim), lambda x: float(np.mean(x)), n_boot=1000, random_state=0
+            )
             out["ci_lower"] = ci.ci_lower
             out["ci_upper"] = ci.ci_upper
             out["ci_method"] = ci.method
@@ -98,7 +100,9 @@ class SemanticRobustnessParityIndex:
     def __init__(self):
         pass
 
-    def calculate_srpi(self, robustness_by_group: Dict[str, Sequence[float]]) -> Dict[str, Any]:
+    def calculate_srpi(
+        self, robustness_by_group: Dict[str, Sequence[float]]
+    ) -> Dict[str, Any]:
         """Compute SRPI from per-query robustness scores grouped by demographic.
 
         Args:

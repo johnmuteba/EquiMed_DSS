@@ -562,8 +562,12 @@ def generate_figure_data(random_state: int = 42) -> Dict[str, Dict]:
         },
         "fig3": {
             "bias_gini": {
-                "Peer-Reviewed": 0.12, "Community": 0.21, "MIMIC-IV": 0.18,
-                "peer_reviewed": 0.12, "community": 0.21, "mimic_iv": 0.18,
+                "Peer-Reviewed": 0.12,
+                "Community": 0.21,
+                "MIMIC-IV": 0.18,
+                "peer_reviewed": 0.12,
+                "community": 0.21,
+                "mimic_iv": 0.18,
             },
             "temporal_drift": {
                 "timepoints": [1, 2, 3, 4],
@@ -585,10 +589,14 @@ def generate_figure_data(random_state: int = 42) -> Dict[str, Dict]:
         },
         "fig4": {
             "mediation": {
-                "indirect_effect": 0.14, "direct_effect": 0.36,
-                "indirect_ci_lower": 0.05, "indirect_ci_upper": 0.23,
-                "direct_ci_lower": 0.25, "direct_ci_upper": 0.47,
-                "total_ci_lower": 0.30, "total_ci_upper": 0.70,
+                "indirect_effect": 0.14,
+                "direct_effect": 0.36,
+                "indirect_ci_lower": 0.05,
+                "indirect_ci_upper": 0.23,
+                "direct_ci_lower": 0.25,
+                "direct_ci_upper": 0.47,
+                "total_ci_lower": 0.30,
+                "total_ci_upper": 0.70,
             },
             "regression": {
                 "predictors": ["race", "age", "ses"],
@@ -607,7 +615,12 @@ def generate_figure_data(random_state: int = 42) -> Dict[str, Dict]:
                 "eri_scores": [0.10, 0.12, 0.09, 0.14, 0.11],
                 "violations": [0, 1, 0, 2, 1],
             },
-            "rams": {"risk": 0.80, "accountability": 0.75, "monitoring": 0.70, "safety": 0.85},
+            "rams": {
+                "risk": 0.80,
+                "accountability": 0.75,
+                "monitoring": 0.70,
+                "safety": 0.85,
+            },
             "fairness_ecosystem": {
                 "components": ["Reliability", "Equity", "Governance", "Transparency"],
                 "connections": _sym(4),

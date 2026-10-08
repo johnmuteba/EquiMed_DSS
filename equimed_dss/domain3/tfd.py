@@ -84,8 +84,12 @@ class TemporalFairnessDrift:
         # Percentile bootstrap CI for the process mean (mean PDI) over the
         # observed time series of fairness-metric values.
         if len(metrics) >= 2:
-            ci = bootstrap_ci(metrics.tolist(), lambda s: float(np.mean(s)),
-                              n_boot=1000, random_state=0)
+            ci = bootstrap_ci(
+                metrics.tolist(),
+                lambda s: float(np.mean(s)),
+                n_boot=1000,
+                random_state=0,
+            )
             out["ci_lower"] = ci.ci_lower
             out["ci_upper"] = ci.ci_upper
             out["ci_method"] = ci.method

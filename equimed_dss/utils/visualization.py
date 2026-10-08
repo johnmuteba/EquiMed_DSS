@@ -1077,12 +1077,27 @@ def plot_equity_radar(
     ax.plot(angs, vals, color=color, lw=2, zorder=3)
     ax.fill(angs, vals, color=color, alpha=0.25, zorder=2)
     for ang, val in zip(angles, values):
-        ax.text(ang, min(val + 0.07, 1.02), f"{val:.2f}", ha="center",
-                va="center", fontsize=8.5, color=color, fontweight="bold")
+        ax.text(
+            ang,
+            min(val + 0.07, 1.02),
+            f"{val:.2f}",
+            ha="center",
+            va="center",
+            fontsize=8.5,
+            color=color,
+            fontweight="bold",
+        )
     if reference is not None:
         ref = [reference] * n + [reference]
-        ax.plot(angs, ref, color="#C0392B", lw=1.3, ls="--",
-                label=f"target {reference:g}", zorder=1)
+        ax.plot(
+            angs,
+            ref,
+            color="#C0392B",
+            lw=1.3,
+            ls="--",
+            label=f"target {reference:g}",
+            zorder=1,
+        )
         ax.legend(loc="upper right", bbox_to_anchor=(1.18, 1.10), fontsize=9)
     ax.set_xticks(angles)
     ax.set_xticklabels(labels, fontsize=9.5)
@@ -1133,7 +1148,9 @@ def plot_geographic_dumbbell(
 
     b = _norm(burden_shares)
     e = _norm(evidence_shares)
-    regions = sorted(set(b) | set(e), key=lambda r: b.get(r, 0.0))  # ascending -> burden grows upward
+    regions = sorted(
+        set(b) | set(e), key=lambda r: b.get(r, 0.0)
+    )  # ascending -> burden grows upward
     bv = [b.get(r, 0.0) * 100 for r in regions]
     ev = [e.get(r, 0.0) * 100 for r in regions]
     y = np.arange(len(regions))
@@ -1141,15 +1158,39 @@ def plot_geographic_dumbbell(
     fig, ax = plt.subplots(figsize=(9, 0.55 * len(regions) + 1.8))
     for i in range(len(regions)):
         over = ev[i] >= bv[i]
-        ax.plot([bv[i], ev[i]], [y[i], y[i]],
-                color=("#C0392B" if not over else "#2E7D32"), lw=2.2, alpha=0.6, zorder=1)
-    ax.scatter(bv, y, color="#C0392B", s=90, label=burden_label, zorder=3, edgecolor="white")
-    ax.scatter(ev, y, color="#2C6FB0", s=90, label=evidence_label, zorder=3, edgecolor="white")
+        ax.plot(
+            [bv[i], ev[i]],
+            [y[i], y[i]],
+            color=("#C0392B" if not over else "#2E7D32"),
+            lw=2.2,
+            alpha=0.6,
+            zorder=1,
+        )
+    ax.scatter(
+        bv, y, color="#C0392B", s=90, label=burden_label, zorder=3, edgecolor="white"
+    )
+    ax.scatter(
+        ev, y, color="#2C6FB0", s=90, label=evidence_label, zorder=3, edgecolor="white"
+    )
     for i in range(len(regions)):
-        ax.text(bv[i], y[i] + 0.18, f"{bv[i]:.0f}", ha="center", va="bottom",
-                fontsize=8, color="#C0392B")
-        ax.text(ev[i], y[i] - 0.18, f"{ev[i]:.0f}", ha="center", va="top",
-                fontsize=8, color="#2C6FB0")
+        ax.text(
+            bv[i],
+            y[i] + 0.18,
+            f"{bv[i]:.0f}",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color="#C0392B",
+        )
+        ax.text(
+            ev[i],
+            y[i] - 0.18,
+            f"{ev[i]:.0f}",
+            ha="center",
+            va="top",
+            fontsize=8,
+            color="#2C6FB0",
+        )
     ax.set_yticks(y)
     ax.set_yticklabels(regions, fontsize=10)
     ax.set_xlabel("Share (%)", fontsize=11)

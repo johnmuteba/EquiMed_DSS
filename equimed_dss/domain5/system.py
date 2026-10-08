@@ -10,6 +10,7 @@ the between-system gap.
     Delta_within   = sum_s P(s) * max_{g,g'} Delta_s(g, g')   (= HSSF)
     Delta_between  = Var_s( E[Y | S=s] )
 """
+
 from typing import Any, Dict, Sequence
 
 import numpy as np
@@ -57,7 +58,9 @@ class HealthcareSystemStratifiedFairness:
                 p_s = mask.sum() / nn
                 ys = yv[mask]
                 gs = gv[mask]
-                gm = [ys[gs == grp].mean() for grp in np.unique(gs) if (gs == grp).any()]
+                gm = [
+                    ys[gs == grp].mean() for grp in np.unique(gs) if (gs == grp).any()
+                ]
                 total += p_s * (float(max(gm) - min(gm)) if len(gm) > 1 else 0.0)
             return float(total)
 
@@ -70,8 +73,12 @@ class HealthcareSystemStratifiedFairness:
             p_s = mask.sum() / n
             ys = y[mask]
             gs = g[mask]
-            grp_means = [ys[gs == grp].mean() for grp in np.unique(gs) if (gs == grp).any()]
-            max_gap = float(max(grp_means) - min(grp_means)) if len(grp_means) > 1 else 0.0
+            grp_means = [
+                ys[gs == grp].mean() for grp in np.unique(gs) if (gs == grp).any()
+            ]
+            max_gap = (
+                float(max(grp_means) - min(grp_means)) if len(grp_means) > 1 else 0.0
+            )
             disparity_by_system[str(sys)] = max_gap
             hssf += p_s * max_gap
             system_means.append(float(ys.mean()))
@@ -106,7 +113,8 @@ class HealthcareSystemStratifiedFairness:
             ci = bootstrap_ci(
                 idx,
                 lambda i: _hssf(s[list(i)], g[list(i)], y[list(i)]),
-                n_boot=1000, random_state=0,
+                n_boot=1000,
+                random_state=0,
             )
             out["ci_lower"] = ci.ci_lower
             out["ci_upper"] = ci.ci_upper

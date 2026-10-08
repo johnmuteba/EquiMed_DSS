@@ -10,6 +10,7 @@ A simplified high-income-country overrepresentation ratio:
 GRBI (a directed KL divergence) complements the geographic Burden-Evidence
 Mismatch (BEMI, a symmetric total-variation distance).
 """
+
 from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
@@ -113,6 +114,7 @@ class GeographicRepresentationBiasIndex:
                 recs, regions, dict(zip(regions, pc.tolist())), "corpus_records"
             )
             if len(recs) >= 2:
+
                 def _grbi(sample):
                     counts: Dict[str, float] = {}
                     for r in sample:

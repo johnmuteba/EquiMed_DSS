@@ -21,6 +21,7 @@ attribute with more categories tends to receive a larger share. Set ``min_cell``
 to exclude small cells (for example 30) and compare the attribution with a
 permutation of the outcomes before interpreting it.
 """
+
 from itertools import combinations
 from math import factorial
 from typing import Any, Dict, Sequence
@@ -35,15 +36,18 @@ class IntersectionalShapleyFairnessValue:
         # minimum samples per conditioning cell to count toward a disparity
         self.min_cell = min_cell
 
-    def _v(self, attr_values: Dict[str, np.ndarray], outcomes: np.ndarray,
-           subset: tuple) -> float:
+    def _v(
+        self, attr_values: Dict[str, np.ndarray], outcomes: np.ndarray, subset: tuple
+    ) -> float:
         if not subset:
             return 0.0
         keys = list(zip(*[attr_values[a] for a in subset]))
         means = {}
         for k, y in zip(keys, outcomes):
             means.setdefault(k, []).append(y)
-        cell_means = [float(np.mean(v)) for k, v in means.items() if len(v) >= self.min_cell]
+        cell_means = [
+            float(np.mean(v)) for k, v in means.items() if len(v) >= self.min_cell
+        ]
         if len(cell_means) < 2:
             return 0.0
         return float(max(cell_means) - min(cell_means))
@@ -81,16 +85,16 @@ class IntersectionalShapleyFairnessValue:
             for r in range(len(others) + 1):
                 for S in combinations(others, r):
                     w = factorial(len(S)) * factorial(m - len(S) - 1) / factorial(m)
-                    phi += w * (self._v(av, y, tuple(S) + (a,)) - self._v(av, y, tuple(S)))
+                    phi += w * (
+                        self._v(av, y, tuple(S) + (a,)) - self._v(av, y, tuple(S))
+                    )
             shapley[a] = float(phi)
 
         total = self._v(av, y, tuple(names))  # v(A) - v(empty), with v(empty)=0
         interactions = {}
         for ai, aj in combinations(names, 2):
             inter = (
-                self._v(av, y, (ai, aj))
-                - self._v(av, y, (ai,))
-                - self._v(av, y, (aj,))
+                self._v(av, y, (ai, aj)) - self._v(av, y, (ai,)) - self._v(av, y, (aj,))
             )
             interactions[f"{ai} x {aj}"] = float(inter)
 

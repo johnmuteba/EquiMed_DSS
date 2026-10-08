@@ -37,6 +37,26 @@ from .__version__ import (
     __version__,
     __version_info__,
 )
+from .domain4 import (
+    ClinicalHallucinationRate,
+    GeographicRepresentationIndex,
+    InstructionalVulnerabilityIndex,
+    SemanticParityGap,
+)
+from .domain5 import (
+    ClinicalInformationDensityRatio,
+    CounterfactualParityScore,
+    DiagnosticCompletenessIndex,
+    GeographicRepresentationBiasIndex,
+    HealthcareSystemStratifiedFairness,
+    IntersectionalCalibrationError,
+    IntersectionalShapleyFairnessValue,
+    LexicalDiversityDisparityIndex,
+    RecommendationEntropyGap,
+    SemanticRobustnessParityIndex,
+    UncertaintyQuantificationGap,
+    WeightedClinicalHarmAdjustedFairnessGap,
+)
 from .geographic import (
     WHO_REGION_CODES,
     WHO_REGION_IHD_BURDEN,
@@ -44,41 +64,21 @@ from .geographic import (
     BurdenEvidenceMismatch,
     GeographicConcentration,
 )
+from .inference import (
+    InferenceResult,
+    MetricResult,
+    bootstrap_ci,
+    bootstrap_metric,
+    permutation_test,
+    proportion_ci,
+    wilson_ci,
+)
 from .reporting import (
     export_table,
     geographic_table,
     hierarchical_coefficients_table,
     mediation_effects_table,
     network_centrality_table,
-)
-from .domain4 import (
-    SemanticParityGap,
-    ClinicalHallucinationRate,
-    InstructionalVulnerabilityIndex,
-    GeographicRepresentationIndex,
-)
-from .domain5 import (
-    IntersectionalCalibrationError,
-    WeightedClinicalHarmAdjustedFairnessGap,
-    LexicalDiversityDisparityIndex,
-    RecommendationEntropyGap,
-    CounterfactualParityScore,
-    ClinicalInformationDensityRatio,
-    DiagnosticCompletenessIndex,
-    UncertaintyQuantificationGap,
-    GeographicRepresentationBiasIndex,
-    HealthcareSystemStratifiedFairness,
-    IntersectionalShapleyFairnessValue,
-    SemanticRobustnessParityIndex,
-)
-from .inference import (
-    InferenceResult,
-    MetricResult,
-    wilson_ci,
-    proportion_ci,
-    bootstrap_ci,
-    bootstrap_metric,
-    permutation_test,
 )
 
 __all__ = [

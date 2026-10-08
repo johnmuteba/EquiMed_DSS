@@ -16,19 +16,20 @@ weighting, geographic bias, healthcare-system stratification, and robustness:
     - IntersectionalShapleyFairnessValue (ISFV)
     - SemanticRobustnessParityIndex (SRPI)
 """
+
 from .calibration import IntersectionalCalibrationError
-from .harm import WeightedClinicalHarmAdjustedFairnessGap
-from .text import (
-    LexicalDiversityDisparityIndex,
-    RecommendationEntropyGap,
-    ClinicalInformationDensityRatio,
-    DiagnosticCompletenessIndex,
-    UncertaintyQuantificationGap,
-)
 from .counterfactual import CounterfactualParityScore, SemanticRobustnessParityIndex
 from .geographic_bias import GeographicRepresentationBiasIndex
-from .system import HealthcareSystemStratifiedFairness
+from .harm import WeightedClinicalHarmAdjustedFairnessGap
 from .shapley import IntersectionalShapleyFairnessValue
+from .system import HealthcareSystemStratifiedFairness
+from .text import (
+    ClinicalInformationDensityRatio,
+    DiagnosticCompletenessIndex,
+    LexicalDiversityDisparityIndex,
+    RecommendationEntropyGap,
+    UncertaintyQuantificationGap,
+)
 
 __all__ = [
     "IntersectionalCalibrationError",

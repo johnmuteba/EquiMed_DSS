@@ -22,6 +22,7 @@ Examples
 >>> round(r.estimate, 3), round(r.ci_lower, 3), round(r.ci_upper, 3)
 (0.135, 0.111, 0.164)
 """
+
 from __future__ import annotations
 
 import math
@@ -69,8 +70,9 @@ class MetricResult(dict):
         ``point`` when the CI is not stored as ``ci_lower`` / ``ci_upper`` keys.
     """
 
-    def __init__(self, data=None, *, name="metric", value_key=None,
-                 point=None, ci=None):
+    def __init__(
+        self, data=None, *, name="metric", value_key=None, point=None, ci=None
+    ):
         super().__init__(data or {})
         self._name = name
         self._value_key = value_key
@@ -93,11 +95,15 @@ class MetricResult(dict):
 
     def __str__(self):
         v = self._point()
-        head = f"{self._name} = {v:.3f}" if isinstance(v, (int, float)) else f"{self._name} = {v}"
+        head = (
+            f"{self._name} = {v:.3f}"
+            if isinstance(v, (int, float))
+            else f"{self._name} = {v}"
+        )
         ci = self._ci()
         if ci is not None:
             lo, hi, method = ci
-            lo, hi = sorted((float(lo), float(hi)))   # guarantee lower <= upper
+            lo, hi = sorted((float(lo), float(hi)))  # guarantee lower <= upper
             tail = f"95% CI [{lo:.3f}; {hi:.3f}]"
             if method:
                 tail += f" ({method})"
@@ -122,7 +128,7 @@ class MetricResult(dict):
     def __format__(self, spec):
         v = self._point()
         if spec and isinstance(v, (int, float)):
-            return format(v, spec)            # e.g. f"{gini:.4f}" -> "0.0247"
+            return format(v, spec)  # e.g. f"{gini:.4f}" -> "0.0247"
         if spec:
             return format(str(self), spec)
         return str(self)
@@ -340,14 +346,21 @@ def bootstrap_metric(
     >>> r = bootstrap_metric(chr_fn, support_scores, value_key="chr",
     ...                      random_state=0)
     """
+
     def stat(subset):
         out = metric_fn(subset)
         if value_key is not None:
             out = out[value_key]
         return float(out)
 
-    return bootstrap_ci(data, stat, conf=conf, n_boot=n_boot,
-                        clusters=clusters, random_state=random_state)
+    return bootstrap_ci(
+        data,
+        stat,
+        conf=conf,
+        n_boot=n_boot,
+        clusters=clusters,
+        random_state=random_state,
+    )
 
 
 def permutation_test(

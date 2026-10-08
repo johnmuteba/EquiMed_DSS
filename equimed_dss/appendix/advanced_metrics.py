@@ -84,29 +84,33 @@ class BootstrapConfidenceIntervals:
 
         from equimed_dss.inference import MetricResult
 
-        return MetricResult({
-            "ci_lower": float(ci_lower),
-            "ci_upper": float(ci_upper),
-            "ci_width": float(ci_width),
-            "ci_method": "bootstrap",
-            "observed_statistic": float(observed_statistic),
-            "bootstrap_mean": float(np.mean(bootstrap_estimates)),
-            "bootstrap_std": float(np.std(bootstrap_estimates)),
-            "n_bootstrap": self.n_bootstrap,
-            "interpretation": {
-                "range": f"[{ci_lower:.4f}, {ci_upper:.4f}]",
-                "stability": "Stable" if ci_width < 0.05 else "Unstable",
-                "verdict": (
-                    "Excellent reliability (CI width < 0.05)"
-                    if ci_width < 0.05
-                    else (
-                        "Acceptable reliability"
-                        if ci_width < 0.1
-                        else "Poor reliability (wide CI)"
-                    )
-                ),
+        return MetricResult(
+            {
+                "ci_lower": float(ci_lower),
+                "ci_upper": float(ci_upper),
+                "ci_width": float(ci_width),
+                "ci_method": "bootstrap",
+                "observed_statistic": float(observed_statistic),
+                "bootstrap_mean": float(np.mean(bootstrap_estimates)),
+                "bootstrap_std": float(np.std(bootstrap_estimates)),
+                "n_bootstrap": self.n_bootstrap,
+                "interpretation": {
+                    "range": f"[{ci_lower:.4f}, {ci_upper:.4f}]",
+                    "stability": "Stable" if ci_width < 0.05 else "Unstable",
+                    "verdict": (
+                        "Excellent reliability (CI width < 0.05)"
+                        if ci_width < 0.05
+                        else (
+                            "Acceptable reliability"
+                            if ci_width < 0.1
+                            else "Poor reliability (wide CI)"
+                        )
+                    ),
+                },
             },
-        }, name="BCI", value_key="observed_statistic")
+            name="BCI",
+            value_key="observed_statistic",
+        )
 
 
 class StatisticalPowerAnalysis:
@@ -156,22 +160,26 @@ class StatisticalPowerAnalysis:
 
             # Required sample size is an analytic design quantity, not an estimate
             # from sampled data, so it carries no sampling CI (prints "unavailable").
-            return MetricResult({
-                "n_per_group": int(np.ceil(n_per_group)),
-                "total_n": int(np.ceil(n_per_group * 2)),
-                "effect_size": float(effect_size),
-                "alpha": alpha,
-                "power": power,
-                "interpretation": {
-                    "range": "[0, 1]",
-                    "achieved_power": power,
-                    "verdict": (
-                        "Adequate power (>= 0.8)"
-                        if power >= 0.8
-                        else "Insufficient power (< 0.8)"
-                    ),
+            return MetricResult(
+                {
+                    "n_per_group": int(np.ceil(n_per_group)),
+                    "total_n": int(np.ceil(n_per_group * 2)),
+                    "effect_size": float(effect_size),
+                    "alpha": alpha,
+                    "power": power,
+                    "interpretation": {
+                        "range": "[0, 1]",
+                        "achieved_power": power,
+                        "verdict": (
+                            "Adequate power (>= 0.8)"
+                            if power >= 0.8
+                            else "Insufficient power (< 0.8)"
+                        ),
+                    },
                 },
-            }, name="SampleSize", value_key="n_per_group")
+                name="SampleSize",
+                value_key="n_per_group",
+            )
         except Exception as e:
             return {
                 "error": str(e),
@@ -203,14 +211,20 @@ class StatisticalPowerAnalysis:
 
         # Achieved power is an analytic function of (n, effect size, alpha); it is
         # not estimated from sampled data, so it carries no sampling CI.
-        return MetricResult({
-            "power": float(power),
-            "n_per_group": n,
-            "effect_size": effect_size,
-            "interpretation": {
-                "verdict": ("Adequate power" if power >= 0.8 else "Insufficient power")
+        return MetricResult(
+            {
+                "power": float(power),
+                "n_per_group": n,
+                "effect_size": effect_size,
+                "interpretation": {
+                    "verdict": (
+                        "Adequate power" if power >= 0.8 else "Insufficient power"
+                    )
+                },
             },
-        }, name="Power", value_key="power")
+            name="Power",
+            value_key="power",
+        )
 
 
 class BiasConcentrationIndex:
@@ -255,7 +269,8 @@ class BiasConcentrationIndex:
         if n == 0 or np.sum(p) == 0:
             return MetricResult(
                 {"bci": 0.0, "interpretation": {"verdict": "No bias detected"}},
-                name="BiasConcentration", value_key="bci",
+                name="BiasConcentration",
+                value_key="bci",
             )
 
         def _bci(vals):
@@ -379,8 +394,11 @@ class MutualInformationContent:
             idx = list(range(n_obs))
             ci = bootstrap_ci(
                 idx,
-                lambda i: float(mutual_info_score(demographics[list(i)], outcomes[list(i)])),
-                n_boot=1000, random_state=0,
+                lambda i: float(
+                    mutual_info_score(demographics[list(i)], outcomes[list(i)])
+                ),
+                n_boot=1000,
+                random_state=0,
             )
             out["ci_lower"] = ci.ci_lower
             out["ci_upper"] = ci.ci_upper
@@ -435,29 +453,35 @@ class JensenShannonDivergence:
         # JSD is computed between two already-aggregated probability distributions;
         # without the underlying per-observation samples there is no sampling
         # distribution to bootstrap, so it prints "CI unavailable".
-        return MetricResult({
-            "jsd": float(jsd),
-            "jsd_distance": jsd_distance,
-            "interpretation": {
-                "range": "[0, 1]",
-                "similarity": (
-                    "Highly similar"
-                    if jsd < 0.1
-                    else (
-                        "Moderately similar" if jsd < 0.2 else "Different distributions"
-                    )
-                ),
-                "verdict": (
-                    "Acceptable (JSD < 0.1)"
-                    if jsd < 0.1
-                    else (
-                        "Monitor (0.1 <= JSD < 0.2)"
-                        if jsd < 0.2
-                        else "Bias concern (JSD >= 0.2)"
-                    )
-                ),
+        return MetricResult(
+            {
+                "jsd": float(jsd),
+                "jsd_distance": jsd_distance,
+                "interpretation": {
+                    "range": "[0, 1]",
+                    "similarity": (
+                        "Highly similar"
+                        if jsd < 0.1
+                        else (
+                            "Moderately similar"
+                            if jsd < 0.2
+                            else "Different distributions"
+                        )
+                    ),
+                    "verdict": (
+                        "Acceptable (JSD < 0.1)"
+                        if jsd < 0.1
+                        else (
+                            "Monitor (0.1 <= JSD < 0.2)"
+                            if jsd < 0.2
+                            else "Bias concern (JSD >= 0.2)"
+                        )
+                    ),
+                },
             },
-        }, name="JSD", value_key="jsd")
+            name="JSD",
+            value_key="jsd",
+        )
 
 
 class WassersteinDistance:
@@ -661,11 +685,15 @@ class NetworkModularity:
                 UserWarning,
                 stacklevel=2,
             )
-            return MetricResult({
-                "modularity": float("nan"),
-                "error": str(e),
-                "interpretation": {"verdict": "Unable to compute modularity"},
-            }, name="NM", value_key="modularity")
+            return MetricResult(
+                {
+                    "modularity": float("nan"),
+                    "error": str(e),
+                    "interpretation": {"verdict": "Unable to compute modularity"},
+                },
+                name="NM",
+                value_key="modularity",
+            )
 
 
 class TransparencyScore:
@@ -699,10 +727,14 @@ class TransparencyScore:
         from equimed_dss.inference import MetricResult, bootstrap_ci
 
         if not explanations:
-            return MetricResult({
-                "ts": 0.0,
-                "interpretation": {"verdict": "No explanations provided"},
-            }, name="TS", value_key="ts")
+            return MetricResult(
+                {
+                    "ts": 0.0,
+                    "interpretation": {"verdict": "No explanations provided"},
+                },
+                name="TS",
+                value_key="ts",
+            )
 
         scores = []
         for exp in explanations:
@@ -746,8 +778,9 @@ class TransparencyScore:
         # TS is a mean of per-decision [0, 1] transparency scores; a percentile
         # bootstrap over decisions gives its 95% CI.
         if len(scores) >= 2:
-            ci = bootstrap_ci(list(scores), lambda s: float(np.mean(s)),
-                              n_boot=1000, random_state=0)
+            ci = bootstrap_ci(
+                list(scores), lambda s: float(np.mean(s)), n_boot=1000, random_state=0
+            )
             out["ci_lower"] = ci.ci_lower
             out["ci_upper"] = ci.ci_upper
             out["ci_method"] = ci.method
@@ -790,10 +823,14 @@ class RobustnessCertificationScore:
         from equimed_dss.inference import MetricResult, bootstrap_ci
 
         if not perturbed_predictions:
-            return MetricResult({
-                "rcs": 0.0,
-                "interpretation": {"verdict": "No perturbations provided"},
-            }, name="RCS", value_key="rcs")
+            return MetricResult(
+                {
+                    "rcs": 0.0,
+                    "interpretation": {"verdict": "No perturbations provided"},
+                },
+                name="RCS",
+                value_key="rcs",
+            )
 
         # Element-wise agreement. Inputs are converted to arrays: with plain
         # lists, == compared whole lists (one True/False), so up to 1.9.5 any
@@ -840,8 +877,12 @@ class RobustnessCertificationScore:
         # RCS is the mean per-perturbation agreement; a percentile bootstrap over
         # perturbations gives its 95% CI.
         if len(consistency_scores) >= 2:
-            ci = bootstrap_ci(list(consistency_scores), lambda s: float(np.mean(s)),
-                              n_boot=1000, random_state=0)
+            ci = bootstrap_ci(
+                list(consistency_scores),
+                lambda s: float(np.mean(s)),
+                n_boot=1000,
+                random_state=0,
+            )
             out["ci_lower"] = ci.ci_lower
             out["ci_upper"] = ci.ci_upper
             out["ci_method"] = ci.method

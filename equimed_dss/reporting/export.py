@@ -1,4 +1,5 @@
 """Render a DataFrame to markdown / LaTeX / HTML with consistent rounding."""
+
 import os
 from typing import Optional
 

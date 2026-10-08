@@ -3,6 +3,7 @@
 These operate on LLM response text (or precomputed derived quantities) grouped by
 demographic group. Formulas follow the technical supplement.
 """
+
 import re
 from typing import Any, Dict, Optional, Sequence
 
@@ -30,7 +31,9 @@ class LexicalDiversityDisparityIndex:
     def __init__(self):
         pass
 
-    def calculate_lddi(self, responses_by_group: Dict[str, Sequence[str]]) -> Dict[str, Any]:
+    def calculate_lddi(
+        self, responses_by_group: Dict[str, Sequence[str]]
+    ) -> Dict[str, Any]:
         """Compute LDDI from response texts grouped by demographic group.
 
         Args:
@@ -100,7 +103,9 @@ class RecommendationEntropyGap:
     def __init__(self):
         pass
 
-    def calculate_reg(self, recommendations_by_group: Dict[str, Sequence[Any]]) -> Dict[str, Any]:
+    def calculate_reg(
+        self, recommendations_by_group: Dict[str, Sequence[Any]]
+    ) -> Dict[str, Any]:
         """Compute REG from recommendation labels grouped by demographic group.
 
         Args:
@@ -120,7 +125,11 @@ class RecommendationEntropyGap:
 
         def dist(recs):
             n = len(recs)
-            return np.array([sum(1 for x in recs if x == t) / n for t in labels]) if n else None
+            return (
+                np.array([sum(1 for x in recs if x == t) / n for t in labels])
+                if n
+                else None
+            )
 
         entropy_by_group = {}
         dists = {}
@@ -140,7 +149,13 @@ class RecommendationEntropyGap:
         pt = dist(allrecs)
         reg_kl = 0.0
         for grp, p in dists.items():
-            kl = float(sum(pi * np.log2(pi / pti) for pi, pti in zip(p, pt) if pi > 0 and pti > 0))
+            kl = float(
+                sum(
+                    pi * np.log2(pi / pti)
+                    for pi, pti in zip(p, pt)
+                    if pi > 0 and pti > 0
+                )
+            )
             reg_kl = max(reg_kl, kl)
 
         out = {
@@ -194,7 +209,9 @@ class ClinicalInformationDensityRatio:
     def __init__(self):
         pass
 
-    def calculate_cidr(self, concept_counts_by_group: Dict[str, Sequence[tuple]]) -> Dict[str, Any]:
+    def calculate_cidr(
+        self, concept_counts_by_group: Dict[str, Sequence[tuple]]
+    ) -> Dict[str, Any]:
         """Compute CIDR from (n_concepts, n_tokens) pairs grouped by group.
 
         Args:
@@ -212,10 +229,16 @@ class ClinicalInformationDensityRatio:
         for grp, pairs in concept_counts_by_group.items():
             vals = [(nc / nt) * 100 for nc, nt in pairs if nt > 0]
             if not vals:
-                raise ValueError(f"Group {grp!r} has no valid (concepts, tokens) pairs.")
+                raise ValueError(
+                    f"Group {grp!r} has no valid (concepts, tokens) pairs."
+                )
             cid[str(grp)] = float(np.mean(vals))
         mx = max(cid.values())
-        cidr = {k: float(v / mx) for k, v in cid.items()} if mx > 0 else {k: 0.0 for k in cid}
+        cidr = (
+            {k: float(v / mx) for k, v in cid.items()}
+            if mx > 0
+            else {k: 0.0 for k in cid}
+        )
         cidr_min = float(min(cidr.values()))
         worst = min(cidr, key=cidr.get)
         out = {
@@ -298,8 +321,10 @@ class DiagnosticCompletenessIndex:
             scores = [len(set(m) & Dstar) / len(Dstar) for m in responses]
             dci[str(grp)] = float(np.mean(scores)) if scores else 0.0
             if weights and wtot:
-                wscores = [sum(weights.get(d, 0.0) for d in (set(m) & Dstar)) / wtot
-                           for m in responses]
+                wscores = [
+                    sum(weights.get(d, 0.0) for d in (set(m) & Dstar)) / wtot
+                    for m in responses
+                ]
                 wdci[str(grp)] = float(np.mean(wscores)) if wscores else 0.0
         vals = list(dci.values())
         ddci = float(max(vals) - min(vals))
@@ -347,9 +372,21 @@ class UncertaintyQuantificationGap:
     """
 
     DEFAULT_HEDGES = [
-        "may", "might", "could", "possible", "possibly", "consider", "suspect",
-        "likely", "unlikely", "uncertain", "cannot rule out", "rule out",
-        "differential includes", "suggestive of", "concerning for",
+        "may",
+        "might",
+        "could",
+        "possible",
+        "possibly",
+        "consider",
+        "suspect",
+        "likely",
+        "unlikely",
+        "uncertain",
+        "cannot rule out",
+        "rule out",
+        "differential includes",
+        "suggestive of",
+        "concerning for",
     ]
 
     def __init__(self, hedging_terms: Optional[Sequence[str]] = None):
@@ -371,7 +408,9 @@ class UncertaintyQuantificationGap:
         hits = len(self._pattern.findall(tl))
         return hits / len(sents)
 
-    def calculate_uqg(self, responses_by_group: Dict[str, Sequence[str]]) -> Dict[str, Any]:
+    def calculate_uqg(
+        self, responses_by_group: Dict[str, Sequence[str]]
+    ) -> Dict[str, Any]:
         """Compute UQG, the max - min hedging density across groups.
 
         Args:

@@ -7,10 +7,11 @@ Implements the PhD-framework metrics:
     - Instructional Vulnerability Index (IVI): susceptibility to bias-priming.
     - Geographic Representation Index (GRI) and Geographic Bias (GB).
 """
-from .spg import SemanticParityGap
+
 from .chr import ClinicalHallucinationRate
-from .ivi import InstructionalVulnerabilityIndex
 from .gri import GeographicRepresentationIndex
+from .ivi import InstructionalVulnerabilityIndex
+from .spg import SemanticParityGap
 
 __all__ = [
     "SemanticParityGap",

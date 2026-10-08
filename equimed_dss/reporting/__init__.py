@@ -1,4 +1,5 @@
 """Reporting/table layer for EquiMed-DSS."""
+
 from .export import export_table
 from .tables import (
     geographic_table,

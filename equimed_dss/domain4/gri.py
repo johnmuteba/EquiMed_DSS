@@ -12,6 +12,7 @@ Geographic Bias (GB) is the correlation between the GRI of retrieved documents
 and the error rate for non-Western patients across queries:
     GB = corr( GRI(K), error_rate )
 """
+
 from typing import Any, Dict, Optional, Sequence
 
 import numpy as np

@@ -1,7 +1,6 @@
 from typing import Any, Dict
 
 
-
 class AuditTraceabilityScore:
     """
     Domain 3: Governance and Transparency Assessment
@@ -31,9 +30,14 @@ class AuditTraceabilityScore:
 
         if n_total == 0:
             return MetricResult(
-                {"ats_score": 0.0, "ci_lower": 0.0, "ci_upper": 0.0,
-                 "ci_method": "Wilson score"},
-                name="ATS", value_key="ats_score",
+                {
+                    "ats_score": 0.0,
+                    "ci_lower": 0.0,
+                    "ci_upper": 0.0,
+                    "ci_method": "Wilson score",
+                },
+                name="ATS",
+                value_key="ats_score",
             )
 
         # Wilson score interval (95%), shared with the rest of the library.
@@ -44,15 +48,19 @@ class AuditTraceabilityScore:
         ci_lower = max(0.0, inf.ci_lower)
         ci_upper = min(1.0, inf.ci_upper)
 
-        return MetricResult({
-            "ats_score": float(p),
-            "ci_lower": float(ci_lower),
-            "ci_upper": float(ci_upper),
-            "ci_method": "Wilson score",
-            "meets_95_standard": bool(p >= 0.95),
-            "interpretation": {
-                "range": "[0, 1]",
-                "ideal": "Higher is better (target >= 0.95)",
-                "verdict": "Compliant" if p >= 0.95 else "Non-Compliant",
+        return MetricResult(
+            {
+                "ats_score": float(p),
+                "ci_lower": float(ci_lower),
+                "ci_upper": float(ci_upper),
+                "ci_method": "Wilson score",
+                "meets_95_standard": bool(p >= 0.95),
+                "interpretation": {
+                    "range": "[0, 1]",
+                    "ideal": "Higher is better (target >= 0.95)",
+                    "verdict": "Compliant" if p >= 0.95 else "Non-Compliant",
+                },
             },
-        }, name="ATS", value_key="ats_score")
+            name="ATS",
+            value_key="ats_score",
+        )

@@ -4,6 +4,7 @@ Turns EquiMed-DSS point-estimate metrics into interval estimates with explicit
 methods and sample sizes, and provides cluster-aware resampling so repeated
 evaluations of the same patient/visit do not inflate precision.
 """
+
 from equimed_dss.inference.resampling import (
     InferenceResult,
     MetricResult,

@@ -109,7 +109,9 @@ class AdvancedReliabilityMetrics:
                     "population_share must have one entry per row of health_variable."
                 )
             if (w < 0).any() or w.sum() <= 0:
-                raise ValueError("population_share must be non-negative with a positive sum.")
+                raise ValueError(
+                    "population_share must be non-negative with a positive sum."
+                )
             w = w / w.sum()
 
         mean_h = float(np.sum(w * h))

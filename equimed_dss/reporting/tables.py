@@ -4,6 +4,7 @@ Pure presentation layer: these functions reshape the dicts already returned by
 ``equimed_dss.statistics`` and ``equimed_dss.geographic``; they do not recompute
 any statistic. Each accepts a ``decimals`` argument for rounding.
 """
+
 from typing import Any, Dict
 
 import pandas as pd
@@ -32,8 +33,13 @@ def hierarchical_coefficients_table(
         df = pd.DataFrame(
             coeffs,
             columns=[
-                "term", "estimate", "std_err", "t", "p_value",
-                "ci_lower", "ci_upper",
+                "term",
+                "estimate",
+                "std_err",
+                "t",
+                "p_value",
+                "ci_lower",
+                "ci_upper",
             ],
         )
         return _round(df, decimals)
@@ -83,8 +89,13 @@ def mediation_effects_table(
     df = pd.DataFrame(
         rows,
         columns=[
-            "effect", "estimate", "ci_lower", "ci_upper",
-            "proportion_mediated", "outside_bounds", "classification",
+            "effect",
+            "estimate",
+            "ci_lower",
+            "ci_upper",
+            "proportion_mediated",
+            "outside_bounds",
+            "classification",
         ],
     )
     return _round(df, decimals)
@@ -121,6 +132,7 @@ def geographic_table(
     One row per metric (metric, value), covering the burden-evidence mismatch
     and the two concentration descriptors, suitable for a manuscript table.
     """
+
     def fmt(v):
         # Round floats; leave ints/strings (e.g. region name) untouched. The
         # value column is mixed-type, so round per-value rather than per-column.

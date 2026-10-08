@@ -14,6 +14,7 @@ Distinct from domain2.HarmAdjustedFairnessGap (HAFG), which compares two groups 
 aggregate false-negative/false-positive counts with fixed costs; wHAFG is the
 per-sample, clinical-severity-weighted generalization over arbitrary groups.
 """
+
 from typing import Any, Dict, Sequence
 
 import numpy as np
@@ -45,12 +46,16 @@ class WeightedClinicalHarmAdjustedFairnessGap:
         w = np.asarray(severity_weights, dtype=float)
         loss = np.asarray(losses, dtype=float)
         if not (len(g) == len(w) == len(loss)):
-            raise ValueError("groups, severity_weights, losses must be the same length.")
+            raise ValueError(
+                "groups, severity_weights, losses must be the same length."
+            )
         if len(g) == 0:
             raise ValueError("Inputs must be non-empty.")
 
         def _whafg(gv, wv, lv) -> float:
-            hbg = [float((wv[gv == grp] * lv[gv == grp]).mean()) for grp in np.unique(gv)]
+            hbg = [
+                float((wv[gv == grp] * lv[gv == grp]).mean()) for grp in np.unique(gv)
+            ]
             return float(max(hbg) - min(hbg)) if len(hbg) > 1 else 0.0
 
         harm_by_group = {
@@ -80,7 +85,8 @@ class WeightedClinicalHarmAdjustedFairnessGap:
             ci = bootstrap_ci(
                 idx,
                 lambda s: _whafg(g[list(s)], w[list(s)], loss[list(s)]),
-                n_boot=1000, random_state=0,
+                n_boot=1000,
+                random_state=0,
             )
             out["ci_lower"] = ci.ci_lower
             out["ci_upper"] = ci.ci_upper

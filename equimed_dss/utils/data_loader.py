@@ -2,6 +2,7 @@
 
 Each generator takes ``random_state``; pass an integer for reproducible output.
 """
+
 from typing import Dict, List, Optional
 
 import numpy as np

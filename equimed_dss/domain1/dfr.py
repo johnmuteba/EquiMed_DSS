@@ -75,8 +75,9 @@ class DecisionFlipRate:
         # tolerance (default 5%), so the metric reports value + CI + p-value.
         from equimed_dss.inference import MetricResult, proportion_ci
 
-        p_value = proportion_ci(n_flipped, n_samples, null_value=threshold,
-                                alternative="greater").p_value
+        p_value = proportion_ci(
+            n_flipped, n_samples, null_value=threshold, alternative="greater"
+        ).p_value
 
         # Interpretation
         if flip_rate < 0.05:
@@ -86,24 +87,28 @@ class DecisionFlipRate:
         else:
             verdict = "High Instability"
 
-        return MetricResult({
-            "flip_rate": flip_rate,
-            "n_flipped": n_flipped,
-            "n_samples": n_samples,
-            "ci_lower": ci_lower,
-            "ci_upper": ci_upper,
-            "ci_method": "Wilson score",
-            "threshold": float(threshold),
-            "p_value_above_threshold": p_value,
-            "interpretation": {
-                "range": "[0, 1]",
-                "ideal": "Lower is better (close to 0)",
-                "verdict": verdict,
-                "summary": (
-                    f"DFR = {flip_rate:.3f} (95% CI {ci_lower:.3f} to "
-                    f"{ci_upper:.3f}); one-sided p="
-                    f"{'<0.001' if p_value < 0.001 else format(p_value, '.3g')}"
-                    f" that the true rate exceeds {threshold:.0%}."
-                ),
+        return MetricResult(
+            {
+                "flip_rate": flip_rate,
+                "n_flipped": n_flipped,
+                "n_samples": n_samples,
+                "ci_lower": ci_lower,
+                "ci_upper": ci_upper,
+                "ci_method": "Wilson score",
+                "threshold": float(threshold),
+                "p_value_above_threshold": p_value,
+                "interpretation": {
+                    "range": "[0, 1]",
+                    "ideal": "Lower is better (close to 0)",
+                    "verdict": verdict,
+                    "summary": (
+                        f"DFR = {flip_rate:.3f} (95% CI {ci_lower:.3f} to "
+                        f"{ci_upper:.3f}); one-sided p="
+                        f"{'<0.001' if p_value < 0.001 else format(p_value, '.3g')}"
+                        f" that the true rate exceeds {threshold:.0%}."
+                    ),
+                },
             },
-        }, name="DFR", value_key="flip_rate")
+            name="DFR",
+            value_key="flip_rate",
+        )

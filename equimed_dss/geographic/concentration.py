@@ -13,6 +13,7 @@ studies) is spread across regions:
 G* and H_norm run in opposite directions; ``concentration = 1 - H_norm`` is
 exposed so a single "higher = more concentrated" reading is available.
 """
+
 from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
@@ -108,10 +109,13 @@ class GeographicConcentration:
         if region_records is not None:
             recs = [str(r) for r in region_records]
             check_records(
-                recs, [str(r) for r in regions],
-                {str(r): float(s) for r, s in zip(regions, p)}, "region_records",
+                recs,
+                [str(r) for r in regions],
+                {str(r): float(s) for r, s in zip(regions, p)},
+                "region_records",
             )
             if len(recs) >= 2:
+
                 def _gstar(sample):
                     vec = np.array(
                         [float(sum(1 for s in sample if s == r)) for r in regions]

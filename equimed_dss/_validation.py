@@ -1,4 +1,5 @@
 """Small input checks shared by several metrics (private module)."""
+
 import math
 import warnings
 from typing import Any, Dict, Iterable, Sequence
