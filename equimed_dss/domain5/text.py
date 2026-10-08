@@ -14,7 +14,9 @@ def _tokens(text: str) -> list:
 
 
 def _sentences(text: str) -> list:
-    parts = re.split(r"[.!?]+", text or "")
+    # Split on terminal punctuation followed by whitespace or the end, so that
+    # decimals ("troponin 0.04 ng/mL") do not end a sentence.
+    parts = re.split(r"[.!?]+(?=\s|$)", text or "")
     return [p for p in parts if p.strip()]
 
 
@@ -29,6 +31,18 @@ class LexicalDiversityDisparityIndex:
         pass
 
     def calculate_lddi(self, responses_by_group: Dict[str, Sequence[str]]) -> Dict[str, Any]:
+        """Compute LDDI from response texts grouped by demographic group.
+
+        Args:
+            responses_by_group: mapping group -> list of response texts (at least
+                two groups). Tokens are runs of ASCII letters and apostrophes.
+
+        Returns:
+            MetricResult with rttr_by_group, lddi, lddi_norm and a 95%
+            percentile-bootstrap CI. RTTR pools each group's tokens, so it still
+            depends on the amount of text: compare groups with similar numbers
+            and lengths of responses.
+        """
         if len(responses_by_group) < 2:
             raise ValueError("Need at least 2 groups.")
         rttr = {}
@@ -87,6 +101,17 @@ class RecommendationEntropyGap:
         pass
 
     def calculate_reg(self, recommendations_by_group: Dict[str, Sequence[Any]]) -> Dict[str, Any]:
+        """Compute REG from recommendation labels grouped by demographic group.
+
+        Args:
+            recommendations_by_group: mapping group -> list of recommendation
+                labels (at least two groups).
+
+        Returns:
+            MetricResult with entropy_by_group (bits), reg, reg_kl and a 95%
+            percentile-bootstrap CI. Plug-in entropy is biased downward in small
+            samples, so groups with few recommendations look less diverse.
+        """
         if len(recommendations_by_group) < 2:
             raise ValueError("Need at least 2 groups.")
         labels = sorted({t for recs in recommendations_by_group.values() for t in recs})
@@ -170,6 +195,17 @@ class ClinicalInformationDensityRatio:
         pass
 
     def calculate_cidr(self, concept_counts_by_group: Dict[str, Sequence[tuple]]) -> Dict[str, Any]:
+        """Compute CIDR from (n_concepts, n_tokens) pairs grouped by group.
+
+        Args:
+            concept_counts_by_group: mapping group -> list of (n_concepts,
+                n_tokens) pairs, one per response (at least two groups).
+                Responses with zero tokens are skipped.
+
+        Returns:
+            MetricResult with cid_by_group, cidr_by_group, cidr_min and a 95%
+            percentile-bootstrap CI.
+        """
         if len(concept_counts_by_group) < 2:
             raise ValueError("Need at least 2 groups.")
         cid = {}
@@ -238,6 +274,18 @@ class DiagnosticCompletenessIndex:
         mentioned_by_group: Dict[str, Sequence[Sequence[str]]],
         weights: Optional[Dict[str, float]] = None,
     ) -> Dict[str, Any]:
+        """Compute DCI coverage of a reference differential list by group.
+
+        Args:
+            reference_differentials: the guideline differential list D*.
+            mentioned_by_group: mapping group -> list of responses, each a list
+                of the differentials the response mentions (at least two groups).
+            weights: optional differential -> severity weight for wDCI.
+
+        Returns:
+            MetricResult with dci_by_group, delta_dci (max - min), optional
+            wdci_by_group, and a 95% percentile-bootstrap CI for delta_dci.
+        """
         Dstar = set(reference_differentials)
         if not Dstar:
             raise ValueError("reference_differentials must be non-empty.")
@@ -306,16 +354,34 @@ class UncertaintyQuantificationGap:
 
     def __init__(self, hedging_terms: Optional[Sequence[str]] = None):
         self.hedges = [h.lower() for h in (hedging_terms or self.DEFAULT_HEDGES)]
+        # One alternation, longest term first, matched left to right without
+        # overlap: "cannot rule out" counts once, not also as "rule out" (up to
+        # 1.9.5 each term was counted separately, so overlapping terms counted
+        # twice).
+        terms = sorted(set(self.hedges), key=len, reverse=True)
+        self._pattern = re.compile(
+            r"\b(?:" + "|".join(re.escape(h) for h in terms) + r")\b"
+        )
 
     def _ud(self, text: str) -> float:
         sents = _sentences(text)
         if not sents:
             return 0.0
         tl = (text or "").lower()
-        hits = sum(len(re.findall(r"\b" + re.escape(h) + r"\b", tl)) for h in self.hedges)
+        hits = len(self._pattern.findall(tl))
         return hits / len(sents)
 
     def calculate_uqg(self, responses_by_group: Dict[str, Sequence[str]]) -> Dict[str, Any]:
+        """Compute UQG, the max - min hedging density across groups.
+
+        Args:
+            responses_by_group: mapping group -> list of response texts (at least
+                two groups). Hedging density is the number of hedging terms per
+                sentence; overlapping terms are counted once.
+
+        Returns:
+            MetricResult with ud_by_group, uqg and a 95% percentile-bootstrap CI.
+        """
         if len(responses_by_group) < 2:
             raise ValueError("Need at least 2 groups.")
         ud = {}

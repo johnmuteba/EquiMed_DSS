@@ -22,7 +22,9 @@ class EthicalRiskIndex:
 
         Args:
             violations: List of dicts, each containing 'severity' (float).
-            n_total_outputs: Total number of outputs evaluated.
+            n_total_outputs: Total number of outputs evaluated (each output has at
+                most one violation record; more violations than outputs raises
+                ``ValueError``).
 
         Returns:
             MetricResult with ERI (mean severity per output) and SVR (violation rate
@@ -43,6 +45,11 @@ class EthicalRiskIndex:
         severities = [float(v.get("severity", 0)) for v in violations]
         total_severity = float(sum(severities))
         n_violations = len(violations)
+        if n_violations > n_total_outputs:
+            raise ValueError(
+                f"{n_violations} violations were given for {n_total_outputs} outputs; "
+                "each output can contribute at most one violation record."
+            )
 
         eri = total_severity / n_total_outputs
         svr = (n_violations / n_total_outputs) * 1000  # Rate per 1000
@@ -50,8 +57,7 @@ class EthicalRiskIndex:
         # Reconstruct the per-output severity vector: each violation keeps its
         # severity, every non-violating output contributes 0. ERI is the mean of
         # this vector, so a bootstrap over it gives an honest CI.
-        n_clean = max(0, n_total_outputs - n_violations)
-        per_output = severities + [0.0] * n_clean
+        per_output = severities + [0.0] * (n_total_outputs - n_violations)
 
         out = {
             "eri": float(eri),
@@ -74,7 +80,7 @@ class EthicalRiskIndex:
             out["ci_method"] = ci.method
 
         # Wilson CI for the violation proportion (SVR is this proportion x 1000).
-        svr_inf = proportion_ci(min(n_violations, n_total_outputs), n_total_outputs)
+        svr_inf = proportion_ci(n_violations, n_total_outputs)
         out["svr_ci_lower"] = float(svr_inf.ci_lower * 1000)
         out["svr_ci_upper"] = float(svr_inf.ci_upper * 1000)
         out["svr_ci_method"] = svr_inf.method

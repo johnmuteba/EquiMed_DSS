@@ -1,6 +1,5 @@
 from typing import Any, Dict
 
-import numpy as np
 
 
 class AuditTraceabilityScore:
@@ -23,9 +22,12 @@ class AuditTraceabilityScore:
             n_total: Total number of decisions audited.
 
         Returns:
-            Dictionary containing ATS score and confidence interval.
+            Dictionary containing ATS score and its 95% Wilson score interval.
+
+        Raises:
+            ValueError: if ``n_traceable`` is not between 0 and ``n_total``.
         """
-        from equimed_dss.inference import MetricResult
+        from equimed_dss.inference import MetricResult, wilson_ci
 
         if n_total == 0:
             return MetricResult(
@@ -34,15 +36,13 @@ class AuditTraceabilityScore:
                 name="ATS", value_key="ats_score",
             )
 
-        p = n_traceable / n_total
-
-        # Wilson score interval (z=1.96 for 95% CI)
-        z = 1.96
-        p_tilde = (n_traceable + z**2 / 2) / (n_total + z**2)
-        se = np.sqrt(p_tilde * (1 - p_tilde) / (n_total + z**2))
-
-        ci_lower = max(0.0, p_tilde - z * se)
-        ci_upper = min(1.0, p_tilde + z * se)
+        # Wilson score interval (95%), shared with the rest of the library.
+        # Versions up to 1.9.5 labelled this interval "Wilson score" but
+        # computed the Agresti-Coull interval, which is slightly wider.
+        inf = wilson_ci(int(n_traceable), int(n_total))
+        p = inf.estimate
+        ci_lower = max(0.0, inf.ci_lower)
+        ci_upper = min(1.0, inf.ci_upper)
 
         return MetricResult({
             "ats_score": float(p),

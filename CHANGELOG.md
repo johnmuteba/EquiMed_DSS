@@ -5,6 +5,140 @@ All notable changes to EquiMed-DSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-10-08
+
+A metric-by-metric review of the library. Values of BEMI, GCC, the GRI point
+estimate, ICE, wHAFG and DFR are unchanged for valid inputs, so results computed
+with 1.9.5 for those metrics stand. The corrections below change other results;
+the reasons are given so that earlier analyses can be checked.
+
+### Fixed (values change)
+- `appendix.AdvancedReliabilityMetrics.calculate_power_analysis`: the per-group
+  sample size lacked the factor 2 of the two-sample formula
+  n = 2 (z_{1-alpha/2} + z_{power})^2 / d^2, so it was half what is needed (for
+  d = 0.5, alpha = 0.05, power 0.8: 32 before, 63 now; the t-test solution in
+  `StatisticalPowerAnalysis` gives 64).
+- `appendix.AdvancedReliabilityMetrics.calculate_bias_concentration`: the
+  `population_share` argument was ignored and the sample (1/(n-1)) covariance was
+  used. It is now the Kakwani, Wagstaff and van Doorslaer concentration index,
+  weighted by `population_share` for grouped data; with equal shares the value is
+  (n-1)/n times the old one.
+- `domain3.AuditTraceabilityScore`: the interval was labelled "Wilson score" but
+  was the Agresti-Coull interval (same centre, slightly wider). It is now the
+  Wilson interval, as documented.
+- `appendix.RobustnessCertificationScore`: with list inputs, `==` compared whole
+  lists, so any single difference gave an agreement of 0 for that perturbation.
+  Inputs are now compared element-wise (and shapes are checked).
+- `appendix.MutualInformationContent`: the normalization failed for string
+  categories (it used `np.bincount`).
+- `appendix.BiasConcentrationIndex`: the maximum of 1 - sum(p^2)/(sum p)^2 is
+  1 - 1/n, so with few groups the verdict thresholds (0.3, 0.7) could not be
+  reached (two equal groups scored 0.5, "moderate concentration"). The new
+  `bci_normalized` divides by 1 - 1/n and the verdict uses it; `bci` is unchanged.
+- `appendix.NetworkModularity` and `appendix.AdvancedNetworkMetrics.calculate_modularity`:
+  the diagonal of a correlation matrix became self-loops, and the community search
+  ignored the edge weights while the score used them. The diagonal is now ignored
+  and the same weights are used for both. A failure now returns NaN with a warning
+  (or raises, in `calculate_modularity`) instead of a silent 0.0. For a
+  correlation matrix with two blocks the value moves from an artefact (0.417 in
+  the review's example) to the correct 0.30.
+- `statistics.NetworkStatistics.analyze_network`: the same self-loops pushed degree
+  centrality above 1. The diagonal is ignored and a `threshold` option drops weak
+  edges (unweighted centralities on a dense correlation matrix are uninformative).
+- `appendix.AdvancedNetworkAnalysis`: `metric_correlation_network` left out
+  metrics without an edge above the threshold (changing every centrality) and
+  used a bare `except`; `concept_cooccurrence_network` matched substrings ("MI"
+  was found in "family"), now whole words or phrases; `temporal_fairness_dynamics`
+  treated (A, B) and (B, A) as different edges of an undirected graph.
+- `domain5.UncertaintyQuantificationGap`: overlapping hedging terms were counted
+  twice ("cannot rule out" also counted as "rule out"), and decimals ended a
+  sentence ("0.04" made two sentences). Terms are now matched once, longest first,
+  and sentences end only at '.', '!' or '?' followed by white space or the end.
+- `domain1.InterRaterReliability.interpret_score` used strict inequalities while
+  `calculate_icc_2_1` used inclusive ones, so 0.75 got two verdicts. Both now use
+  Cicchetti's (1994) bands (>=0.75, >=0.60, >=0.40).
+- `domain2.HarmAdjustedFairnessGap`: the case-level bootstrap pooled the two groups,
+  so resampled group sizes varied; it now resamples within each group.
+- `statistics.HierarchicalLinearModeling.fit_model`: `level2_predictors` were
+  accepted but ignored (now added as fixed effects); a failed mixed model fell back
+  to the ANOVA decomposition silently (now with a warning and `method` = "anova");
+  in that fallback, `variance_between_groups` held the mean square rather than the
+  variance component, and the group size ignored imbalance (now
+  sigma_u^2 = (MSB - MSW)/n0 with the effective size n0; the mean squares are
+  reported as `ms_between`, `ms_within`).
+- `statistics.MediationAnalysis`: "Complete mediation" required a direct effect of
+  exactly 0 and so was practically never returned. The direct effect now has a
+  bootstrap CI (`direct_ci_lower`, `direct_ci_upper`) and the type follows Zhao,
+  Lynch and Chen (2010).
+- `inference.wilson_ci`: the bounds are now exactly 0 at k = 0 and 1 at k = n
+  (previously about 1e-17 off).
+
+### Changed (bundled reference data)
+- `WHO_REGION_IHD_BURDEN` now holds each WHO region's share of ischaemic heart
+  disease DALYs in 2023, from the WHO Global Health Estimates 2023 (Geneva: WHO;
+  2026). Up to 1.9.5 it held age-standardised DALY-rate shares attributed to the
+  GBD 2019 study whose regional values could not be traced to a published table.
+  New: `WHO_REGION_IHD_BURDEN_RATE` (crude-rate shares),
+  `WHO_GHE2023_IHD_DALYS_THOUSANDS`, `WHO_GHE2023_POPULATION_THOUSANDS` (the
+  published figures) and `WHO_REGION_CODES` (WHO GHO codes such as "AFR" to the
+  "AFRO" keys).
+
+### Changed (errors instead of silently wrong results)
+- `BurdenEvidenceMismatch`: a region with evidence but no entry in
+  `burden_shares` raises `ValueError` (mismatched codes such as "AFR" against
+  "AFRO" previously gave BEMI = 1). Record labels that are not among the regions
+  of the point estimate raise `ValueError` in BEMI, GCC and GRBI, and a warning is
+  given when the records imply shares different from the point estimate.
+- `DecisionFlipRate`, `InstructionalVulnerabilityIndex`: missing outputs (None or
+  NaN) raise `ValueError`; NaN never equals itself and was counted as a flip.
+  An empty input to DFR raises `ValueError`.
+- `ClinicalHallucinationRate`: a NaN support score was counted as a supported
+  claim; NaN or out-of-range scores, and negative weights, now raise `ValueError`.
+- `HierarchicalEquityRatio`: a reference score of 0 gave every group, the
+  reference included, HER = 0; it now raises `ValueError`.
+- `EthicalRiskIndex`: more violations than outputs now raises `ValueError`.
+- `InterRaterReliability.calculate_icc_2_1` needs at least 2 items and 2 judges;
+  `EmbeddingConsistencyScore` checks that the two arrays have the same shape.
+- `HarmAdjustedFairnessGap` warns when the case lists disagree with the error
+  counts, or when the groups differ in size by more than 10% (HAFG compares total
+  harm; use counts per 1,000 patients or wHAFG).
+- `inference.permutation_test` and the score test of `proportion_ci` raise on an
+  unknown `alternative` (a typo such as "two_sided" was treated as "less" or as
+  "two-sided").
+
+### Added
+- `SemanticParityGap`: `p_value_permutation` (1000 label permutations), because
+  a centroid distance is positive even without a true difference and its
+  bootstrap interval never contains 0.
+- `TemporalFairnessDrift.calculate_drift(..., sigma_method="moving_range")`: the
+  individuals-chart sigma (mean moving range / 1.128), which a drift does not
+  inflate. The default ("sd") is unchanged.
+- `WassersteinDistance.calculate_wd(..., support=...)` compares two histograms on
+  shared bin locations; without it the inputs are, as before, samples.
+- `IntersectionalCalibrationError`: `n_by_group`, to read dICE alongside group
+  sizes (binned ECE is biased upward in small groups).
+- `random_state` for `AdvancedReliabilityMetrics.calculate_bootstrap_ci` (it used
+  the global NumPy generator) and for the synthetic generators in
+  `utils.data_loader`.
+
+### Documentation
+- `Metric_Math_Derivations.md`: the worked instances now use invented,
+  illustrative counts instead of quoting results of a specific study; ATS shows
+  the Wilson formula; the modularity bootstrap uses B = 200, as implemented.
+- Jensen-Shannon examples in the README and the vignette passed raw samples,
+  which are compared position by position; they now histogram both samples on
+  common bins.
+- The README, metrics guide, API reference and vignette describe every change
+  above; example outputs in the API reference now match what the code returns;
+  verdict cut-offs are described as heuristics, not validated thresholds.
+- The README citation, `CITATION.cff` and `.zenodo.json` give the author as
+  John Weirstrass Muteba Mwamba, with ORCID and affiliation.
+
+### Maintenance
+- Code formatted with black and isort (the project's CI checks), in a separate
+  commit with no functional change.
+- `.claude/` (local editor settings) is no longer tracked.
+
 ## [1.9.5] - 2026-06-19
 
 ### Documentation

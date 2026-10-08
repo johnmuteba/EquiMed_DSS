@@ -143,6 +143,12 @@ class MetricResult(dict):
         return float(self) >= float(other)
 
 
+# Accepted values of ``alternative``; anything else raises (up to 1.9.5 an
+# unrecognised value such as "two_sided" was silently treated as "less" by
+# permutation_test and as "two-sided" by the score test).
+_ALTERNATIVES = ("two-sided", "greater", "less")
+
+
 def _z(conf: float) -> float:
     """Two-sided standard-normal quantile for a confidence level (e.g. 0.95)."""
     if not 0 < conf < 1:
@@ -203,8 +209,10 @@ def wilson_ci(k: int, n: int, conf: float = 0.95) -> InferenceResult:
         estimate=p,
         method="Wilson score",
         n=n,
-        ci_lower=center - half,
-        ci_upper=center + half,
+        # The Wilson bounds are exactly 0 at k = 0 and exactly 1 at k = n; set
+        # them so, rather than leaving floating-point residue (about 1e-17).
+        ci_lower=0.0 if k == 0 else max(0.0, center - half),
+        ci_upper=1.0 if k == n else min(1.0, center + half),
         conf_level=conf,
         se=math.sqrt(p * (1 - p) / n),
     )
@@ -216,6 +224,8 @@ def _prop_ztest(k: int, n: int, p0: float, alternative: str) -> float:
     Robust for all ``n`` (no factorial overflow); standard for moderate-to-large
     samples. For very small ``n`` an exact binomial test would be preferable.
     """
+    if alternative not in _ALTERNATIVES:
+        raise ValueError(f"alternative must be one of {_ALTERNATIVES}")
     se0 = math.sqrt(p0 * (1 - p0) / n)
     if se0 == 0:
         return float("nan")
@@ -354,6 +364,8 @@ def permutation_test(
     p-value uses the add-one estimator ``(count + 1) / (n_perm + 1)`` so it is
     never exactly zero. Use this for fairness gaps between demographic groups.
     """
+    if alternative not in _ALTERNATIVES:
+        raise ValueError(f"alternative must be one of {_ALTERNATIVES}")
     rng = np.random.default_rng(random_state)
     a = np.asarray(a, dtype=float)
     b = np.asarray(b, dtype=float)

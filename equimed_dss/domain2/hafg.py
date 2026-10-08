@@ -1,3 +1,4 @@
+import warnings
 from typing import Dict, Optional, Sequence, Union
 
 import numpy as np
@@ -9,6 +10,12 @@ class HarmAdjustedFairnessGap:
     Metric 5: Harm-Adjusted Fairness Gap (HAFG)
 
     Quantifies fairness weighted by potential clinical harm (cost of errors).
+
+    HAFG compares the TOTAL harm of two groups (error counts x costs). When the
+    groups differ in size, the gap reflects group size as well as error rates:
+    pass error counts per 1,000 patients, or use
+    ``domain5.WeightedClinicalHarmAdjustedFairnessGap``, which averages harm per
+    patient.
     """
 
     def __init__(self, cost_fn: float = 10.0, cost_fp: float = 3.0):
@@ -46,9 +53,11 @@ class HarmAdjustedFairnessGap:
             group1_cases / group2_cases: optional per-case error labels for each
                 group (each element one of 'fn', 'fp', 'tp', 'tn'). When BOTH are
                 supplied, HAFG gains a 95% percentile-bootstrap CI by resampling
-                cases within each group. Without them a CI cannot be computed
-                honestly from aggregate counts, and the result prints
-                "95% CI unavailable (needs observation-level input)".
+                cases within each group (group sizes fixed). Without them a CI
+                cannot be computed honestly from aggregate counts, and the result
+                prints "95% CI unavailable (needs observation-level input)". A
+                warning is raised if the case lists disagree with the error
+                counts, or if the groups differ in size by more than 10%.
 
         Returns:
             MetricResult with harm for each group, the normalized gap (``hafg``),
@@ -89,27 +98,52 @@ class HarmAdjustedFairnessGap:
             },
         }
 
-        from equimed_dss.inference import MetricResult, bootstrap_ci
+        from equimed_dss.inference import MetricResult
 
         if group1_cases is not None and group2_cases is not None:
-            # Tag each case with its group so a single resample preserves group
-            # sizes only in expectation (standard two-sample bootstrap of HAFG).
-            records = (
-                [{"group": 1, "label": str(c)} for c in group1_cases]
-                + [{"group": 2, "label": str(c)} for c in group2_cases]
-            )
-            if not records:
+            labels1 = [str(c) for c in group1_cases]
+            labels2 = [str(c) for c in group2_cases]
+            if not labels1 and not labels2:
                 raise ValueError("group1_cases/group2_cases contain no cases.")
+            for name, labels, errors in (
+                ("group1", labels1, group1_errors),
+                ("group2", labels2, group2_errors),
+            ):
+                tally = {k: labels.count(k) for k in ("fn", "fp")}
+                if tally != {k: int(errors.get(k, 0)) for k in ("fn", "fp")}:
+                    warnings.warn(
+                        f"{name}_cases has {tally} but {name}_errors has "
+                        f"{dict(errors)}; the interval describes the case lists, "
+                        "not the reported HAFG.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+            n1, n2 = len(labels1), len(labels2)
+            if min(n1, n2) > 0 and max(n1, n2) / min(n1, n2) > 1.1:
+                warnings.warn(
+                    f"The groups differ in size ({n1} vs {n2} cases). HAFG compares "
+                    "total harm, so the gap reflects group size as well as error "
+                    "rates; use counts per 1,000 patients or "
+                    "WeightedClinicalHarmAdjustedFairnessGap (harm per patient).",
+                    UserWarning,
+                    stacklevel=2,
+                )
 
-            def _hafg(sample):
-                h1 = sum(self._harm_per_case(r["label"]) for r in sample if r["group"] == 1)
-                h2 = sum(self._harm_per_case(r["label"]) for r in sample if r["group"] == 2)
+            # Two-sample bootstrap: resample cases within each group so the
+            # group sizes stay fixed. (Up to 1.9.5 the two groups were pooled, so
+            # resampled group sizes varied and the interval was too wide.)
+            c1 = np.array([self._harm_per_case(c) for c in labels1], dtype=float)
+            c2 = np.array([self._harm_per_case(c) for c in labels2], dtype=float)
+            rng = np.random.default_rng(0)
+            boots = []
+            for _ in range(1000):
+                h1 = c1[rng.integers(0, n1, size=n1)].sum() if n1 else 0.0
+                h2 = c2[rng.integers(0, n2, size=n2)].sum() if n2 else 0.0
                 d = max(h1, h2)
-                return abs(h1 - h2) / d if d > 0 else 0.0
-
-            ci = bootstrap_ci(records, _hafg, n_boot=1000, random_state=0)
-            out["ci_lower"] = ci.ci_lower
-            out["ci_upper"] = ci.ci_upper
-            out["ci_method"] = ci.method
+                boots.append(abs(h1 - h2) / d if d > 0 else 0.0)
+            lo, hi = np.percentile(boots, [2.5, 97.5])
+            out["ci_lower"] = float(lo)
+            out["ci_upper"] = float(hi)
+            out["ci_method"] = "bootstrap (stratified by group)"
 
         return MetricResult(out, name="HAFG", value_key="hafg")

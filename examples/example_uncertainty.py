@@ -29,7 +29,7 @@ def fmt(name, value, ci_lo, ci_hi, p, n, ptxt="p(>thr)"):
 
 
 print(line)
-print("1. PROPORTION METRICS — value + CI + threshold p-value (native output)")
+print("1. PROPORTION METRICS: value + CI + threshold p-value (native output)")
 print(line)
 
 # CHR: 274 of 285 claims unsupported
@@ -60,7 +60,7 @@ print("   ", chr_res["interpretation"])
 
 print()
 print(line)
-print("2. ANY METRIC via bootstrap_metric — CI over the observation sample")
+print("2. ANY METRIC via bootstrap_metric: CI over the observation sample")
 print(line)
 chr_fn = lambda s: ClinicalHallucinationRate().calculate_chr(s)
 naive = bootstrap_metric(chr_fn, scores, value_key="chr", n_boot=2000, random_state=0)
@@ -74,7 +74,7 @@ print("  CHR, cluster bootstrap  :", clus)
 
 print()
 print(line)
-print("3. FAIRNESS GAP between two demographic groups — permutation p-value")
+print("3. FAIRNESS GAP between two demographic groups: permutation p-value")
 print(line)
 group_a = rng.normal(0.85, 0.05, 60)       # quality scores, group A
 group_b = rng.normal(0.80, 0.05, 60)       # group B

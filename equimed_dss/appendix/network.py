@@ -20,18 +20,25 @@ class AdvancedNetworkMetrics:
     def calculate_modularity(self, adjacency_matrix: np.ndarray) -> float:
         """
         Calculate Network Modularity using NetworkX (greedy modularity).
-        """
-        try:
-            G = nx.from_numpy_array(adjacency_matrix)
-            from networkx.algorithms.community import (
-                greedy_modularity_communities,
-                modularity,
-            )
 
-            communities = greedy_modularity_communities(G)
-            return float(modularity(G, communities))
-        except Exception:
+        Absolute weights are used and the diagonal is ignored (a correlation
+        matrix's 1s are not edges); communities are found and scored with the
+        same weights. A network without edges has modularity 0. Up to 1.9.5
+        the diagonal was kept, the community search ignored the weights, and
+        any error was silently turned into 0.0.
+        """
+        from networkx.algorithms.community import (
+            greedy_modularity_communities,
+            modularity,
+        )
+
+        A = np.abs(np.asarray(adjacency_matrix, dtype=float))
+        np.fill_diagonal(A, 0.0)
+        G = nx.from_numpy_array(A)
+        if G.number_of_edges() == 0:
             return 0.0
+        communities = greedy_modularity_communities(G, weight="weight")
+        return float(modularity(G, communities, weight="weight"))
 
     def calculate_transparency_score(self, n_explained: int, n_total: int) -> float:
         """

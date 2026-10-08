@@ -2,6 +2,8 @@ from typing import Any, Dict, List, Tuple
 
 import numpy as np
 
+from equimed_dss._validation import check_no_missing
+
 
 def _wilson_ci(n_success: int, n: int, z: float = 1.96) -> Tuple[float, float]:
     """Wilson score 95% interval for a binomial proportion.
@@ -41,12 +43,23 @@ class DecisionFlipRate:
         Args:
             original_decisions: List of original decisions (e.g., binary labels 0/1 or class names).
             counterfactual_decisions: List of decisions after input perturbation.
+            threshold: acceptable flip rate used as the null value of a one-sided
+                score test (default 0.05); it does not change the flip rate.
 
         Returns:
             Dictionary containing flip rate and confidence intervals.
+
+        Raises:
+            ValueError: if the lists differ in length, are empty, or contain a
+                missing decision (None or NaN). NaN never equals itself, so a
+                missing pair would otherwise count as a flip.
         """
         if len(original_decisions) != len(counterfactual_decisions):
             raise ValueError("Input lists must have the same length")
+        if len(original_decisions) == 0:
+            raise ValueError("Input lists must be non-empty")
+        check_no_missing(original_decisions, "original_decisions")
+        check_no_missing(counterfactual_decisions, "counterfactual_decisions")
 
         n_samples = len(original_decisions)
         flips = [

@@ -10,6 +10,7 @@ Note: this is a Gaussian mixed model (statsmodels MixedLM). For a binary outcome
 intersectional VPC on the latent scale is sigma_u^2 / (sigma_u^2 + pi^2/3).
 """
 
+import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -47,10 +48,15 @@ class HierarchicalLinearModeling:
             outcome_var: Dependent variable name
             level1_predictors: Individual-level predictors
             level2_var: Grouping variable (e.g., 'hospital_id')
-            level2_predictors: Group-level predictors (optional)
+            level2_predictors: Group-level predictors (optional), added as fixed
+                effects next to the level-1 predictors (up to 1.9.5 they were
+                accepted but ignored).
 
         Returns:
-            Dict with variance components and model statistics
+            Dict with variance components and model statistics. ``method`` is
+            "mixedlm" for the REML mixed model, or "anova" when the mixed model
+            could not be fitted and the ANOVA decomposition was used instead (a
+            warning gives the reason; the ANOVA result has no coefficients).
 
         Example:
             >>> hlm = HierarchicalLinearModeling()
@@ -84,8 +90,9 @@ class HierarchicalLinearModeling:
                 formula_null, data=df, groups=df[level2_var]
             ).fit()
 
-            # Full model with level-1 predictors
-            formula_full = f"{outcome_var} ~ {' + '.join(level1_predictors)}"
+            # Full model with level-1 (and any level-2) predictors
+            predictors = list(level1_predictors) + list(level2_predictors or [])
+            formula_full = f"{outcome_var} ~ {' + '.join(predictors)}"
             full_model = MixedLM.from_formula(
                 formula_full, data=df, groups=df[level2_var]
             ).fit()
@@ -133,6 +140,7 @@ class HierarchicalLinearModeling:
 
             self.model_fitted = True
             self.results = {
+                "method": "mixedlm",
                 "icc": float(icc),
                 "variance_between_groups": float(var_between),
                 "variance_within_groups": float(var_within),
@@ -167,7 +175,14 @@ class HierarchicalLinearModeling:
             return self.results
 
         except Exception as e:
-            # Fallback to simpler variance decomposition
+            # Fallback to the ANOVA variance decomposition, with a warning so the
+            # change of method is never silent.
+            warnings.warn(
+                f"The mixed model could not be fitted ({type(e).__name__}: {e}); "
+                "using the ANOVA variance decomposition instead (no coefficients).",
+                UserWarning,
+                stacklevel=2,
+            )
             return self._simple_variance_decomposition(df, outcome_var, level2_var)
 
     @staticmethod
@@ -194,7 +209,14 @@ class HierarchicalLinearModeling:
     def _simple_variance_decomposition(
         self, df: pd.DataFrame, outcome_var: str, group_var: str
     ) -> Dict[str, Any]:
-        """Simple ANOVA-based variance decomposition."""
+        """One-way ANOVA variance decomposition (random-intercept model).
+
+        Between-group variance component sigma_u^2 = max(0, (MSB - MSW) / n0)
+        and within-group sigma_e^2 = MSW, with n0 = (N - sum n_j^2 / N) / (J - 1)
+        the effective group size for unbalanced groups; ICC(1) = (MSB - MSW) /
+        (MSB + (n0 - 1) MSW), bounded to [0, 1]. Up to 1.9.5 the variance keys
+        held the mean squares themselves and n0 was the plain mean group size.
+        """
         # Calculate group means
         group_means = df.groupby(group_var)[outcome_var].mean()
         grand_mean = df[outcome_var].mean()
@@ -216,16 +238,28 @@ class HierarchicalLinearModeling:
         ms_between = ss_between / df_between if df_between > 0 else 0
         ms_within = ss_within / df_within if df_within > 0 else 0
 
-        # ICC calculation
-        icc = (ms_between - ms_within) / (
-            ms_between + ms_within * (n_per_group.mean() - 1)
+        # Effective group size for unbalanced designs
+        n0 = (
+            (n_total - float(np.sum(n_per_group**2)) / n_total) / df_between
+            if df_between > 0
+            else float(n_per_group.mean())
         )
+
+        # ICC calculation
+        denom = ms_between + ms_within * (n0 - 1)
+        icc = (ms_between - ms_within) / denom if denom > 0 else 0.0
         icc = max(0, min(1, icc))  # Bound between 0 and 1
+        var_between = max(0.0, (ms_between - ms_within) / n0) if n0 > 0 else 0.0
 
         return {
+            "method": "anova",
             "icc": float(icc),
-            "variance_between_groups": float(ms_between),
+            "variance_between_groups": float(var_between),
             "variance_within_groups": float(ms_within),
+            "total_variance": float(var_between + ms_within),
+            "ms_between": float(ms_between),
+            "ms_within": float(ms_within),
+            "n0": float(n0),
             "n_groups": n_groups,
             "n_observations": n_total,
             "interpretation": {

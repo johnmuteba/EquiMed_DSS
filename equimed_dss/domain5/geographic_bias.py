@@ -14,6 +14,8 @@ from typing import Any, Dict, Optional, Sequence
 
 import numpy as np
 
+from equimed_dss._validation import check_records
+
 
 class GeographicRepresentationBiasIndex:
     """Geographic Representation Bias Index (GRBI), KL of corpus vs burden."""
@@ -107,6 +109,9 @@ class GeographicRepresentationBiasIndex:
 
         if corpus_records is not None:
             recs = [str(r) for r in corpus_records]
+            check_records(
+                recs, regions, dict(zip(regions, pc.tolist())), "corpus_records"
+            )
             if len(recs) >= 2:
                 def _grbi(sample):
                     counts: Dict[str, float] = {}

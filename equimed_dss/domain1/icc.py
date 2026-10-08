@@ -53,8 +53,16 @@ class InterRaterReliability:
 
         Returns:
             Dictionary with ICC score and interpretation.
+
+        Raises:
+            ValueError: if the matrix is not 2D with at least 2 items and 2 judges.
         """
+        judge_matrix = np.asarray(judge_matrix, dtype=float)
+        if judge_matrix.ndim != 2:
+            raise ValueError("judge_matrix must be 2D, shape (n_items, n_judges).")
         n_items, n_judges = judge_matrix.shape
+        if n_items < 2 or n_judges < 2:
+            raise ValueError("ICC(2,1) needs at least 2 items and 2 judges.")
 
         # Mean squares calculation
         grand_mean = np.mean(judge_matrix)
@@ -82,15 +90,8 @@ class InterRaterReliability:
 
         icc_2_1 = numerator / denominator
 
-        # Interpretation
-        if icc_2_1 >= 0.75:
-            verdict = "Excellent"
-        elif icc_2_1 >= 0.60:
-            verdict = "Good"
-        elif icc_2_1 >= 0.40:
-            verdict = "Fair"
-        else:
-            verdict = "Poor"
+        # Interpretation (Cicchetti 1994 bands; see interpret_score)
+        verdict = self.interpret_score(icc_2_1)
 
         # 95% CI by bootstrapping over items (rows). Small item counts give a
         # wide, honestly unstable interval.
@@ -104,10 +105,11 @@ class InterRaterReliability:
             "ci_upper": ci.ci_upper,
             "ci_method": "bootstrap (over items)",
             "interpretation": {
-                "range": "[0, 1]",
+                "range": "at most 1; negative values mean less agreement than chance",
                 "ideal": "Higher is better (close to 1)",
                 "verdict": verdict,
-                "thresholds": ">0.75 (Exc), >0.6 (Good), >0.4 (Fair)",
+                "thresholds": ">=0.75 Excellent, >=0.60 Good, >=0.40 Fair "
+                "(Cicchetti 1994)",
             },
         }, name="ICC(2,1)", value_key="score")
 
@@ -144,12 +146,17 @@ class InterRaterReliability:
         return results
 
     def interpret_score(self, icc_score: float) -> str:
-        """Interpret the ICC score."""
-        if icc_score > 0.75:
+        """Interpret the ICC score with Cicchetti's (1994) bands.
+
+        >=0.75 Excellent, 0.60-0.74 Good, 0.40-0.59 Fair, <0.40 Poor. Up to
+        1.9.5 this method used strict inequalities while ``calculate_icc_2_1``
+        used inclusive ones, so a score of exactly 0.75 got two verdicts.
+        """
+        if icc_score >= 0.75:
             return "Excellent"
-        elif icc_score > 0.60:
+        elif icc_score >= 0.60:
             return "Good"
-        elif icc_score > 0.40:
+        elif icc_score >= 0.40:
             return "Fair"
         else:
             return "Poor"

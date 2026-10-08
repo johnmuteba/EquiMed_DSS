@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from scipy import stats
@@ -18,18 +18,31 @@ class AdvancedReliabilityMetrics:
         pass
 
     def calculate_bootstrap_ci(
-        self, data: List[float], n_bootstrap: int = 1000, alpha: float = 0.05
+        self,
+        data: List[float],
+        n_bootstrap: int = 1000,
+        alpha: float = 0.05,
+        random_state: Optional[int] = None,
     ) -> Dict[str, float]:
         """
-        Calculate Bootstrap Confidence Intervals.
+        Percentile bootstrap confidence interval for the mean.
+
+        Args:
+            data: observations.
+            n_bootstrap: number of bootstrap resamples.
+            alpha: 1 - confidence level (0.05 gives a 95% interval).
+            random_state: seed; pass an integer for a reproducible interval
+                (up to 1.9.5 the global NumPy generator was used, so results
+                could not be reproduced).
         """
         if not data:
             return {}
 
-        data_np = np.array(data)
+        rng = np.random.default_rng(random_state)
+        data_np = np.array(data, dtype=float)
         means = []
         for _ in range(n_bootstrap):
-            sample = np.random.choice(data_np, size=len(data_np), replace=True)
+            sample = data_np[rng.integers(0, len(data_np), size=len(data_np))]
             means.append(np.mean(sample))
 
         return {
@@ -42,13 +55,20 @@ class AdvancedReliabilityMetrics:
         self, effect_size: float, alpha: float = 0.05, power: float = 0.8
     ) -> Dict[str, Any]:
         """
-        Calculate sample size requirements for detecting bias (Two-sample Z-test approximation).
+        Sample size per group to detect a standardised mean difference.
+
+        Two-sample z-test approximation with equal groups and a two-sided test:
+        n per group = 2 (z_{1-alpha/2} + z_{power})^2 / d^2, where d is Cohen's d.
+        For d = 0.5, alpha = 0.05 and power = 0.8 this gives 63 per group; the
+        t-test solution in ``StatisticalPowerAnalysis`` gives 64. Up to 1.9.5
+        the factor 2 was missing, so the sample size was half what is needed.
         """
-        # Z-scores
+        if effect_size == 0:
+            raise ValueError("effect_size must be non-zero.")
         z_alpha = stats.norm.ppf(1 - alpha / 2)
         z_beta = stats.norm.ppf(power)
 
-        n_per_group = ((z_alpha + z_beta) / effect_size) ** 2
+        n_per_group = 2 * ((z_alpha + z_beta) / effect_size) ** 2
 
         return {
             "required_n_per_group": int(np.ceil(n_per_group)),
@@ -60,22 +80,42 @@ class AdvancedReliabilityMetrics:
         self, population_share: np.ndarray, health_variable: np.ndarray
     ) -> float:
         """
-        Calculate Bias Concentration Index (Concentration Index).
-        Assumes data is sorted by the ranking variable (e.g., income).
-        """
-        # Simplified calculation based on area between curve and diagonal
-        # CI = 2 * cov(h, r) / mean(h) where r is fractional rank
+        Concentration index of a health (or bias) variable over a ranking.
 
-        n = len(health_variable)
+        Rows must be sorted by the ranking variable (e.g. income, poorest
+        first). For grouped data, ``population_share`` gives each row's share of
+        the population; the fractional rank of row i is the cumulative share of
+        the rows before it plus half its own, and
+
+            C = (2 / mu) * sum_i w_i (h_i - mu) (R_i - 1/2),  mu = sum_i w_i h_i,
+
+        which for equal shares equals 2 cov(h, R) / mu with the population
+        (1/n) covariance (Kakwani, Wagstaff and van Doorslaer, J Econometrics
+        1997; O'Donnell et al., Analyzing Health Equity Using Household Survey
+        Data, World Bank 2008). Pass ``None`` or an empty array for equal
+        shares. Up to 1.9.5 ``population_share`` was ignored and the sample
+        (1/(n-1)) covariance was used, which overstated C by n/(n-1).
+        """
+        h = np.asarray(health_variable, dtype=float)
+        n = len(h)
         if n == 0:
             return 0.0
+        if population_share is None or len(population_share) == 0:
+            w = np.full(n, 1.0 / n)
+        else:
+            w = np.asarray(population_share, dtype=float)
+            if w.shape != h.shape:
+                raise ValueError(
+                    "population_share must have one entry per row of health_variable."
+                )
+            if (w < 0).any() or w.sum() <= 0:
+                raise ValueError("population_share must be non-negative with a positive sum.")
+            w = w / w.sum()
 
-        fractional_rank = (np.arange(1, n + 1) - 0.5) / n
-        mean_h = np.mean(health_variable)
-
+        mean_h = float(np.sum(w * h))
         if mean_h == 0:
             return 0.0
 
-        cov = np.cov(health_variable, fractional_rank)[0, 1]
-        ci = 2 * cov / mean_h
+        fractional_rank = np.cumsum(w) - w / 2
+        ci = 2.0 * np.sum(w * (h - mean_h) * (fractional_rank - 0.5)) / mean_h
         return float(ci)

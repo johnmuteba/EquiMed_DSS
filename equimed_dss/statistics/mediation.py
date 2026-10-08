@@ -7,10 +7,17 @@ Product-of-coefficients mediation:
 - indirect effect = a1 * b2; total effect = direct + indirect;
 - proportion mediated = indirect / total.
 
-The indirect-effect confidence interval is obtained by nonparametric
-bootstrap; a CI that excludes zero indicates a significant indirect pathway.
+The indirect- and direct-effect confidence intervals are obtained by
+nonparametric bootstrap; a CI that excludes zero indicates a significant
+pathway. The mediation type follows Zhao, Lynch and Chen (J Consum Res 2010):
+indirect effect significant and direct effect not, complete (indirect-only)
+mediation; both significant, partial mediation, complementary when they share
+a sign and competitive when they do not; indirect effect not significant, no
+mediation. Reading the effects as causal requires no unmeasured confounding of
+the treatment-mediator, treatment-outcome and mediator-outcome relations.
 """
 
+import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -73,11 +80,6 @@ class MediationAnalysis:
         """
         df = data.copy()
 
-        # Prepare covariate string for formulas
-        cov_str = ""
-        if covariates:
-            cov_str = " + " + " + ".join(covariates)
-
         try:
             from sklearn.linear_model import LinearRegression
 
@@ -113,8 +115,9 @@ class MediationAnalysis:
                 indirect_effect / total_effect if abs(total_effect) > 1e-10 else 0
             )
 
-            # Bootstrap confidence intervals
+            # Bootstrap confidence intervals (indirect and direct effects)
             indirect_boots = []
+            direct_boots = []
             for _ in range(self.n_bootstrap):
                 boot_idx = self.rng.choice(len(df), size=len(df), replace=True)
                 boot_data = df.iloc[boot_idx]
@@ -136,10 +139,13 @@ class MediationAnalysis:
                 b2_boot = out_boot.coef_[1]
 
                 indirect_boots.append(a1_boot * b2_boot)
+                direct_boots.append(out_boot.coef_[0])
 
             indirect_boots = np.array(indirect_boots)
             ci_lower = np.percentile(indirect_boots, (alpha / 2) * 100)
             ci_upper = np.percentile(indirect_boots, (1 - alpha / 2) * 100)
+            direct_ci_lower = np.percentile(direct_boots, (alpha / 2) * 100)
+            direct_ci_upper = np.percentile(direct_boots, (1 - alpha / 2) * 100)
 
             self.results = {
                 "total_effect": float(total_effect),
@@ -151,9 +157,16 @@ class MediationAnalysis:
                 "beta_2": float(beta_2),  # M -> Y
                 "indirect_ci_lower": float(ci_lower),
                 "indirect_ci_upper": float(ci_upper),
+                "direct_ci_lower": float(direct_ci_lower),
+                "direct_ci_upper": float(direct_ci_upper),
                 "interpretation": {
                     "mediation_type": self._classify_mediation(
-                        direct_effect, indirect_effect, ci_lower, ci_upper
+                        direct_effect,
+                        indirect_effect,
+                        ci_lower,
+                        ci_upper,
+                        direct_ci_lower,
+                        direct_ci_upper,
                     ),
                     "proportion_description": f"{proportion_mediated*100:.1f}% of effect is mediated",
                     "clinical_implication": self._interpret_mediation(
@@ -168,19 +181,40 @@ class MediationAnalysis:
             return self.results
 
         except Exception as e:
+            warnings.warn(
+                f"Mediation analysis failed ({type(e).__name__}: {e}).",
+                UserWarning,
+                stacklevel=2,
+            )
             return {
                 "error": str(e),
                 "message": "Mediation analysis failed. Check your data and variable names.",
             }
 
     def _classify_mediation(
-        self, direct: float, indirect: float, ci_lower: float, ci_upper: float
+        self,
+        direct: float,
+        indirect: float,
+        ci_lower: float,
+        ci_upper: float,
+        direct_ci_lower: Optional[float] = None,
+        direct_ci_upper: Optional[float] = None,
     ) -> str:
-        """Classify type of mediation based on effects."""
+        """Classify the type of mediation (Zhao, Lynch and Chen 2010).
+
+        Significance is judged from the bootstrap CIs. Without a direct-effect
+        CI, the direct effect counts as absent only if it is exactly zero (the
+        rule used up to 1.9.5, under which complete mediation was practically
+        never reported).
+        """
         indirect_significant = ci_lower * ci_upper > 0
+        if direct_ci_lower is not None and direct_ci_upper is not None:
+            direct_significant = direct_ci_lower * direct_ci_upper > 0
+        else:
+            direct_significant = abs(direct) >= 1e-10
 
         if indirect_significant:
-            if abs(direct) < 1e-10:
+            if not direct_significant:
                 return "Complete mediation"
             elif direct * indirect > 0:
                 return "Partial mediation (complementary)"

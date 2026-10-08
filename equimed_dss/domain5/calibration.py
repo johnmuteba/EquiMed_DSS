@@ -9,6 +9,14 @@ For an intersectional group i with confidence-binned samples S_{i,b}:
     ECE_i = sum_b (|S_{i,b}| / |S_i|) * |acc(S_{i,b}) - conf(S_{i,b})|
     ICE   = sum_i w_i * ECE_i,   w_i = |S_i| / sum_j |S_j|
     dICE  = max_{i,j} |ECE_i - ECE_j|
+
+For a binary risk model, pass the predicted probability of the event as
+``confidences`` and the observed event (1/0) as ``correct``: each bin then
+compares the mean predicted risk with the observed event rate (the reliability
+diagram). Binned ECE is biased upward in small samples, because sampling noise
+alone separates the mean prediction and the event rate within a bin, so a small
+group can show a larger ECE than a large group with the same calibration;
+interpret dICE alongside the group sizes (``n_by_group``).
 """
 from typing import Any, Dict, Sequence
 
@@ -90,6 +98,7 @@ class IntersectionalCalibrationError:
             "ice": ice,
             "delta_ice": delta_ice,
             "ece_by_group": ece_by_group,
+            "n_by_group": sizes,
             "n_groups": len(ece_by_group),
             "interpretation": (
                 f"ICE = {ice:.3f}; maximum intersectional calibration gap "

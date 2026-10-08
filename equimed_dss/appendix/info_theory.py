@@ -29,7 +29,8 @@ class AdvancedInfoTheoryMetrics:
     def calculate_jsd(self, p: List[float], q: List[float]) -> float:
         """
         Calculate the Jensen-Shannon Divergence (base 2, range [0, 1]) between
-        two probability distributions. Consistent with
+        two probability distributions (or counts) over the same categories, in
+        the same order; histogram raw samples on common bins first. Consistent with
         ``advanced_metrics.JensenShannonDivergence`` (both return the divergence,
         not the distance).
         """

@@ -35,7 +35,9 @@ class GovernanceComplianceIndex:
         gaps = [policy for policy, status in policy_compliance.items() if not status]
 
         # GCI is the proportion of enforced policies, so a Wilson score interval
-        # is its natural 95% CI.
+        # is its natural 95% CI. It treats the audited policies as a sample of
+        # the policies that could have been audited; for a complete census of a
+        # fixed policy list, report GCI itself.
         inf = proportion_ci(n_enforced, n_mandated)
 
         return MetricResult({

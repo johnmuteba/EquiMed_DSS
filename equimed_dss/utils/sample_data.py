@@ -244,8 +244,10 @@ class SampleDataGenerator:
             >>> generator = SampleDataGenerator(random_state=42)
             >>> dist_a, dist_b = generator.generate_distribution_data(difference=0.2)
             >>> from equimed_dss.appendix import JensenShannonDivergence
-            >>> jsd = JensenShannonDivergence()
-            >>> result = jsd.calculate_jsd(dist_a, dist_b)
+            >>> bins = np.linspace(0, 1, 21)
+            >>> hist_a, _ = np.histogram(dist_a, bins=bins)
+            >>> hist_b, _ = np.histogram(dist_b, bins=bins)
+            >>> result = JensenShannonDivergence().calculate_jsd(hist_a, hist_b)
         """
         dist_a = self.rng.beta(5, 5, n_samples)
         dist_b = self.rng.beta(5 - difference * 2, 5 + difference * 2, n_samples)

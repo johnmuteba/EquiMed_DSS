@@ -232,7 +232,11 @@ and the normalized harm-adjusted fairness gap
 HAFG=\frac{|H_1-H_2|}{\max(H_1,H_2)}.
 ```
 If both group harms are zero, the denominator is zero and the
-implemented value is $0$.
+implemented value is $0$. Because $H_g$ is a total, HAFG reflects group size as
+well as error rates when the groups differ in size; use counts per 1,000
+patients, or the per-patient wHAFG (Metric 16). From 1.10.0 the interval
+resamples cases within each group (group sizes fixed), and a warning flags case
+lists that disagree with the counts or groups whose sizes differ by more than 10%.
 
 
 **95% CI (this section).** $HAFG$ is reported with a percentile bootstrap of the gap over per-case error labels: resample with replacement $B=1000$ times, recompute $HAFG$, and take the empirical percentiles
@@ -322,7 +326,14 @@ LCL &= \bar m-3s_m.
 \end{aligned}
 ```
 A drift point is flagged when $m_t>UCL$ or $m_t<LCL$, following the
-Shewhart-style control-chart logic used in statistical process control .
+Shewhart-style control-chart logic used in statistical process control.
+With `sigma_method="moving_range"` (from 1.10.0) the sigma estimate is the
+individuals-chart estimate
+```math
+\hat\sigma=\frac{\overline{MR}}{d_2},\qquad
+\overline{MR}=\frac{1}{T-1}\sum_{t=2}^{T}|m_t-m_{t-1}|,\qquad d_2=1.128,
+```
+which a sustained shift does not inflate, unlike $s_m$.
 
 
 **95% CI (this section).** $TFD$ is reported with a percentile bootstrap over the observed time series: resample with replacement $B=1000$ times, recompute $TFD$, and take the empirical percentiles
@@ -337,17 +348,19 @@ decisions. The score is
 ```math
 ATS=\frac{x}{n}.
 ```
-The implementation returns a Wilson-style shrinkage interval using
+The implementation returns the Wilson score interval (Wilson 1927), with
+$\hat p = x/n$ and $z = z_{0.975}$:
 ```math
 \begin{aligned}
-z &= 1.96,\\
-\tilde p &= \frac{x+z^2/2}{n+z^2},\\
-SE_{\tilde p} &= \sqrt{\frac{\tilde p(1-\tilde p)}{n+z^2}},\\
-CI_{95} &= [\max(0,\tilde p-zSE_{\tilde p}),\min(1,\tilde p+zSE_{\tilde p})].
+c &= \frac{\hat p + z^2/(2n)}{1 + z^2/n},\\
+h &= \frac{z}{1 + z^2/n}\sqrt{\frac{\hat p(1-\hat p)}{n} + \frac{z^2}{4n^2}},\\
+CI_{95} &= [\,c - h,\; c + h\,].
 \end{aligned}
 ```
-The interval uses Wilson score shrinkage for a binomial proportion . The
-score is labelled compliant at $ATS\ge 0.95$.
+Versions up to 1.9.5 labelled the interval "Wilson score" but computed the
+Agresti-Coull interval, $\tilde p \pm z\sqrt{\tilde p(1-\tilde p)/(n+z^2)}$ with
+$\tilde p = (x+z^2/2)/(n+z^2)$, which has the same centre and is slightly wider.
+The score is labelled compliant at $ATS\ge 0.95$.
 
 ## Metric 10: Governance Compliance Index
 
@@ -381,6 +394,14 @@ The cosine variant is
 SPG_{\mathrm{cos}}=1-\frac{\bar p^\top \bar m}{\left\lVert \bar p \right\rVert_2\left\lVert \bar m \right\rVert_2},
 ```
 with value zero if the denominator is zero.
+
+A centroid distance is positive even when both groups come from the same
+distribution, so its bootstrap interval never contains zero. From 1.10.0 the
+result also carries a permutation $p$-value: with $D_b$ the distance after the
+$b$-th random reassignment of the pooled rows to groups of sizes $n_p$ and $n_m$,
+```math
+p=\frac{1+\#\{b: D_b\ge SPG_{\mathrm{Euc}}\}}{1+B},\qquad B=1000.
+```
 
 
 **95% CI (this section).** $SPG$ is reported with a percentile bootstrap over embedding rows within each group (two-sample bootstrap): resample with replacement $B=1000$ times, recompute $SPG$, and take the empirical percentiles
@@ -679,6 +700,10 @@ $q_i$ the number of sentences. The uncertainty density is
 ```math
 UD_i=\frac{h_i}{q_i}.
 ```
+Hedging terms are matched as whole words or phrases, longest first and without
+overlap, so "cannot rule out" counts once and not also as "rule out"; a sentence
+ends at '.', '!' or '?' followed by white space or the end of the text, so a
+decimal such as "0.04" does not end a sentence (both from 1.10.0).
 If no sentence is detected, $UD_i=0$. For group $g$,
 ```math
 UD(g)=\frac{1}{n_g}\sum_{i:G_i=g}UD_i.
@@ -893,7 +918,13 @@ BCI_{\mathrm{bias}}=
 If the vector is empty or sums to zero, the value is zero. For a
 normalized nonnegative vector, the finite-group upper bound is
 $1-1/K$, attained by an even distribution. Larger values indicate more
-distributed bias; smaller values indicate concentration in fewer groups.
+distributed bias; smaller values indicate concentration in fewer groups. The
+result also reports
+```math
+BCI^{\mathrm{norm}}_{\mathrm{bias}}=\frac{BCI_{\mathrm{bias}}}{1-1/K}\in[0,1],
+```
+and from 1.10.0 the verdict thresholds (0.3, 0.7) apply to this normalized value,
+so that an even distribution over few groups is not labelled concentrated.
 
 
 **95% CI (this section).** $BCI(concentration)$ is reported with a percentile bootstrap over the per-group bias proportions: resample with replacement $B=1000$ times, recompute $BCI(concentration)$, and take the empirical percentiles
@@ -964,6 +995,11 @@ Equivalently, in one dimension,
 ```math
 WD(P_n,Q_m)=\int_{-\infty}^{\infty}|F_{P_n}(t)-F_{Q_m}(t)|\,dt.
 ```
+The inputs are samples, not probability vectors. To compare two histograms
+$(w^P_k)$ and $(w^Q_k)$ on shared bin locations $x_k$, pass `support` $=(x_k)$
+(from 1.10.0); the distance is then computed between the weighted empirical
+distributions $\sum_k w^P_k\delta_{x_k}$ and $\sum_k w^Q_k\delta_{x_k}$, with no
+bootstrap interval.
 
 
 **95% CI (this section).** $WD$ is reported with a percentile bootstrap over each sample independently (two-sample bootstrap): resample with replacement $B=1000$ times, recompute $WD$, and take the empirical percentiles
@@ -974,8 +1010,10 @@ CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ## Metric 35: Network Modularity
 
 Given an adjacency or correlation matrix $A$, the implementation
-constructs an undirected graph using $|A|$ and detects communities
-with greedy modularity. For total edge weight $2m$ (summing all entries
+constructs an undirected graph using $|A|$ with the diagonal set to zero (a
+correlation of 1 between a metric and itself is not an edge) and detects
+communities with greedy modularity on the same edge weights used to score them
+(both from 1.10.0). For total edge weight $2m$ (summing all entries
 $A_{ij}$), degree $k_i=\sum_j A_{ij}$, and community assignment $c_i$, Newman
 modularity is
 ```math
@@ -984,7 +1022,7 @@ Q=\frac{1}{2m}\sum_{i,j}
 ```
 
 
-**95% CI (this section).** $NM$ is reported with a percentile bootstrap over nodes (node-resampling stability bootstrap): resample with replacement $B=1000$ times, recompute $NM$, and take the empirical percentiles
+**95% CI (this section).** $NM$ is reported with a percentile bootstrap over nodes (node-resampling stability bootstrap): resample with replacement $B=200$ times, recompute $NM$, and take the empirical percentiles
 ```math
 CI_{95}=\left[\hat\theta^{\ast}_{(0.025)},\ \hat\theta^{\ast}_{(0.975)}\right].
 ```
@@ -1258,7 +1296,7 @@ Throughout, $z_{1-\alpha/2}=\Phi^{-1}(1-\alpha/2)$ (so $z=1.96$ for a 95%
 interval), $\Phi$ is the standard-normal CDF, and $B$, $P$ are the numbers of
 bootstrap and permutation resamples.
 
-## A. Binomial-proportion metrics — Wilson interval + score test
+## A. Binomial-proportion metrics: Wilson interval + score test
 
 A metric that is a proportion $\hat p = k/n$ (CHR, IVI, DFR, Safety Violation
 Rate, Audit Traceability, Counterfactual Unfairness, Transparency Score,
@@ -1284,7 +1322,7 @@ For example the Clinical Hallucination Rate returns
 $\widehat{\mathrm{CHR}}=k/n$ with the Wilson CI above and
 $p=1-\Phi\!\big((\hat p-p_0)\sqrt{n/(p_0(1-p_0))}\big)$.
 
-## B. Sample statistics (means, distances, divergences) — bootstrap
+## B. Sample statistics (means, distances, divergences): bootstrap
 
 For a metric $\hat\theta=T(x_1,\dots,x_n)$ that is a mean, centroid distance,
 entropy, Gini, total-variation distance, or KL/JS divergence (ECS, ICC, SPG,
@@ -1312,12 +1350,12 @@ $g\in\{1,\dots,G\}$ rather than rows,
 \hat\theta^{\ast(b)}=T\!\Big(\textstyle\bigcup_{j} x_{g_j^{\ast}}\Big),
 ```
 
-which widens the interval to reflect within-cluster correlation; this is the
-interval reported for the manuscript's per-patient proportions. Any metric can
+which widens the interval to reflect within-cluster correlation; use it
+whenever the same patient or visit contributes several rows. Any metric can
 be wrapped with `inference.bootstrap_metric(metric_fn, data, value_key=...,
 clusters=...)`.
 
-## C. Between-group gaps — permutation test
+## C. Between-group gaps: permutation test
 
 For a fairness gap $\Delta=\hat\theta_A-\hat\theta_B$ between groups $A$ and $B$
 (HER, HAFG/wHAFG, IBS, HSSF, the between-group Theil component, Temporal
@@ -1379,13 +1417,16 @@ Metrics 29 (Bootstrap Confidence Interval) and 30 (Statistical Power Analysis)
 are themselves inference utilities and define, rather than consume, the
 machinery above.
 
-### Worked instances (manuscript metrics)
+### Worked instances (illustrative numbers)
 
-- **CHR** $= 274/285 = 0.961$, Wilson 95% CI $[0.932,\,0.978]$, $p<0.001$ vs
-  $p_0=0.05$.
-- **IVI** $= 36/132 = 0.273$, Wilson 95% CI $[0.204,\,0.354]$, $p<0.001$ vs
-  $p_0=0.05$.
-- **Per-patient accuracy** $= 0.263$, cluster (by-visit) bootstrap 95% CI
-  $[0.235,\,0.292]$ — entirely below the $0.443$ majority-class baseline.
-- **BEMI** $= \tfrac12\sum_r|e_r-b_r| = 0.67$; a record-level bootstrap over the
-  geolocated evidence gives its CI via estimator **B**.
+These use invented counts, chosen only to show the arithmetic; they are not
+results of any study.
+
+- **CHR** with 12 unsupported of 80 claims: $12/80 = 0.150$, Wilson 95% CI
+  $[0.088,\,0.244]$, one-sided $p<0.001$ vs $p_0=0.05$ (estimator **A**).
+- **IVI** with 9 of 60 case pairs flipped: $9/60 = 0.150$, Wilson 95% CI
+  $[0.081,\,0.261]$, one-sided $p<0.001$ vs $p_0=0.05$ (estimator **A**).
+- **BEMI** for 90 studies (AFRO 5, AMRO 40, EMRO 2, EURO 30, SEARO 3, WPRO 10)
+  against `WHO_REGION_IHD_BURDEN`: $\tfrac12\sum_r|e_r-b_r| = 0.485$, with a
+  record-level bootstrap 95% CI of $[0.418,\,0.573]$ (estimator **B**, 1000
+  resamples, seed 0); the most under-served region is SEARO.

@@ -1,3 +1,4 @@
+import re
 from typing import Any, Dict, List, Tuple
 
 import networkx as nx
@@ -11,10 +12,10 @@ class AdvancedNetworkAnalysis:
     Advanced Network Analysis for EquiMed_DSS.
 
     Implements complex network-based fairness metrics:
-    - RQ16: Metric Correlation Network
-    - RQ17: Subgroup Similarity Graph (Enhanced)
-    - RQ18: Concept Co-occurrence Network
-    - RQ19: Temporal Fairness Dynamics
+    - Metric Correlation Network
+    - Subgroup Similarity Graph
+    - Concept Co-occurrence Network
+    - Temporal Fairness Dynamics
     """
 
     def __init__(self):
@@ -24,37 +25,42 @@ class AdvancedNetworkAnalysis:
         self, metric_df: pd.DataFrame, threshold: float = 0.5
     ) -> Dict[str, Any]:
         """
-        RQ16: Analyze correlations between different fairness metrics.
+        Analyze correlations between different fairness metrics.
 
         Args:
             metric_df: DataFrame where columns are metrics and rows are observations (e.g., models, timepoints).
             threshold: Correlation threshold to draw edges.
 
         Returns:
-            NetworkX graph stats and correlation matrix.
+            NetworkX graph stats and correlation matrix. Every metric is a node,
+            including metrics with no correlation above the threshold (up to
+            1.9.5 those were left out, which also changed the centralities).
+            Edges keep the signed correlation as ``weight``; communities and
+            modularity use its absolute value (``abs_weight``).
         """
         corr_matrix = metric_df.corr()
 
         # Build graph
         G = nx.Graph()
+        G.add_nodes_from(corr_matrix.columns)
         for i, metric1 in enumerate(corr_matrix.columns):
             for j, metric2 in enumerate(corr_matrix.columns):
                 if i < j:
                     weight = corr_matrix.iloc[i, j]
                     if abs(weight) >= threshold:
-                        G.add_edge(metric1, metric2, weight=weight)
+                        G.add_edge(
+                            metric1, metric2, weight=weight, abs_weight=abs(weight)
+                        )
 
         # Network metrics
         centrality = nx.degree_centrality(G)
         modularity = 0.0
-        try:
+        if G.number_of_edges() > 0:
             from networkx.algorithms.community import greedy_modularity_communities
             from networkx.algorithms.community import modularity as calc_modularity
 
-            communities = greedy_modularity_communities(G)
-            modularity = calc_modularity(G, communities)
-        except:
-            pass
+            communities = greedy_modularity_communities(G, weight="abs_weight")
+            modularity = calc_modularity(G, communities, weight="abs_weight")
 
         return {
             "correlation_matrix": corr_matrix,
@@ -73,7 +79,7 @@ class AdvancedNetworkAnalysis:
         self, subgroup_vectors: Dict[str, np.ndarray], threshold: float = 0.5
     ) -> Dict[str, Any]:
         """
-        RQ17: Enhanced Subgroup Similarity Graph.
+        Subgroup Similarity Graph (cosine similarity of metric vectors).
 
         Args:
             subgroup_vectors: Dict mapping subgroup names to metric vectors.
@@ -113,18 +119,24 @@ class AdvancedNetworkAnalysis:
         self, texts: List[str], concepts: List[str]
     ) -> Dict[str, Any]:
         """
-        RQ18: Concept Co-occurrence Network.
+        Concept Co-occurrence Network.
 
         Args:
             texts: List of text documents.
-            concepts: List of concepts to track.
+            concepts: List of concepts to track. A concept is present when it
+                appears as a whole word or phrase (case-insensitive). Up to
+                1.9.5 substrings counted, so "MI" was found in "family".
         """
         # Simple co-occurrence
         cooc_matrix = pd.DataFrame(0, index=concepts, columns=concepts)
+        patterns = {
+            c: re.compile(r"(?<!\w)" + re.escape(c.lower()) + r"(?!\w)")
+            for c in concepts
+        }
 
         for text in texts:
             text_lower = text.lower()
-            present = [c for c in concepts if c.lower() in text_lower]
+            present = [c for c in concepts if patterns[c].search(text_lower)]
             for i, c1 in enumerate(present):
                 for j, c2 in enumerate(present):
                     if i < j:
@@ -147,16 +159,25 @@ class AdvancedNetworkAnalysis:
         self, time_series_graphs: List[nx.Graph]
     ) -> Dict[str, Any]:
         """
-        RQ19: Temporal Fairness Dynamics (Network Evolution).
+        Temporal Fairness Dynamics (Network Evolution).
 
         Args:
             time_series_graphs: List of NetworkX graphs at sequential timepoints.
+                Edges of undirected graphs are compared without regard to
+                direction: (A, B) and (B, A) are the same edge (up to 1.9.5 they
+                were counted as different edges).
         """
+
+        def _edges(g):
+            if g.is_directed():
+                return set(g.edges())
+            return {frozenset(e) for e in g.edges()}
+
         # Track edge stability (Jaccard index of edges between steps)
         stability_scores = []
         for i in range(len(time_series_graphs) - 1):
-            edges1 = set(time_series_graphs[i].edges())
-            edges2 = set(time_series_graphs[i + 1].edges())
+            edges1 = _edges(time_series_graphs[i])
+            edges2 = _edges(time_series_graphs[i + 1])
 
             if not edges1 and not edges2:
                 jaccard = 1.0

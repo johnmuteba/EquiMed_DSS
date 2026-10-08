@@ -154,7 +154,8 @@ def appendix():
     print("BiasConcentration:", BiasConcentrationIndex().calculate_bci([0.1, 0.4, 0.3, 0.2]))
     print("BCI:", BootstrapConfidenceIntervals(n_bootstrap=500, random_state=42).calculate_bci(
         rng.normal(0.7, 0.1, 100)))
-    p = np.array([0.9, 0.85, 0.78, 0.92]); q = np.array([0.75, 0.70, 0.68, 0.72])
+    # JSD compares distributions over the same categories (here 4 recommendation types)
+    p = np.array([0.40, 0.30, 0.20, 0.10]); q = np.array([0.25, 0.25, 0.25, 0.25])
     print("JSD:", JensenShannonDivergence().calculate_jsd(p, q))
     print("WD:", WassersteinDistance().calculate_wd(p, q))
     print("MIC:", MutualInformationContent().calculate_mic(

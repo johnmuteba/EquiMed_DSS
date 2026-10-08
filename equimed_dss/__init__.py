@@ -13,7 +13,8 @@ Domains:
     - domain4: Representation & robustness (SPG, CHR, IVI, GRI)
     - domain5: Technical-supplement fairness (ICE, wHAFG, LDDI, REG, CPS, CIDR,
       DCI, UQG, GRBI, HSSF, ISFV, SRPI)
-    - geographic: Burden-Evidence Mismatch (BEMI), Geographic Concentration (GCC)
+    - geographic: Burden-Evidence Mismatch (BEMI), Geographic Concentration (GCC),
+      and WHO Global Health Estimates 2023 IHD burden reference shares
     - appendix: Advanced metrics (BCI, SPA, MIC, JSD, WD, NM, TS, RCS)
     - statistics: HLM/MAIHDA, mediation, network, reliability
     - reporting: tidy result tables (markdown / LaTeX / HTML)
@@ -37,9 +38,11 @@ from .__version__ import (
     __version_info__,
 )
 from .geographic import (
+    WHO_REGION_CODES,
+    WHO_REGION_IHD_BURDEN,
+    WHO_REGION_IHD_BURDEN_RATE,
     BurdenEvidenceMismatch,
     GeographicConcentration,
-    WHO_REGION_IHD_BURDEN,
 )
 from .reporting import (
     export_table,
@@ -88,7 +91,9 @@ __all__ = [
     "__copyright__",
     "BurdenEvidenceMismatch",
     "GeographicConcentration",
+    "WHO_REGION_CODES",
     "WHO_REGION_IHD_BURDEN",
+    "WHO_REGION_IHD_BURDEN_RATE",
     "export_table",
     "geographic_table",
     "hierarchical_coefficients_table",

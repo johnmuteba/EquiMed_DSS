@@ -37,7 +37,13 @@ class GeographicRepresentationIndex:
 
         Returns:
             Dict with gri, n_locations, n_western, n_non_western,
-            non_western_locations, and interpretation.
+            non_western_locations, and interpretation. When at least two
+            mentions are given, a percentile-bootstrap interval is added. GRI is
+            set-based: a resample can only lose locations, never add unseen
+            ones, so this interval describes how stable the ratio is to which
+            locations happen to be mentioned, not the uncertainty about the
+            full set of locations. Pass the mention list (with duplicates)
+            rather than the distinct set for a meaningful interval.
         """
         L = set(locations)
         if not L:
@@ -76,7 +82,7 @@ class GeographicRepresentationIndex:
             ci = bootstrap_ci(mentions, _gri, n_boot=1000, random_state=0)
             out["ci_lower"] = ci.ci_lower
             out["ci_upper"] = ci.ci_upper
-            out["ci_method"] = ci.method
+            out["ci_method"] = "bootstrap (stability of a set-based ratio)"
         return MetricResult(out, name="GRI", value_key="gri")
 
     def calculate_geographic_bias(

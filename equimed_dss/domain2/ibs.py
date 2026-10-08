@@ -28,6 +28,12 @@ class IntersectionalBiasScore:
 
         Returns:
             Dictionary containing similarity matrix and outlier analysis.
+
+        Similarity is 1 / (1 + Euclidean distance), so it depends on the scale of
+        each metric: standardise metrics on different scales first. The interval
+        resamples the metric dimensions, so it shows how much the similarity
+        depends on which metrics were chosen, not sampling uncertainty about
+        patients.
         """
         subgroups = list(subgroup_vectors.keys())
         vectors = np.array([subgroup_vectors[g] for g in subgroups])
@@ -97,7 +103,11 @@ class IntersectionalBiasScore:
             formula: Formula string (informational here, logic assumes race/gender/ses columns).
 
         Returns:
-            Dictionary of interaction effect sizes (eta-squared proxies).
+            Dictionary of interaction effect sizes (eta-squared proxies). The
+            race x gender value is the eta-squared of the combined groups minus
+            the two main-effect eta-squared values; with unbalanced groups the
+            main effects overlap, so it is a descriptive proxy (it can be
+            negative), not an ANOVA interaction test.
         """
         # Work on a copy so the caller's DataFrame is never mutated (a temporary
         # 'race_gender' column is added below for the interaction term).

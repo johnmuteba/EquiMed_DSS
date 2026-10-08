@@ -86,9 +86,25 @@ class TestReferenceData:
     def test_reference_sums_to_one(self):
         assert sum(WHO_REGION_IHD_BURDEN.values()) == pytest.approx(1.0, abs=1e-6)
 
-    def test_afro_searo_about_36_percent(self):
-        share = WHO_REGION_IHD_BURDEN["AFRO"] + WHO_REGION_IHD_BURDEN["SEARO"]
-        assert share == pytest.approx(0.36, abs=0.01)
+    def test_count_shares_match_who_ghe_2023(self):
+        # WHO Global Health Estimates 2023, IHD DALYs by WHO region, 2023
+        # (thousands): shares of the regional total, to 4 decimals.
+        expected = {"AFRO": 0.0552, "AMRO": 0.1147, "EMRO": 0.0969,
+                    "EURO": 0.1789, "SEARO": 0.2478, "WPRO": 0.3065}
+        for region, share in expected.items():
+            assert WHO_REGION_IHD_BURDEN[region] == pytest.approx(share, abs=5e-5)
+
+    def test_rate_shares_match_who_ghe_2023(self):
+        from equimed_dss import WHO_REGION_IHD_BURDEN_RATE
+        expected = {"AFRO": 0.0604, "AMRO": 0.1493, "EMRO": 0.1619,
+                    "EURO": 0.2579, "SEARO": 0.1846, "WPRO": 0.1858}
+        assert sum(WHO_REGION_IHD_BURDEN_RATE.values()) == pytest.approx(1.0, abs=1e-9)
+        for region, share in expected.items():
+            assert WHO_REGION_IHD_BURDEN_RATE[region] == pytest.approx(share, abs=5e-5)
+
+    def test_region_codes_map_gho_to_bundled_keys(self):
+        from equimed_dss import WHO_REGION_CODES
+        assert sorted(WHO_REGION_CODES.values()) == sorted(WHO_REGION_IHD_BURDEN)
 
     def test_reference_usable_as_burden(self):
         bemi = BurdenEvidenceMismatch()

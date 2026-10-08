@@ -14,6 +14,8 @@ from typing import Any, Dict, Optional, Sequence
 import numpy as np
 import pandas as pd
 
+from equimed_dss._validation import check_records
+
 
 class BurdenEvidenceMismatch:
     """Geographic Burden-Evidence Mismatch Index (BEMI)."""
@@ -32,9 +34,20 @@ class BurdenEvidenceMismatch:
         Args:
             evidence_counts: region -> number of studies (or cases) per region.
                 Raw counts or shares; normalized to a distribution internally.
+                Evidence of unknown origin should be left out (and its share
+                reported separately), not passed as a region.
             burden_shares: region -> disease-burden share per region. Should sum
-                to 1.0 (normalized internally if not). Use
-                ``WHO_REGION_IHD_BURDEN`` for IHD DALY shares (Roth GA et al., 2020).
+                to 1.0 (normalized internally if not). ``WHO_REGION_IHD_BURDEN``
+                holds WHO Global Health Estimates 2023 IHD DALY shares. Every
+                region with evidence must appear here (give 0 explicitly if a
+                region truly carries no burden); a region missing from this
+                mapping raises ``ValueError``, because mismatched region codes
+                (for example "AFR" against "AFRO") would otherwise be scored as
+                evidence outside every burden region.
+            evidence_records: optional per-evidence region labels (one element
+                per study or case). When supplied, BEMI gains a 95% percentile-
+                bootstrap CI by resampling these records against the fixed burden
+                distribution. The labels must use the same region codes.
 
         Returns:
             Dict with keys:
@@ -52,6 +65,19 @@ class BurdenEvidenceMismatch:
             raise ValueError("evidence_counts must be a non-empty mapping.")
         if not burden_shares:
             raise ValueError("burden_shares must be a non-empty mapping.")
+        unmatched = sorted(
+            r
+            for r, v in evidence_counts.items()
+            if r not in burden_shares and float(v) > 0
+        )
+        if unmatched:
+            raise ValueError(
+                f"evidence_counts has regions with no entry in burden_shares: "
+                f"{unmatched}. Check that both mappings use the same region codes "
+                "(WHO_REGION_CODES maps WHO GHO codes such as 'AFR' to the 'AFRO' "
+                "keys of WHO_REGION_IHD_BURDEN); give a burden share of 0 "
+                "explicitly if a region truly carries no burden."
+            )
 
         regions = sorted(set(evidence_counts) | set(burden_shares))
         a = np.array([float(evidence_counts.get(r, 0.0)) for r in regions])
@@ -102,6 +128,9 @@ class BurdenEvidenceMismatch:
         # BEMI against the fixed burden distribution.
         if evidence_records is not None:
             recs = [str(r) for r in evidence_records]
+            check_records(
+                recs, regions, dict(zip(regions, a.tolist())), "evidence_records"
+            )
             if len(recs) >= 2:
                 def _bemi(sample):
                     counts: Dict[str, float] = {}

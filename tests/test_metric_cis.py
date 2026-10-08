@@ -79,8 +79,9 @@ def _all_metric_results():
             "White": rng.rand(10).tolist(), "Black": rng.rand(10).tolist()}
     )
     yield "Bias-Gini", HierarchicalEquityRatio().calculate_bias_gini([0.85, 0.75, 0.80, 0.82])
+    # Case lists consistent with the error counts (1.10.0 warns otherwise).
     yield "HAFG", HarmAdjustedFairnessGap().calculate_hafg(
-        {"fn": 5, "fp": 10}, {"fn": 2, "fp": 5},
+        {"fn": 1, "fp": 2}, {"fn": 1, "fp": 1},
         group1_cases=["fn", "fp", "tn", "tn", "fp"], group2_cases=["fn", "tn", "tn", "fp", "tn"],
     )
     yield "ERI", EthicalRiskIndex().calculate_eri([{"severity": 2.5}, {"severity": 5.0}], 100)
@@ -134,7 +135,7 @@ def _all_metric_results():
         {"race": race, "gender": gender}, (race == "B").astype(float)
     )
     yield "BEMI", BurdenEvidenceMismatch().calculate_bemi(
-        {"EURO": 2, "AMRO": 2}, burden, evidence_records=["EURO", "EURO", "AMRO", "AMRO", "EURO"]
+        {"EURO": 3, "AMRO": 2}, burden, evidence_records=["EURO", "EURO", "AMRO", "AMRO", "EURO"]
     )
     yield "GCC", GeographicConcentration().calculate_gcc(
         {"A": 1.0, "B": 3.0, "C": 2.0}, region_records=["A", "B", "B", "B", "C", "C"]

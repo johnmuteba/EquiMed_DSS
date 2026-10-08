@@ -14,6 +14,12 @@ and the pairwise interaction is
 Distinct from domain2.IntersectionalBiasScore (IBS), which uses subgroup-similarity
 matrices and an ANOVA-style interaction; ISFV gives a game-theoretic attribution
 of the disparity to each attribute and their interaction.
+
+v(S) is a range (largest minus smallest cell mean), which grows with the number
+of cells and is driven by small cells even when outcomes do not differ, so an
+attribute with more categories tends to receive a larger share. Set ``min_cell``
+to exclude small cells (for example 30) and compare the attribution with a
+permutation of the outcomes before interpreting it.
 """
 from itertools import combinations
 from math import factorial
@@ -35,7 +41,6 @@ class IntersectionalShapleyFairnessValue:
             return 0.0
         keys = list(zip(*[attr_values[a] for a in subset]))
         means = {}
-        counts = {}
         for k, y in zip(keys, outcomes):
             means.setdefault(k, []).append(y)
         cell_means = [float(np.mean(v)) for k, v in means.items() if len(v) >= self.min_cell]

@@ -25,9 +25,26 @@ class EmbeddingConsistencyScore:
             perturbed_embeddings: numpy array of shape (n_samples, embedding_dim).
 
         Returns:
-            Dictionary containing mean, std, and median ECS (cosine distance).
+            Dictionary containing mean, std, and median ECS (cosine distance,
+            1 - cosine similarity; 0 = unchanged, higher = less consistent). A
+            pair in which either vector is all zeros has distance 1.
+
+        Raises:
+            ValueError: if the two arrays are not 2D with the same shape.
         """
+        original_embeddings = np.asarray(original_embeddings, dtype=float)
+        perturbed_embeddings = np.asarray(perturbed_embeddings, dtype=float)
+        if original_embeddings.ndim != 2 or perturbed_embeddings.ndim != 2:
+            raise ValueError("Embeddings must be 2D arrays (n_samples, embedding_dim).")
+        if original_embeddings.shape != perturbed_embeddings.shape:
+            raise ValueError(
+                "original_embeddings and perturbed_embeddings must have the same "
+                f"shape; got {original_embeddings.shape} and "
+                f"{perturbed_embeddings.shape}."
+            )
         n_samples = original_embeddings.shape[0]
+        if n_samples == 0:
+            raise ValueError("Embeddings must be non-empty.")
         cosine_distances = []
 
         for i in range(n_samples):
@@ -42,12 +59,8 @@ class EmbeddingConsistencyScore:
                     norm_orig * norm_pert
                 )
 
-            # ECS is defined as distance (1 - similarity) in the script context for "consistency gap"
-            # But "Consistency Score" usually implies higher is better.
-            # The script calculates `1 - cos_sim` and calls it ECS, implying it's a "Consistency Error" or "Inconsistency".
-            # However, to align with the script's output "Most sensitive corpus... ECS = ...",
-            # where higher ECS meant more sensitive (less consistent), we will return the distance.
-
+            # ECS is reported as a distance (1 - similarity): higher means the
+            # embedding moved more under the perturbation.
             cosine_distances.append(1 - cos_sim)
 
         mean_ecs = float(np.mean(cosine_distances))

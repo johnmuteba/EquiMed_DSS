@@ -26,7 +26,7 @@
 | **37 Metrics** | Five domains (reliability, equity, governance, representation/robustness, technical-supplement fairness) plus geographic and advanced-appendix metrics |
 | **Clinical AI Focus** | Designed specifically for healthcare applications |
 | **Statistical Analyses** | HLM, Mediation Analysis, Network Statistics |
-| **Publication-Ready Visualizations** | 6 manuscript-quality figure generators |
+| **Publication-Ready Visualizations** | 6 multi-panel figure templates plus single-purpose plots |
 | **Multi-Format Data Support** | MySQL, CSV, TSV, JSON with automatic standardization |
 | **Intersectional Analysis** | Detect bias across demographic combinations |
 | **Geographic Equity** | BEMI and GCC measure evidence-burden mismatch and regional concentration |
@@ -178,11 +178,15 @@ from equimed_dss.appendix import JensenShannonDivergence, WassersteinDistance
 group_a_predictions = np.array([0.9, 0.85, 0.78, 0.92, 0.88])
 group_b_predictions = np.array([0.75, 0.70, 0.68, 0.72, 0.65])
 
-# Jensen-Shannon Divergence (between two aggregate distributions: no underlying
-# per-observation sample, so it prints "CI unavailable")
+# Jensen-Shannon Divergence compares two distributions over the SAME categories,
+# so bin the predictions on common bins first (counts are normalized internally).
+# Passing the raw predictions would compare value i of A with value i of B.
+bins = np.linspace(0, 1, 11)
+counts_a, _ = np.histogram(group_a_predictions, bins=bins)
+counts_b, _ = np.histogram(group_b_predictions, bins=bins)
 jsd = JensenShannonDivergence()
-jsd_result = jsd.calculate_jsd(group_a_predictions, group_b_predictions)
-print(jsd_result)                   # JSD = ... :: 95% CI unavailable
+jsd_result = jsd.calculate_jsd(counts_a, counts_b)
+print(jsd_result)                   # JSD = ... :: 95% CI unavailable (aggregated histograms)
 
 # Wasserstein Distance (the two inputs are treated as samples -> bootstrap CI)
 wd = WassersteinDistance()
@@ -429,7 +433,7 @@ These 9 additional metrics provide deeper statistical analysis:
 |--------|-------|-------|-----------|-------------|
 | Bootstrap Confidence Intervals | `BootstrapConfidenceIntervals` | varies | CI width < 0.05 | Robust uncertainty estimation |
 | Statistical Power Analysis | `StatisticalPowerAnalysis` | [0, 1] | ≥ 0.8 | Sample size adequacy |
-| Bias Concentration Index | `BiasConcentrationIndex` | [0, 1] | > 0.7 | Bias distribution across groups |
+| Bias Concentration Index | `BiasConcentrationIndex` | [0, 1 - 1/n]; normalized [0, 1] | normalized > 0.7 | Bias distribution across groups |
 | Mutual Information Content | `MutualInformationContent` | [0, ∞) | < 0.1 | Demographic information leakage |
 | Jensen-Shannon Divergence | `JensenShannonDivergence` | [0, 1] | < 0.1 | Distributional similarity |
 | Wasserstein Distance | `WassersteinDistance` | [0, ∞) | < 0.1 | Optimal transport distance |
@@ -508,8 +512,12 @@ print(result)                       # RCS = ... :: 95% CI [...] (bootstrap)
   Shannon entropy (H_norm) for the regional distribution of included studies. G* = 0 and
   H_norm = 1 both indicate even coverage; G* = 1 and H_norm = 0 indicate single-region
   concentration. Note that Gini and entropy run in opposite directions.
-- **`WHO_REGION_IHD_BURDEN`**: bundled reference constant of normalized IHD DALY shares from
-  Roth GA et al., 2020 (GBD). AFRO and SEARO together carry about 36% of global IHD burden.
+- **`WHO_REGION_IHD_BURDEN`**: bundled reference shares of ischaemic heart disease (IHD)
+  DALYs by WHO region in 2023, from the WHO Global Health Estimates 2023 (count shares: is
+  the evidence where the patients are?). `WHO_REGION_IHD_BURDEN_RATE` holds the crude-rate
+  shares, a population-size-independent alternative. Keys are AFRO, AMRO, EMRO, EURO, SEARO
+  and WPRO; `WHO_REGION_CODES` maps WHO GHO codes (AFR, AMR, ...) to them. BEMI raises an
+  error when the evidence and burden mappings use different region codes.
 
 ```python
 from equimed_dss.geographic import BurdenEvidenceMismatch, GeographicConcentration, WHO_REGION_IHD_BURDEN
@@ -579,7 +587,7 @@ All plot helpers in `equimed_dss.utils` **return a Matplotlib figure** (they do
 not call `plt.show()`), and write to `save_path` when given, so they compose
 cleanly in scripts, notebooks, and report pipelines.
 
-**Equity radar** — one normalized score per domain for an at-a-glance audit:
+**Equity radar**: one normalized score per domain for an at-a-glance audit:
 
 ```python
 from equimed_dss.utils import plot_equity_radar
@@ -592,24 +600,26 @@ fig = plot_equity_radar(
 )
 ```
 
-**Geographic dumbbell** — disease burden vs evidence share per region (reads the
+**Geographic dumbbell**: disease burden vs evidence share per region (reads the
 burden-evidence mismatch, BEMI, far more clearly than a bubble plot):
 
 ```python
 from equimed_dss.utils import plot_geographic_dumbbell
 
+from equimed_dss import WHO_REGION_IHD_BURDEN
+
+evidence = {"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2}
+total = sum(evidence.values())
 fig = plot_geographic_dumbbell(
-    burden_shares={"AMRO": 0.114, "SEARO": 0.211, "AFRO": 0.150,
-                   "EMRO": 0.230, "EURO": 0.195, "WPRO": 0.100},
-    evidence_shares={"AMRO": 0.780, "SEARO": 0.0, "AFRO": 0.002,
-                     "EMRO": 0.037, "EURO": 0.105, "WPRO": 0.077},
+    burden_shares=WHO_REGION_IHD_BURDEN,
+    evidence_shares={r: n / total for r, n in evidence.items()},
     save_path="geographic_dumbbell.png",
 )
 ```
 
 Other helpers: `plot_bland_altman`, `plot_control_chart`,
 `plot_correlation_matrix`, `plot_her_heatmap`, `plot_metric_distribution`,
-`plot_network_graph`, and the six manuscript figures `plot_figure2…7`.
+`plot_network_graph`, and the six multi-panel templates `plot_figure2…7`.
 
 ---
 
@@ -659,7 +669,7 @@ reliability = ReliabilityAnalysis()
 
 ## Visualizations
 
-Generate publication-ready figures (Figures 2-7 from manuscript):
+Six multi-panel figure templates (`plot_figure2` to `plot_figure7`):
 
 Each `plot_figure*` function takes a structured dict of inputs (the exact keys
 are documented in each function's docstring). Use `generate_figure_data()` for
@@ -846,14 +856,19 @@ mypy equimed_dss
 If you use EquiMed_DSS in your research, please cite:
 
 ```bibtex
-@software{muteba_equimed_dss_2025,
-  title={EquiMed_DSS: A Comprehensive Library for Clinical AI Fairness Assessment},
-  author={Muteba Mwamba, John},
-  year={2025},
-  url={https://github.com/johnmuteba/EquiMed_DSS},
-  note={37 metrics for reliability, equity, governance, representation, and robustness in clinical AI}
+@software{muteba_mwamba_equimed_dss,
+  title={EquiMed-DSS: a Python library for clinical-AI fairness assessment},
+  author={Muteba Mwamba, John Weirstrass},
+  year={2026},
+  publisher={Zenodo},
+  doi={10.5281/zenodo.20766188},
+  url={https://github.com/johnmuteba/EquiMed_DSS}
 }
 ```
+
+The DOI above is the Zenodo concept DOI, which always resolves to the latest
+release. To cite the exact version you used, take its version DOI from the
+Zenodo record (for example 10.5281/zenodo.20768603 for 1.9.5).
 
 ---
 

@@ -7,7 +7,7 @@ Manuscript Section 2.4:
 - Betweenness centrality: Σ σst(v)/σst
 """
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import networkx as nx
 import numpy as np
@@ -17,19 +17,34 @@ class NetworkStatistics:
     """Network analysis for metric correlation structures."""
 
     def analyze_network(
-        self, adjacency_matrix: np.ndarray, node_labels: List[str] = None
+        self,
+        adjacency_matrix: np.ndarray,
+        node_labels: List[str] = None,
+        threshold: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Comprehensive network analysis of metric correlations.
 
         Args:
-            adjacency_matrix: Correlation or adjacency matrix
+            adjacency_matrix: Correlation or adjacency matrix. Absolute values
+                are used and the diagonal is ignored (a correlation matrix's 1s
+                are not edges; up to 1.9.5 they became self-loops and inflated
+                degree centrality above 1).
             node_labels: Optional labels for nodes
+            threshold: optional minimum absolute weight for an edge. The
+                centralities are unweighted, so a dense correlation matrix
+                without a threshold gives a complete graph in which every node
+                has the same degree; set a threshold (e.g. 0.3) to analyse the
+                structure of the stronger correlations.
 
         Returns:
             Dict with centrality measures and network properties
         """
-        G = nx.from_numpy_array(np.abs(adjacency_matrix))
+        A = np.abs(np.asarray(adjacency_matrix, dtype=float))
+        np.fill_diagonal(A, 0.0)
+        if threshold is not None:
+            A[A < threshold] = 0.0
+        G = nx.from_numpy_array(A)
 
         if node_labels:
             mapping = {i: label for i, label in enumerate(node_labels)}

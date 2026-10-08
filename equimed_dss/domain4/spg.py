@@ -11,6 +11,12 @@ Cosine (orientation) variant, with mean vectors v_p, v_m:
 
 A larger SPG means the model's internal representation of an identical clinical
 case is more strongly altered by patient identity.
+
+A centroid distance is positive even when both groups come from the same
+distribution (sampling noise alone separates two sample means), so its
+bootstrap interval never contains 0 and cannot show "no gap". The permutation
+p-value tests the null that the group labels are exchangeable: it compares the
+observed distance with the distances obtained after shuffling the labels.
 """
 from typing import Any, Dict
 
@@ -38,7 +44,9 @@ class SemanticParityGap:
 
         Returns:
             Dict with spg_euclidean, spg_cosine, embedding_dim, n_privileged,
-            n_marginalized, and interpretation.
+            n_marginalized, interpretation and, when each group has at least
+            two rows, a bootstrap CI and ``p_value_permutation`` (1000 label
+            permutations, add-one estimator, seed 0).
         """
         p = np.asarray(privileged_embeddings, dtype=float)
         m = np.asarray(marginalized_embeddings, dtype=float)
@@ -89,5 +97,22 @@ class SemanticParityGap:
             out["ci_lower"] = float(lo)
             out["ci_upper"] = float(hi)
             out["ci_method"] = "bootstrap"
+
+            # Permutation test against exchangeable group labels.
+            pooled = np.vstack([p, m])
+            n_perm = 1000
+            exceed = 0
+            for _ in range(n_perm):
+                idx = rng.permutation(pooled.shape[0])
+                d = np.linalg.norm(
+                    pooled[idx[:np_]].mean(axis=0) - pooled[idx[np_:]].mean(axis=0)
+                )
+                exceed += d >= spg_euclidean - 1e-12
+            p_perm = (exceed + 1) / (n_perm + 1)
+            out["p_value_permutation"] = float(p_perm)
+            out["n_permutations"] = n_perm
+            out["interpretation"] += (
+                f" Permutation p = {p_perm:.3g} against exchangeable group labels."
+            )
 
         return MetricResult(out, name="SPG", value_key="spg_euclidean")

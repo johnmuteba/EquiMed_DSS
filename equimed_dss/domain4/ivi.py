@@ -12,6 +12,8 @@ from typing import Any, Dict, Sequence
 
 import numpy as np
 
+from equimed_dss._validation import check_no_missing
+
 
 class InstructionalVulnerabilityIndex:
     """Instructional Vulnerability Index (IVI) from paired neutral/biased outputs."""
@@ -31,10 +33,17 @@ class InstructionalVulnerabilityIndex:
             neutral_outputs: per-case model outputs under a neutral query q0.
             biased_outputs: per-case model outputs under a biased/leading query qb
                 on the same cases (same length and order as ``neutral_outputs``).
+            threshold: acceptable flip rate used as the null value of a one-sided
+                score test (default 0.05); it does not change the IVI.
 
         Returns:
             Dict with ivi_flip_rate, ivi_effect (directional mean change when the
             outputs are numeric, else None), n_pairs, n_flipped, and interpretation.
+
+        Raises:
+            ValueError: if the inputs are not paired, are empty, or contain a
+                missing output (None or NaN); a missing pair would otherwise
+                count as a flip.
         """
         a = list(neutral_outputs)
         b = list(biased_outputs)
@@ -42,6 +51,8 @@ class InstructionalVulnerabilityIndex:
             raise ValueError("neutral_outputs and biased_outputs must be paired.")
         if len(a) == 0:
             raise ValueError("Inputs must be non-empty.")
+        check_no_missing(a, "neutral_outputs")
+        check_no_missing(b, "biased_outputs")
 
         flips = [x != y for x, y in zip(a, b)]
         ivi_flip_rate = float(np.mean(flips))

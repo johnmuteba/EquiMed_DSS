@@ -7,7 +7,7 @@ distance, network modularity, transparency, robustness certification)
 complement the five core domains and the geographic module (37 metrics total).
 """
 
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import networkx as nx
 import numpy as np
@@ -235,10 +235,17 @@ class BiasConcentrationIndex:
         Returns:
             BCI score and interpretation
 
-        Interpretation:
-            - BCI near 1: Bias distributed evenly across groups
-            - BCI near 0: Bias concentrated in specific groups (requires targeted intervention)
-            - BCI < 0.3: Concentrated bias (HIGH CONCERN)
+        BCI = 1 - sum(p^2) / (sum p)^2 (one minus the Herfindahl index of the
+        bias shares). With n groups its maximum is 1 - 1/n (equal shares), so
+        ``bci_normalized`` = BCI / (1 - 1/n) rescales it to [0, 1] and the
+        verdict uses the normalized value. Up to 1.9.5 the verdict used the raw
+        BCI, so with two groups even perfectly equal shares (BCI = 0.5) could
+        never be classed as distributed.
+
+        Interpretation (bci_normalized):
+            - near 1: Bias distributed evenly across groups
+            - near 0: Bias concentrated in specific groups (requires targeted intervention)
+            - < 0.3: Concentrated bias (HIGH CONCERN)
         """
         from equimed_dss.inference import MetricResult, bootstrap_ci
 
@@ -258,25 +265,33 @@ class BiasConcentrationIndex:
 
         # BCI = 1 - (sum of squared proportions / squared sum of proportions)
         bci = _bci(p)
+        bci_max = 1.0 - 1.0 / n if n > 1 else 0.0
+        bci_norm = float(bci / bci_max) if bci_max > 0 else 0.0
 
         out = {
             "bci": float(bci),
+            "bci_normalized": bci_norm,
+            "bci_max": float(bci_max),
             "n_groups": n,
             "max_bias_proportion": float(np.max(p)),
             "min_bias_proportion": float(np.min(p)),
             "interpretation": {
-                "range": "[0, 1]",
+                "range": f"[0, {bci_max:.3f}] (1 - 1/n); bci_normalized in [0, 1]",
                 "distribution": (
                     "Distributed bias"
-                    if bci > 0.7
-                    else "Moderate concentration" if bci > 0.3 else "Concentrated bias"
+                    if bci_norm > 0.7
+                    else (
+                        "Moderate concentration"
+                        if bci_norm > 0.3
+                        else "Concentrated bias"
+                    )
                 ),
                 "verdict": (
                     "Acceptable (distributed)"
-                    if bci > 0.7
+                    if bci_norm > 0.7
                     else (
                         "Monitor (moderate concentration)"
-                        if bci > 0.3
+                        if bci_norm > 0.3
                         else "Intervention required (concentrated bias)"
                     )
                 ),
@@ -330,7 +345,10 @@ class MutualInformationContent:
         # Normalize by entropy
         from scipy.stats import entropy as scipy_entropy
 
-        demo_entropy = scipy_entropy(np.bincount(demographics) / len(demographics))
+        # Category frequencies from the labels themselves, so string categories
+        # work (np.bincount, used up to 1.9.5, accepts only non-negative ints).
+        _, demo_counts = np.unique(demographics, return_counts=True)
+        demo_entropy = scipy_entropy(demo_counts / len(demographics))
         normalized_mi = mi / demo_entropy if demo_entropy > 0 else 0
 
         from equimed_dss.inference import MetricResult, bootstrap_ci
@@ -387,8 +405,12 @@ class JensenShannonDivergence:
         Calculate Jensen-Shannon Divergence between two distributions.
 
         Args:
-            distribution_p: First probability distribution
-            distribution_q: Second probability distribution
+            distribution_p: First probability distribution (or counts) over a
+                fixed set of categories or bins
+            distribution_q: Second distribution over the SAME categories, in the
+                same order. To compare two samples of values, histogram both on
+                common bins first; raw samples would be compared position by
+                position, which is meaningless.
 
         Returns:
             JSD score and interpretation
@@ -449,28 +471,57 @@ class WassersteinDistance:
     """
 
     def calculate_wd(
-        self, distribution_p: np.ndarray, distribution_q: np.ndarray
+        self,
+        distribution_p: np.ndarray,
+        distribution_q: np.ndarray,
+        support: Optional[Sequence[float]] = None,
     ) -> Dict[str, Any]:
         """
         Calculate Wasserstein Distance (Earth Mover's Distance).
 
+        By default the two inputs are SAMPLES of values (e.g. predicted risks in
+        two groups), not probability vectors: [0.2, 0.8] and [0.8, 0.2] are the
+        same sample and have distance 0. To compare two histograms, pass the
+        bin probabilities as ``distribution_p`` / ``distribution_q`` and the bin
+        locations as ``support``.
+
         Args:
-            distribution_p: First distribution
-            distribution_q: Second distribution
+            distribution_p: First sample (or histogram weights with ``support``)
+            distribution_q: Second sample (or histogram weights with ``support``)
+            support: optional bin locations shared by both histograms
 
         Returns:
             WD score and interpretation
 
-        Interpretation:
+        Interpretation (heuristic, for values on a 0-1 scale such as risks):
             - WD < 0.1: Minimal difference (equitable)
             - 0.1 <= WD < 0.25: Moderate difference (monitor)
             - WD >= 0.25: Substantial difference (calibration needed)
         """
+        from equimed_dss.inference import MetricResult
+
         p_arr = np.asarray(distribution_p, dtype=float)
         q_arr = np.asarray(distribution_q, dtype=float)
+        if support is not None:
+            x = np.asarray(support, dtype=float)
+            if not (x.shape == p_arr.shape == q_arr.shape):
+                raise ValueError(
+                    "support, distribution_p and distribution_q must have the same length."
+                )
+            wd = wasserstein_distance(x, x, p_arr, q_arr)
+            return MetricResult(
+                {
+                    "wasserstein_distance": float(wd),
+                    "input": "histograms on a shared support",
+                    "interpretation": {
+                        "range": "[0, inf), in the units of the support",
+                        "note": "No CI: the inputs are aggregated histograms.",
+                    },
+                },
+                name="WD",
+                value_key="wasserstein_distance",
+            )
         wd = wasserstein_distance(p_arr, q_arr)
-
-        from equimed_dss.inference import MetricResult
 
         out = {
             "wasserstein_distance": float(wd),
@@ -536,7 +587,12 @@ class NetworkModularity:
         """
         from equimed_dss.inference import MetricResult
 
+        # Absolute weights, and no self-loops: the diagonal of a correlation
+        # matrix (1) is not an edge. Communities are found and scored with the
+        # same edge weights. (Up to 1.9.5 the diagonal was kept and the greedy
+        # search ignored the weights while the score used them.)
         A = np.abs(np.asarray(adjacency_matrix, dtype=float))
+        np.fill_diagonal(A, 0.0)
         G = nx.from_numpy_array(A)
 
         # Detect communities with greedy modularity (Clauset-Newman-Moore)
@@ -546,13 +602,17 @@ class NetworkModularity:
                 modularity,
             )
 
-            communities = list(greedy_modularity_communities(G))
-            Q = modularity(G, communities)
+            if G.number_of_edges() == 0:
+                raise ValueError("the network has no edges")
+            communities = list(greedy_modularity_communities(G, weight="weight"))
+            Q = modularity(G, communities, weight="weight")
 
             def _modularity_of(sub_A):
+                sub_A = sub_A.copy()
+                np.fill_diagonal(sub_A, 0.0)
                 gg = nx.from_numpy_array(sub_A)
-                comms = list(greedy_modularity_communities(gg))
-                return float(modularity(gg, comms))
+                comms = list(greedy_modularity_communities(gg, weight="weight"))
+                return float(modularity(gg, comms, weight="weight"))
 
             # Node-resampling bootstrap: resample node indices with replacement and
             # recompute modularity on the induced subgraph, giving a stability CI.
@@ -594,8 +654,15 @@ class NetworkModularity:
                 res["ci_method"] = ci_method
             return MetricResult(res, name="NM", value_key="modularity")
         except Exception as e:
+            import warnings
+
+            warnings.warn(
+                f"Modularity could not be computed ({e}); returning NaN.",
+                UserWarning,
+                stacklevel=2,
+            )
             return MetricResult({
-                "modularity": 0.0,
+                "modularity": float("nan"),
                 "error": str(e),
                 "interpretation": {"verdict": "Unable to compute modularity"},
             }, name="NM", value_key="modularity")
@@ -709,7 +776,8 @@ class RobustnessCertificationScore:
         Args:
             original_predictions: Original model predictions
             perturbed_predictions: List of predictions under perturbations
-            epsilon: Perturbation bound
+            epsilon: Perturbation bound (recorded in the output only; it does
+                not enter the score, which is the mean agreement)
 
         Returns:
             RCS score and interpretation
@@ -727,10 +795,19 @@ class RobustnessCertificationScore:
                 "interpretation": {"verdict": "No perturbations provided"},
             }, name="RCS", value_key="rcs")
 
+        # Element-wise agreement. Inputs are converted to arrays: with plain
+        # lists, == compared whole lists (one True/False), so up to 1.9.5 any
+        # single difference gave an agreement of 0 for that perturbation.
+        original = np.asarray(original_predictions)
         consistency_scores = []
         for perturbed in perturbed_predictions:
-            # Calculate agreement between original and perturbed
-            agreement = np.mean(original_predictions == perturbed)
+            perturbed = np.asarray(perturbed)
+            if perturbed.shape != original.shape:
+                raise ValueError(
+                    "Each perturbed prediction set must have the shape of "
+                    f"original_predictions {original.shape}; got {perturbed.shape}."
+                )
+            agreement = np.mean(original == perturbed)
             consistency_scores.append(agreement)
 
         rcs = np.mean(consistency_scores)

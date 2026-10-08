@@ -337,16 +337,20 @@ regional disease-burden distribution.
 ```python
 def calculate_bemi(
     evidence_counts: Dict[str, int],
-    burden_shares: Dict[str, float]
-) -> Dict[str, Union[float, str]]
+    burden_shares: Dict[str, float],
+    evidence_records: Optional[Sequence[str]] = None,
+) -> MetricResult
 ```
 
 Calculate Burden-Evidence Mismatch Index (BEMI).
 
 **Parameters:**
 - `evidence_counts` (Dict[str, int]): Number of studies (or cases) per WHO region.
-- `burden_shares` (Dict[str, float]): Normalized disease-burden share per region; shares
-  must sum to 1.0. Use `WHO_REGION_IHD_BURDEN` for IHD DALY shares (Roth GA et al., 2020).
+- `burden_shares` (Dict[str, float]): Disease-burden share per region (normalized
+  internally). `WHO_REGION_IHD_BURDEN` holds WHO Global Health Estimates 2023 IHD DALY
+  count shares. Every region with evidence must appear here; a missing region code raises
+  `ValueError` (use `WHO_REGION_CODES` to convert GHO codes such as AFR to AFRO).
+- `evidence_records` (optional): one region label per study or case; adds a bootstrap CI.
 
 **Returns:**
 - Dictionary with keys:
@@ -369,7 +373,7 @@ result = bemi.calculate_bemi(
     evidence_counts={"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2},
     burden_shares=WHO_REGION_IHD_BURDEN
 )
-print(result["bemi"])   # e.g., 0.42
+print(round(result["bemi"], 3))   # 0.485
 ```
 
 ---
@@ -418,8 +422,8 @@ from equimed_dss.geographic import GeographicConcentration
 
 gcc = GeographicConcentration()
 result = gcc.calculate_gcc({"AFRO": 5, "AMRO": 40, "EURO": 30, "SEARO": 3, "WPRO": 10, "EMRO": 2})
-print(result["gini_corrected"])       # e.g., 0.51
-print(result["entropy_normalized"])   # e.g., 0.84
+print(round(result["gini_corrected"], 3))       # 0.613
+print(round(result["entropy_normalized"], 3))   # 0.742
 ```
 
 ---
@@ -430,16 +434,19 @@ print(result["entropy_normalized"])   # e.g., 0.84
 WHO_REGION_IHD_BURDEN: Dict[str, float]
 ```
 
-Module-level constant containing normalized IHD DALY shares per WHO region, derived from
-Roth GA et al., 2020 (GBD Compare for IHD). Shares sum to 1.0. AFRO and SEARO together
-carry approximately 36% of global IHD burden.
+Module-level constant: each WHO region's share of ischaemic heart disease DALYs in 2023,
+from the WHO Global Health Estimates 2023 (Geneva: WHO; 2026). Shares sum to 1.0.
+Related constants: `WHO_REGION_IHD_BURDEN_RATE` (crude-rate shares),
+`WHO_GHE2023_IHD_DALYS_THOUSANDS` and `WHO_GHE2023_POPULATION_THOUSANDS` (the published
+figures), and `WHO_REGION_CODES` (GHO codes to the keys used here). Up to 1.9.5 this
+constant held GBD-attributed rate shares that could not be traced to a published table.
 
 **Usage:**
 ```python
 from equimed_dss.geographic import WHO_REGION_IHD_BURDEN
 
-print(WHO_REGION_IHD_BURDEN)
-# {"AFRO": ..., "AMRO": ..., "EURO": ..., "SEARO": ..., "WPRO": ..., "EMRO": ...}
+print({k: round(v, 3) for k, v in WHO_REGION_IHD_BURDEN.items()})
+# {'AFRO': 0.055, 'AMRO': 0.115, 'EMRO': 0.097, 'EURO': 0.179, 'SEARO': 0.248, 'WPRO': 0.307}
 ```
 
 ---

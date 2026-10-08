@@ -38,14 +38,25 @@ class HierarchicalEquityRatio:
             MetricResult mapping each group name to its HER (``{"score", ...}``) and
             also carrying the scalar ``her_gap`` (and a 95% CI when
             ``group_observations`` is given). Printing shows the HER gap with its CI.
+
+        Raises:
+            ValueError: if the reference group is missing or its score is 0 (the
+                ratio is then undefined; up to 1.9.5 every group, the reference
+                included, silently received HER = 0).
         """
         if reference_group not in group_scores:
             raise ValueError(f"Reference group '{reference_group}' not found in scores")
 
         reference_score = group_scores[reference_group]
+        if reference_score == 0:
+            raise ValueError(
+                f"The reference group '{reference_group}' has a score of 0, so the "
+                "equity ratio is undefined; choose another reference group or report "
+                "absolute differences instead."
+            )
         ratios = {}
         for group, score in group_scores.items():
-            ratios[group] = 0.0 if reference_score == 0 else score / reference_score
+            ratios[group] = score / reference_score
 
         her_scores = {}
         for group, val in ratios.items():

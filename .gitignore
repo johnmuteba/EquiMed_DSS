@@ -54,3 +54,6 @@ venv.bak/
 
 # Project specific generated files
 *.png
+
+# Local editor/assistant settings
+.claude/

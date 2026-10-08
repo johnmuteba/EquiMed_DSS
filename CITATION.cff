@@ -11,10 +11,12 @@ abstract: >-
 type: software
 authors:
   - given-names: "John Weirstrass"
-    family-names: "Muteba M"
+    family-names: "Muteba Mwamba"
     email: 2moi175@gmail.com
-version: 1.9.5
-date-released: "2026-06-19"
+    orcid: "https://orcid.org/0000-0002-8002-1156"
+    affiliation: "School of Health Policy and Management, York University"
+version: 1.10.0
+date-released: "2026-10-08"
 license: MIT
 doi: 10.5281/zenodo.20766188
 repository-code: "https://github.com/johnmuteba/EquiMed_DSS"

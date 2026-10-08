@@ -38,16 +38,30 @@ class ClinicalHallucinationRate:
             tau: entailment threshold in [0, 1] (default 0.5).
             weights: optional per-claim clinical-severity weights for the weighted
                 variant; must match the length of ``support_scores``.
+            threshold: acceptable hallucination rate used as the null value of a
+                one-sided score test (default 0.05); it does not change CHR.
 
         Returns:
             Dict with chr, chr_weighted, n_claims, n_unsupported, tau, and
             interpretation.
+
+        Raises:
+            ValueError: if a support score is missing (NaN) or outside [0, 1].
+                A NaN score compares False with ``tau`` and would otherwise be
+                counted as a supported claim.
         """
         s = np.asarray(support_scores, dtype=float)
         if s.size == 0:
             raise ValueError("support_scores must be non-empty.")
         if not 0.0 <= tau <= 1.0:
             raise ValueError("tau must be in [0, 1].")
+        if np.isnan(s).any():
+            raise ValueError(
+                f"support_scores contains {int(np.isnan(s).sum())} missing value(s); "
+                "drop or score those claims before computing CHR."
+            )
+        if (s < 0).any() or (s > 1).any():
+            raise ValueError("support_scores must lie in [0, 1].")
 
         unsupported = (s < tau).astype(float)
         chr_value = float(unsupported.mean())
@@ -56,6 +70,8 @@ class ClinicalHallucinationRate:
             w = np.asarray(weights, dtype=float)
             if w.shape != s.shape:
                 raise ValueError("weights must match the length of support_scores.")
+            if np.isnan(w).any() or (w < 0).any():
+                raise ValueError("weights must be non-negative numbers.")
             if w.sum() <= 0:
                 raise ValueError("weights must have a positive total.")
             chr_weighted = float((w * unsupported).sum() / w.sum())

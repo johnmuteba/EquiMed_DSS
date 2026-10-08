@@ -281,7 +281,10 @@ print(concentration_result)   # BiasConcentration = ... :: 95% CI [...] (bootstr
 dist_a, dist_b = generator.generate_distribution_data(n_samples=300, difference=0.4)
 jsd = JensenShannonDivergence()
 wd = WassersteinDistance()
-print(jsd.calculate_jsd(dist_a, dist_b))   # JSD = ... :: 95% CI unavailable (aggregate distributions)
+bins = np.linspace(0, 1, 21)                # JSD needs distributions over shared bins
+hist_a, _ = np.histogram(dist_a, bins=bins)
+hist_b, _ = np.histogram(dist_b, bins=bins)
+print(jsd.calculate_jsd(hist_a, hist_b))   # JSD = ... :: 95% CI unavailable (aggregate distributions)
 print(wd.calculate_wd(dist_a, dist_b))     # WD = ... :: 95% CI [...] (bootstrap)
 
 # Explanation quality and perturbation robustness.
@@ -514,9 +517,9 @@ plot_network_graph(
 print(f"Saved plots to {output_dir.resolve()}")
 ```
 
-## Example 11: Manuscript-Style Visualizations
+## Example 11: Multi-Panel Figure Templates
 
-The package also includes larger multi-panel figure functions inspired by the EquiMed-DSS manuscript. These are useful when preparing reports or supplements.
+The package also includes larger multi-panel figure templates, useful when preparing reports or supplements.
 
 Each `plot_figure*` function expects a structured dictionary of inputs; the exact keys are listed in the function's docstring. The fastest way to start is `generate_figure_data()`, which returns ready-to-use sample inputs for every figure. Render them all, then replace the values with your own data using the same keys:
 
@@ -610,7 +613,7 @@ plot_figure7_intersectional_heatmap(
     save_path=output_dir / "figure7_intersectional_heatmap.png",
 )
 
-print(f"Saved manuscript-style figures to {output_dir.resolve()}")
+print(f"Saved multi-panel figures to {output_dir.resolve()}")
 ```
 
 ## Suggested Workflow For A Real Fairness Audit
@@ -688,28 +691,38 @@ print(round(result["entropy_normalized"], 3))  # H_norm in [0, 1]
 
 ### The bundled reference: WHO_REGION_IHD_BURDEN
 
-`WHO_REGION_IHD_BURDEN` holds normalized ischaemic-heart-disease (IHD) burden
-shares per WHO region, derived from age-standardized IHD DALYs per 100,000
-reported by Roth GA et al., 2020 (GBD Compare for IHD), rounded to the nearest
-100:
+`WHO_REGION_IHD_BURDEN` holds each WHO region's share of ischaemic heart disease
+(IHD) disability-adjusted life years (DALYs) in 2023, from the WHO Global Health
+Estimates 2023 (Geneva: World Health Organization; 2026). The published IHD
+DALYs, in thousands, are bundled as `WHO_GHE2023_IHD_DALYS_THOUSANDS`:
 
 ```
-AFRO 2730, AMRO 2070, EMRO 4200, EURO 3550, SEARO 3850, WPRO 1830
-total = 18230
+AFRO 11,696.8   AMRO 24,317.7   EMRO 20,537.3
+EURO 37,937.0   SEARO 52,552.5  WPRO 64,999.0
+total 212,040.2
 ```
 
-Dividing each by the total gives its share; for example AFRO = 2730 / 18230 =
-0.150 and SEARO = 3850 / 18230 = 0.211.
+Dividing each by the total gives its count share; for example SEARO =
+52,552.5 / 212,040.2 = 0.248 and WPRO = 64,999.0 / 212,040.2 = 0.307. A count
+share asks whether the evidence is where the patients are.
 
-Where the "about 36%" comes from: AFRO and SEARO together account for
+`WHO_REGION_IHD_BURDEN_RATE` gives the population-size-independent alternative:
+each region's crude IHD DALY rate (DALYs divided by the bundled 2023 population,
+`WHO_GHE2023_POPULATION_THOUSANDS`) as a share of the summed regional rates.
+A young age structure lowers a region's crude rate, so the two targets can rank
+regions differently; report the one that matches your question, or both.
 
-$$\frac{2730 + 3850}{18230} = \frac{6580}{18230} = 0.361,$$
-
-that is about 36% of global IHD burden. That is the figure cited in the
-manuscript's geographic-gap finding.
+Keys are the WHO regional-office acronyms. The WHO Global Health Observatory
+codes the same regions AFR, AMR, EMR, EUR, SEAR and WPR; convert with
+`WHO_REGION_CODES` (BEMI raises an error when the evidence and burden mappings
+use different codes, rather than scoring the mismatch as missing burden).
 These are published aggregate statistics (not patient-level data), so they are
 safe to bundle. Pass your own `burden_shares` to use a different reference or
 disease.
+
+Versions up to 1.9.5 bundled age-standardised IHD DALY rates attributed to the
+GBD 2019 study whose regional values could not be traced to a published table;
+1.10.0 replaced them with the WHO figures above.
 
 ## Metric Formulas And Clinical Meaning
 
@@ -875,12 +888,15 @@ print(res["outlier_subgroup"])   # Black_F
 Clinical interpretation: the share of decisions traceable to a specific source,
 with a Wilson 95% interval (the proper small-sample interval for a proportion).
 
-$$\mathrm{ATS} = \frac{n_{\text{traceable}}}{n_{\text{total}}}, \qquad \tilde{p} = \frac{x + z^2/2}{n + z^2}$$
+$$\mathrm{ATS} = \frac{n_{\text{traceable}}}{n_{\text{total}}}$$
+
+The interval is the Wilson score interval, centred at $(x + z^2/2)/(n + z^2)$
+(see `Metric_Math_Derivations.md`, Metric 9, for the half-width).
 
 ```python
 from equimed_dss.domain3 import AuditTraceabilityScore
 print(AuditTraceabilityScore().calculate_ats(n_traceable=92, n_total=100))
-# ATS = 0.920 :: 95% CI [0.851; 0.958] (Wilson score)
+# ATS = 0.920 :: 95% CI [0.850; 0.959] (Wilson score)
 ```
 
 **Governance Compliance Index (GCI)**, `GovernanceComplianceIndex`.
@@ -1290,7 +1306,8 @@ underlying sample to resample and the divergence prints "95% CI unavailable"
 
 ```python
 from equimed_dss.appendix import JensenShannonDivergence
-p = np.array([0.9, 0.85, 0.78, 0.92]); q = np.array([0.75, 0.70, 0.68, 0.72])
+# Shares of four recommendation categories in two groups (each sums to 1)
+p = np.array([0.40, 0.30, 0.20, 0.10]); q = np.array([0.25, 0.25, 0.25, 0.25])
 print(JensenShannonDivergence().calculate_jsd(p, q))
 # JSD = ... :: 95% CI unavailable
 ```

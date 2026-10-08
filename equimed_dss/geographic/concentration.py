@@ -18,6 +18,8 @@ from typing import Any, Dict, Optional, Sequence
 import numpy as np
 import pandas as pd
 
+from equimed_dss._validation import check_records
+
 
 class GeographicConcentration:
     """Geographic Concentration of Coverage (GCC)."""
@@ -34,7 +36,12 @@ class GeographicConcentration:
 
         Args:
             region_counts: region -> number of studies (or cases) per region
-                (non-negative; raw counts or shares).
+                (non-negative; raw counts or shares). Include regions with zero
+                evidence: G* and H_norm depend on the number of regions R.
+            region_records: optional per-evidence region labels (one element per
+                study or case). When supplied, G* gains a 95% percentile-bootstrap
+                CI by resampling these records over the fixed region set. Every
+                label must be a key of ``region_counts``.
 
         Returns:
             Dict with keys:
@@ -100,6 +107,10 @@ class GeographicConcentration:
         # the sample-corrected Gini over the fixed region ordering.
         if region_records is not None:
             recs = [str(r) for r in region_records]
+            check_records(
+                recs, [str(r) for r in regions],
+                {str(r): float(s) for r, s in zip(regions, p)}, "region_records",
+            )
             if len(recs) >= 2:
                 def _gstar(sample):
                     vec = np.array(
